@@ -1,7 +1,6 @@
 {
   // The engine's own typecheck (npx tsc -p site/engine): it runs under Node on
-  // GitHub, borrowing the app's code read-only, so it's checked apart from the
-  // website's Next build (site/tsconfig.json leaves it out, as it does pipeline/).
+  // GitHub, so it's checked apart from the website's Next build (site/tsconfig.json leaves it out, as it does pipeline/).
   "compilerOptions": {
     "target": "ES2022",
     "module": "esnext",
@@ -12,7 +11,7 @@
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": false,
     "types": ["node"],
-    "typeRoots": ["../../node_modules/@types"]
+    "typeRoots": ["../node_modules/@types"]
   },
   "include": ["*.ts", "../lib/telegram.ts"]
 }

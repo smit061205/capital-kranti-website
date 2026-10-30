@@ -2,7 +2,7 @@
 // release's own page, read with the app's own parsers (imported read-only,
 // CLAUDE.md). PIB answers GitHub's servers (tested 25 Oct); its date form is
 // refused to programs, so only today's list is read, every run.
-import { parseList, parseRelease } from "../../backend/src/ingest/pib.ts";
+import { parseList, parseRelease } from "./text.ts";
 import { ask } from "./fetch.ts";
 import type { FeedItem } from "./feed.ts";
 

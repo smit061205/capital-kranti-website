@@ -3,8 +3,7 @@
 // then English and Hindi for national and world news. Pure of the database:
 // run.ts brings the cluster's items in and stores what comes out, and
 // try.ts runs the same steps on live items without storing anything.
-import { numbersNotIn } from "../../backend/src/editorial/rewrite.ts";
-import { repeats } from "../../backend/src/editorial/quality.ts";
+import { numbersNotIn, repeats } from "./text.ts";
 import { askGemini, askJson } from "./ai.ts";
 import { ask } from "./fetch.ts";
 import { pageText } from "./feed.ts";

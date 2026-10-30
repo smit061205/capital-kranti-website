@@ -32,7 +32,6 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: |
-            package-lock.json
             site/package-lock.json
       - name: Write, for almost six hours
         env:
@@ -46,9 +45,9 @@ jobs:
           installed=""
           while [ $(( end - $(date +%s) )) -gt 600 ]; do
             git fetch -q --depth 1 origin main && git reset -q --hard origin/main
-            locks=$(cat package-lock.json site/package-lock.json | sha256sum)
+            locks=$(sha256sum site/package-lock.json)
             if [ "$locks" != "$installed" ]; then
-              npm ci --no-audit --no-fund --ignore-scripts && npm ci --prefix site --no-audit --no-fund && installed=$locks
+              npm ci --prefix site --no-audit --no-fund && installed=$locks
             fi
             left=$(( end - $(date +%s) )); budget=$(( left < 2700 ? left : 2700 ))
             echo "::group::Desk, $(date -u +%H:%M) UTC"

@@ -4,7 +4,7 @@
 // that refuses us is not asked again by other means: the caller switches the
 // source off and the dashboard says so.
 
-// names the paper honestly, exactly as the app's PIB reader does (backend/src/ingest/pib.ts):
+// names the paper honestly, as PIB asks of anyone reading it:
 // PIB's firewall turns away an agent with an address in it (25 Oct: "(+https://...)" got 403)
 export const UA = "CapitalKranti-news-ingest/1.0";
 const PAUSE_MS = 1500;

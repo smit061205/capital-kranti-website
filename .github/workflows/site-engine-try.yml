@@ -32,11 +32,9 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: |
-            package-lock.json
             site/package-lock.json
       - name: Install
         run: |
-          npm ci --no-audit --no-fund --ignore-scripts
           npm ci --prefix site --no-audit --no-fund
       - name: Typecheck
         run: npx --prefix site tsc -p site/engine

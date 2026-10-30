@@ -14,7 +14,6 @@ app never carries it.
 | Stories, issues, runs | Neon Postgres `capital-kranti-db` | |
 | Photos, e-paper pages and PDFs | Vercel Blob `capital-kranti-photos` (a **private** store: the site serves its files itself at `/media/…`, cached for a year by the CDN) | |
 | The hourly run | GitHub Actions `site-run.yml` | repository secrets `DATABASE_URL`, `OPENROUTER_API_KEY` |
-| Loading 20-22 Oct | GitHub Actions `site-seed.yml` (once) | `DATABASE_URL`, `BLOB_READ_WRITE_TOKEN` |
 | **The news engine** (every 15 min) | GitHub Actions `site-engine.yml` (`engine/run.ts`) | `DATABASE_URL`, `OPENROUTER_API_KEY`, `BLOB_READ_WRITE_TOKEN`; for notes to the editor `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_IDS`. Each run queues the next itself; between rounds `engine/listen.ts` answers the bot within seconds: `/start` replies with that chat's number, the one to put in `TELEGRAM_CHAT_IDS` |
 | The engine's checks and dry run | GitHub Actions `site-engine-try.yml` (on every engine change, any branch) | `OPENROUTER_API_KEY` (stores nothing) |
 | **The editor's page** (`/editor`: search, change, take off and put back any story or article; the engine's stop switch, the day's use; linked from both menus) | the site (`lib/editor.ts`, `app/(gu)/editor`), Google sign-in | Vercel: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` (a Google Cloud OAuth client, redirect `https://capital-kranti.vercel.app/api/editor/callback`), `CK_EDITORS` (the allowed Google addresses, comma-separated), `CK_SESSION_SECRET` (32+ random characters) |
@@ -25,13 +24,9 @@ app never carries it.
 
 ## How a day gets onto the site
 
-**The app is not changed for the website** (the user's rule, 25 Oct): work stays in
-`site/` and the website's own workflows. The engine's code is only *read* (the
-hourly run borrows its number check, `backend/src/editorial/rewrite.ts`).
+This repository holds only the website. The newsroom app lives in `smit061205/Newsletter`; nothing here reads from it (`engine/text.ts` keeps the few text helpers both use).
 
-1. Stories come in through the website's own runs: for now the days published before
-   it existed (`pipeline/seed.ts`, from `pipeline/seed/<date>.json`); next, the site
-   collecting PIB itself on GitHub (PIB answers GitHub's servers: `/api/status`).
+1. Stories come in through the website's own runs: the site collecting PIB itself on GitHub (PIB answers GitHub's servers: `/api/status`).
    `/api/publish` and `/api/publish/file` take a day with the publish key
    (`CK_PUBLISH_KEY`), but nothing sends to them yet.
 2. The site saves them (`lib/write.ts`) and renews its pages (`/api/refresh`).
@@ -99,18 +94,6 @@ node --experimental-strip-types site/engine/selftest.ts
 node site/tools/icons.mjs                 # redraws the icon in every size (public/icon*.png, favicon*)
 OPENROUTER_API_KEY=... node --experimental-strip-types site/engine/try.ts 3   # a dry run on real news
 ```
-
-**Claude Code on the website: open it in this `site/` folder**, not the repository's
-top. Then `site/.claude/settings.json` applies: its hook (`.claude/hooks/guard.mjs`)
-refuses any edit or writing command outside `site/`, `docs/website/`, the
-`site*.yml` workflows and the shared notes (`CLAUDE.md`, `HANDOFF.md`), and git
-commands that sweep the whole repository (`git add -A`, `git commit -a`, `git stash`,
-`git reset --hard`; use `git add .` here). A session opened at the top folder (the
-app's) never loads it. Best in its own copy of the repository, so it never shares
-a working folder with an app session: `git worktree add ../NewsPaper_Site main`
-once, then open `NewsPaper_Site/site`. On GitHub, `site-guard.yml` fails any commit
-that changes the website and the app together, and any website branch (`site/…`,
-`site-…`) that changes the app.
 
 `lib/` is the data and words, `components/` the design system's parts, `views/` the
 pages, and `app/` the routes: Gujarati at the root (`app/(gu)`), English under `/en`

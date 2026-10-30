@@ -1,7 +1,7 @@
 // RSS 2.0, RSS 1.0 (RDF) and Atom, read without a library: the items' titles,
 // links, summaries, dates and pictures. Feeds in the wild are untidy (CDATA,
 // entities, missing dates), so every field is optional except title and link.
-import { decodeEntities } from "../../backend/src/ingest/pib.ts";
+import { decodeEntities } from "./text.ts";
 
 export interface FeedItem { title: string; url: string; summary: string; publishedAt: string | null; image: string | null }
 

@@ -15,7 +15,7 @@
 //
 // Run: node --experimental-strip-types site/engine/desk.ts [seconds]   (the engine's job runs it after each round)
 import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
-import { numbersNotIn } from "../../backend/src/editorial/rewrite.ts";
+import { numbersNotIn } from "./text.ts";
 import { WEBSITE } from "../lib/config.ts";
 import type { Figure, L3 } from "../lib/flagship.ts";
 import { ensureSchema } from "../lib/schema.ts";

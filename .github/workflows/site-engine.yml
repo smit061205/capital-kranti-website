@@ -43,7 +43,6 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: |
-            package-lock.json
             site/package-lock.json
       - name: Every 15 minutes, for almost six hours
         env:
@@ -61,9 +60,9 @@ jobs:
           while :; do
             # main's latest code; installs again only when a lockfile changed
             git fetch -q --depth 1 origin main && git reset -q --hard origin/main
-            locks=$(cat package-lock.json site/package-lock.json | sha256sum)
+            locks=$(sha256sum site/package-lock.json)
             if [ "$locks" != "$installed" ]; then
-              npm ci --no-audit --no-fund --ignore-scripts && npm ci --prefix site --no-audit --no-fund && installed=$locks
+              npm ci --prefix site --no-audit --no-fund && installed=$locks
             fi
             rounds=$((rounds + 1))
             echo "::group::Round $rounds, $(date -u +%H:%M) UTC"

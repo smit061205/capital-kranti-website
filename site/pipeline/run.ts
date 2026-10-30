@@ -8,7 +8,7 @@
 //      site/lib/config.ts; every number in the English is checked against the Gujarati.
 // Run: node --experimental-strip-types site/pipeline/run.ts   (DATABASE_URL, OPENROUTER_API_KEY)
 import { neon } from "@neondatabase/serverless";
-import { numbersNotIn } from "../../backend/src/editorial/rewrite.ts";
+import { numbersNotIn } from "../engine/text.ts";
 import { askJson } from "../engine/ai.ts";
 import { WEBSITE } from "../lib/config.ts";
 import { ensureSchema } from "../lib/schema.ts";
@@ -19,7 +19,7 @@ const sql = neon(required("DATABASE_URL"));
 const KEY = process.env.OPENROUTER_API_KEY ?? "";
 const TIERS: Tier[] = ["gujarat", "india", "world"];
 const GENRES: Genre[] = ["farm", "economy", "tech", "health", "sport", "education", "entertainment"];
-const UA = "CapitalKranti-news-ingest/1.0"; // as the engine names itself (backend/src/ingest/pib.ts)
+const UA = "CapitalKranti-news-ingest/1.0"; // as the engine names itself (engine/fetch.ts)
 const log = (s: string) => console.log(s);
 
 function required(name: string): string {
