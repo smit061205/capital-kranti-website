@@ -17,17 +17,17 @@ export const POLICY: Record<string, Record<Lang, Page>> = {
   about: {
     gu: { title: "અમારા વિશે", paras: [
       `કેપિટલ ક્રાંતિ ગાંધીનગરથી પ્રકાશિત થતું ગુજરાતી દૈનિક છે (RNI ${PAPER.rni}). ગુજરાતના પાટનગરથી, ${num(PAPER.founded, "gu")}થી, અમે સરકાર, ખેતી, અર્થતંત્ર, શિક્ષણ અને સમાજના સમાચાર વાચકો સુધી પહોંચાડીએ છીએ.`,
-      "આ વેબસાઇટ પર દિવસભર તાજા સમાચાર, દરરોજ સાંજે છપાયેલા પેપરના સમાચાર, આખું ઈ-પેપર અને જૂના અંકો મળે છે. સમાચાર ગુજરાતીમાં, અને દેશ-વિદેશના સમાચાર હિંદી અને અંગ્રેજીમાં પણ વાંચી શકાય છે.",
+      "આ વેબસાઇટ પર દિવસભર તાજા સમાચાર, દરરોજ સાંજે છપાયેલા પેપરના સમાચાર અને જૂના અંકો મળે છે. સમાચાર ગુજરાતીમાં, અને દેશ-વિદેશના સમાચાર હિંદી અને અંગ્રેજીમાં પણ વાંચી શકાય છે.",
       "અમારું સૂત્ર છે: સમાજનો વિવેકપૂર્ણ દ્રષ્ટિકોણ. અમે હકીકતો આપીએ છીએ, સ્રોત જણાવીએ છીએ અને ભૂલ થાય તો ખુલ્લેઆમ સુધારીએ છીએ.",
     ] },
     en: { title: "About us", paras: [
       `Capital Kranti is a Gujarati daily newspaper published from Gandhinagar (RNI ${PAPER.rni}). From Gujarat’s capital, since ${PAPER.founded}, it has brought readers the news of government, farming, the economy, education and society.`,
-      "This website carries the latest news through the day, the stories of each evening’s printed paper, the full e-paper and past issues. Stories are in Gujarati; national and world stories are also in Hindi and English.",
+      "This website carries the latest news through the day, the stories of each evening’s printed paper and past issues. Stories are in Gujarati; national and world stories are also in Hindi and English.",
       "Our motto is “a thoughtful view of society”. We give the facts, say where they come from, and correct mistakes openly.",
     ] },
     hi: { title: "हमारे बारे में", paras: [
       `कैपिटल क्रांति गांधीनगर से प्रकाशित होने वाला गुजराती दैनिक है (RNI ${PAPER.rni})। गुजरात की राजधानी से, ${PAPER.founded} से, हम सरकार, खेती, अर्थव्यवस्था, शिक्षा और समाज के समाचार पाठकों तक पहुँचाते हैं।`,
-      "इस वेबसाइट पर दिन भर ताज़ा समाचार, हर शाम छपे अख़बार के समाचार, पूरा ई-पेपर और पुराने अंक मिलते हैं। समाचार गुजराती में हैं; देश और विदेश के समाचार हिंदी और अंग्रेज़ी में भी पढ़े जा सकते हैं।",
+      "इस वेबसाइट पर दिन भर ताज़ा समाचार, हर शाम छपे अख़बार के समाचार और पुराने अंक मिलते हैं। समाचार गुजराती में हैं; देश और विदेश के समाचार हिंदी और अंग्रेज़ी में भी पढ़े जा सकते हैं।",
       "हमारा सूत्र है: समाज का विवेकपूर्ण दृष्टिकोण। हम तथ्य देते हैं, स्रोत बताते हैं और ग़लती होने पर खुलकर सुधारते हैं।",
     ] },
   },
@@ -95,18 +95,18 @@ export const POLICY: Record<string, Record<Lang, Page>> = {
   },
   terms: {
     gu: { title: "ઉપયોગના નિયમો", paras: [
-      "આ વેબસાઇટના સમાચાર, ફોટા અને ઈ-પેપર કેપિટલ ક્રાંતિના છે (સરકારી સ્રોતના ફોટા તેમના સ્રોતના). અંગત વાંચન માટે ઉપયોગ કરો; સમાચારની લિંક મોકલવાનું સ્વાગત છે.",
-      "આખા સમાચાર કે ઈ-પેપર બીજે ફરી પ્રકાશિત કરવા હોય તો પહેલાં અમારી લેખિત મંજૂરી લો.",
+      "આ વેબસાઇટના સમાચાર અને ફોટા કેપિટલ ક્રાંતિના છે (સરકારી સ્રોતના ફોટા તેમના સ્રોતના). અંગત વાંચન માટે ઉપયોગ કરો; સમાચારની લિંક મોકલવાનું સ્વાગત છે.",
+      "આખા સમાચાર બીજે ફરી પ્રકાશિત કરવા હોય તો પહેલાં અમારી લેખિત મંજૂરી લો.",
       "અમે સમાચાર સાચા રાખવા પૂરો પ્રયત્ન કરીએ છીએ; ભૂલ દેખાય તો જણાવો, અમે સુધારીશું.",
     ] },
     en: { title: "Terms of use", paras: [
-      "The stories, photos and e-paper on this website belong to Capital Kranti (photos from government sources to their sources). Use them for personal reading; sharing links to stories is welcome.",
-      "To republish whole stories or the e-paper elsewhere, ask us for written permission first.",
+      "The stories and photos on this website belong to Capital Kranti (photos from government sources to their sources). Use them for personal reading; sharing links to stories is welcome.",
+      "To republish whole stories elsewhere, ask us for written permission first.",
       "We do our best to keep every story accurate; if you spot a mistake, tell us and we will correct it.",
     ] },
     hi: { title: "उपयोग के नियम", paras: [
-      "इस वेबसाइट के समाचार, फ़ोटो और ई-पेपर कैपिटल क्रांति के हैं (सरकारी स्रोतों के फ़ोटो उनके स्रोतों के)। निजी पढ़ने के लिए उपयोग करें; समाचारों की लिंक भेजने का स्वागत है।",
-      "पूरे समाचार या ई-पेपर कहीं और फिर से प्रकाशित करने हों तो पहले हमारी लिखित अनुमति लें।",
+      "इस वेबसाइट के समाचार और फ़ोटो कैपिटल क्रांति के हैं (सरकारी स्रोतों के फ़ोटो उनके स्रोतों के)। निजी पढ़ने के लिए उपयोग करें; समाचारों की लिंक भेजने का स्वागत है।",
+      "पूरे समाचार कहीं और फिर से प्रकाशित करने हों तो पहले हमारी लिखित अनुमति लें।",
       "हम हर समाचार सही रखने की पूरी कोशिश करते हैं; ग़लती दिखे तो बताएँ, हम सुधारेंगे।",
     ] },
   },

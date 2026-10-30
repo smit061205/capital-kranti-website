@@ -129,14 +129,14 @@ verification loop), `docs/website/UIUX.md` (the UI choices and where each lives)
 - **Dry runs** (store nothing): `site-engine-try.yml`, with input `stories` and an optional
   `probe`.
 - **The site:**
-  - Pages: home, story, sections, latest, search, e-paper, past issues, saved, policy pages.
+  - Pages: home, story, sections, latest, search, past issues, saved, policy pages.
     Gujarati at `/`, English at `/en`, Hindi at `/hi`.
   - Design: Washington Post-style tokens and motion (loading bar, reading bar, skeletons,
     page transitions). The lead is sized by importance (the Guardian's boost levels: 7.5,
     9.5, 11). Sections are a wide row or small boxes three to a row, and a story shows once
     per page.
   - Story pages: a byline block, the photo full screen, read-also and related stories.
-  - Also: an e-paper reader, instant search, and a BBC-style focus ring.
+  - Also: instant search, and a BBC-style focus ring.
   - **New on 26 Oct:** most read (`reads` table; `/api/read`, one count per browser), an
     installable app with offline reading (`app/manifest.ts`, `public/sw.js`, production
     only), and "more on this" (stories sharing three engine key words).

@@ -15,7 +15,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   });
   const [stories, days, flagship] = await Promise.all([sitemapEntries(), issueDates(), features({ limit: 500 })]);
   return [
-    both("/"), both("/latest"), both("/epaper"), both("/archive"),
+    both("/"), both("/latest"), both("/archive"),
     ...SECTIONS.map((k) => both(`/section/${k}`)),
     ...Object.keys(POLICY).map((p) => both(`/${p}`)),
     ...days.map((d) => both(`/archive/${d.date}`)),

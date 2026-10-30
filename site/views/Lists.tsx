@@ -1,12 +1,11 @@
-// Section, latest, search, e-paper and archive pages (DESIGN.md §3.6-3.7).
-import EpaperViewer from "../components/EpaperViewer.tsx";
+// Section, latest, search and archive pages (DESIGN.md §3.6-3.7).
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Genre, Lang, Tier } from "../lib/types.ts";
-import { issueDates, issueOn, latestIssue, latestStories, search, storiesIn, storiesInBoth, storiesOn } from "../lib/db.ts";
+import { issueDates, issueOn, latestStories, search, storiesIn, storiesInBoth, storiesOn } from "../lib/db.ts";
 import { href, t } from "../lib/i18n.ts";
 import { GENRES, isSection, sectionName, TIERS } from "../lib/sections.ts";
-import { dateText, num, todayInIndia } from "../lib/format.ts";
+import { dateText, num } from "../lib/format.ts";
 import { Lead, River, Std } from "../components/cards.tsx";
 import Frame from "../components/Frame.tsx";
 import Saved from "../components/Saved.tsx";
@@ -73,29 +72,6 @@ export async function Search({ q, lang }: { q: string; lang: Lang }) {
   );
 }
 
-export async function Epaper({ date, lang }: { date?: string; lang: Lang }) {
-  const issue = date ? await issueOn(date) : await latestIssue();
-  if (date && !issue) notFound();
-  return (
-    <Frame lang={lang} path={date ? `/epaper/${date}` : "/epaper"} active="epaper">
-      {/* "today's paper" only when it is today's; an older one is "the latest", or plainly the e-paper of its date */}
-      <div className="sechead"><h1>{date ? t(lang, "epaper") : !issue || issue.date === todayInIndia() ? t(lang, "epTitle") : t(lang, "epLast")}</h1></div>
-      {!issue ? <p className="empty">{t(lang, "noEpaper")}</p> : (
-        <>
-          <p className="note" style={{ margin: 0 }}>{dateText(issue.date, lang, true)} · {t(lang, "issue")} {num(issue.number, lang)}</p>
-          <div className="tools" style={{ marginBottom: 16 }}>
-            {issue.pdf && <a className="tool" href={issue.pdf} target="_blank" rel="noopener">{t(lang, "pdf")}</a>}
-            <Link prefetch={false} className="tool" href={href(lang, "/archive")}>{t(lang, "archive")}</Link>
-          </div>
-          <EpaperViewer pages={issue.pages.map((p) => ({ ...p, label: `${t(lang, "page")} ${num(p.number, lang)}` }))}
-            lang={lang} words={{ open: t(lang, "epOpen"), close: t(lang, "close2"), prev: t(lang, "prev"), next: t(lang, "next"), zoom: t(lang, "zoomIn") }} />
-          <p className="note">{t(lang, "epNote")}</p>
-        </>
-      )}
-    </Frame>
-  );
-}
-
 export async function Archive({ lang }: { lang: Lang }) {
   const days = await issueDates();
   return (
@@ -111,7 +87,7 @@ export async function Archive({ lang }: { lang: Lang }) {
             </Link>
           ))}
         </div>
-      ) : <p className="empty">{t(lang, "noEpaper")}</p>}
+      ) : <p className="empty">{t(lang, "noIssues")}</p>}
     </Frame>
   );
 }
@@ -123,7 +99,7 @@ export async function ArchiveDay({ date, lang }: { date: string; lang: Lang }) {
   return (
     <Frame lang={lang} path={`/archive/${date}`} active="archive">
       <div className="sechead"><h1>{dateText(date, lang, true)}</h1></div>
-      {issue && <p className="note" style={{ margin: 0 }}>{t(lang, "issue")} {num(issue.number, lang)} · <Link prefetch={false} href={href(lang, `/epaper/${date}`)}>{t(lang, "epaper")}</Link></p>}
+      {issue && <p className="note" style={{ margin: 0 }}>{t(lang, "issue")} {num(issue.number, lang)}</p>}
       <div className="ctr" style={{ marginTop: 16 }}><River stories={list} lang={lang} sec /></div>
     </Frame>
   );

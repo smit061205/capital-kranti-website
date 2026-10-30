@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { Lang } from "../lib/types.ts";
 import LangLink from "./LangLink.tsx";
-import { Archive, Chev, Clock, CloseIcon, HomeIcon, LockIcon, MenuIcon, Paper, SearchIcon } from "./icons.tsx";
+import { Archive, Chev, Clock, CloseIcon, HomeIcon, LockIcon, MenuIcon, SearchIcon } from "./icons.tsx";
 
 export interface ChromeProps {
   lang: Lang;
@@ -14,12 +14,12 @@ export interface ChromeProps {
   /** this page in each language, for the language switch */
   paths: { gu: string; en: string; hi: string };
   sections: { key: string; name: string; href: string }[];
-  links: { home: string; latest: string; epaper: string; archive: string; search: string; saved: string; about: string; how: string; policy: string; corrections: string; contact: string };
-  words: Record<"menu" | "sections" | "search" | "close" | "epaper" | "home" | "latest" | "latestTitle" | "archive" | "searchPlaceholder" | "settings" |
+  links: { home: string; latest: string; archive: string; search: string; saved: string; about: string; how: string; policy: string; corrections: string; contact: string };
+  words: Record<"menu" | "sections" | "search" | "close" | "home" | "latest" | "latestTitle" | "archive" | "searchPlaceholder" | "settings" |
                  "size" | "language" | "services" | "about" | "savedTitle" | "fHow" | "fPolicy" | "fFix" | "fContact" | "editorPage", string>;
   /** the phone's bottom bar (articles have their own reading bar instead) */
   bottomBar: boolean;
-  active?: "home" | "latest" | "epaper" | "archive";
+  active?: "home" | "latest" | "archive";
 }
 
 const read = (k: string, d: string) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
@@ -92,7 +92,6 @@ export default function Chrome(p: ChromeProps) {
           <Link prefetch={false} className="wm" href={p.links.home}><b>{p.name}</b><i>{p.tagline}</i></Link>
           <div className="r">
             <button type="button" className="ib" aria-label={w.search} onClick={() => openMenu(true)}><SearchIcon /></button>
-            <Link prefetch={false} className="epill" href={p.links.epaper}>{w.epaper}</Link>
           </div>
         </div>
       </header>
@@ -119,7 +118,6 @@ export default function Chrome(p: ChromeProps) {
         ))}
         <h3>{w.services}</h3>
         <div className="links">
-          <Link prefetch={false} href={p.links.epaper} onClick={() => setOpen(false)}>{w.epaper}</Link>
           <Link prefetch={false} href={p.links.archive} onClick={() => setOpen(false)}>{w.archive}</Link>
           <Link prefetch={false} href={p.links.saved} onClick={() => setOpen(false)}>{w.savedTitle}</Link>
         </div>
@@ -146,7 +144,6 @@ export default function Chrome(p: ChromeProps) {
         <nav className={`bnav${away ? " away" : ""}`} aria-label={w.menu}>
           <Link prefetch={false} href={p.links.home} className={p.active === "home" ? "on" : ""}><HomeIcon />{w.home}</Link>
           <Link prefetch={false} href={p.links.latest} className={p.active === "latest" ? "on" : ""}><Clock />{w.latest}</Link>
-          <Link prefetch={false} href={p.links.epaper} className={p.active === "epaper" ? "on" : ""}><Paper />{w.epaper}</Link>
           <Link prefetch={false} href={p.links.archive} className={p.active === "archive" ? "on" : ""}><Archive />{w.archive}</Link>
           <button type="button" onClick={() => openMenu(false)}><MenuIcon />{w.sections}</button>
         </nav>

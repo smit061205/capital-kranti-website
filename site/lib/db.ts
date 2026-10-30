@@ -169,13 +169,6 @@ export async function search(q: string, limit = 30): Promise<Story[]> {
   return rows.map(storyOf);
 }
 
-export async function latestIssue(): Promise<Issue | null> {
-  if (sampleOn()) return sample().issues[0];
-  const sql = db();
-  if (!sql) return null;
-  const rows = await sql.query(`select * from issues order by date desc limit 1`);
-  return rows[0] ? issueOf(rows[0]) : null;
-}
 export async function issueOn(date: string): Promise<Issue | null> {
   if (sampleOn()) return sample().issues.find((i) => i.date === date) ?? null;
   const sql = db();

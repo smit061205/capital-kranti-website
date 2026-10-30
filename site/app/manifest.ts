@@ -15,7 +15,6 @@ export default function manifest(): MetadataRoute.Manifest {
     ],
     shortcuts: [
       { name: "તાજા સમાચાર", url: "/latest" },
-      { name: "ઈ-પેપર", url: "/epaper" },
     ],
   };
 }

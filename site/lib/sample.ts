@@ -30,8 +30,7 @@ export function sample() {
       page: Math.floor(i / 8) + 1, rank: i % 8, en: i % 3 === 0 ? null : null, corrections: [], hi: null, origin: "paper", sources: [], importance: null, gallery: [],
     };
   });
-  const issues: Issue[] = [{ date: "2026-10-22", number: 271, pdf: null, publishedAt: "2026-10-22T14:40:00.000Z", storyIds: stories.map((s) => s.id),
-    pages: [1, 2, 3, 4].map((n) => ({ number: n, url: `/sample-epaper/${n}.jpg`, width: 2303, height: 3100 })) }];
+  const issues: Issue[] = [{ date: "2026-10-22", number: 271, pdf: null, publishedAt: "2026-10-22T14:40:00.000Z", storyIds: stories.map((s) => s.id), pages: [] }];
   cache = { stories, issues };
   return cache;
 }

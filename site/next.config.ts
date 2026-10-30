@@ -11,6 +11,13 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }, { key: "Content-Type", value: "application/javascript; charset=utf-8" }] }];
   },
+  // the e-paper left the website (31 Oct): its old addresses go to the past issues
+  async redirects() {
+    return ["", "/en", "/hi"].flatMap((l) => [
+      { source: `${l}/epaper`, destination: `${l}/archive`, permanent: false },
+      { source: `${l}/epaper/:date`, destination: `${l}/archive/:date`, permanent: false },
+    ]);
+  },
   experimental: {
     globalNotFound: true,
   },

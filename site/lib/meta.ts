@@ -8,9 +8,9 @@ export function pageMeta(o: { lang: Lang; path: string; title?: string; descript
   const name = PAPER[o.lang].name;
   const title = o.title ? `${o.title} | ${name}` : `${name}: ${PAPER[o.lang].tagline}`;
   const description = o.description || {
-    gu: "ગાંધીનગરનું ગુજરાતી દૈનિક: ગુજરાત, દેશ અને વિશ્વના સમાચાર, ઈ-પેપર અને જૂના અંકો.",
-    en: "The Gujarati daily from Gandhinagar: news of Gujarat, India and the world, the e-paper and past issues.",
-    hi: "गांधीनगर का गुजराती दैनिक: गुजरात, देश और विश्व के समाचार, ई-पेपर और पुराने अंक.",
+    gu: "ગાંધીનગરનું ગુજરાતી દૈનિક: ગુજરાત, દેશ અને વિશ્વના સમાચાર અને જૂના અંકો.",
+    en: "The Gujarati daily from Gandhinagar: news of Gujarat, India and the world, and past issues.",
+    hi: "गांधीनगर का गुजराती दैनिक: गुजरात, देश और विश्व के समाचार और पुराने अंक.",
   }[o.lang];
   const url = `${SITE_URL}${href(o.lang, o.path)}`;
   const image = o.image ?? `${SITE_URL}/og.png`;
