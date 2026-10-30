@@ -1,5 +1,7 @@
 # The Capital Kranti website (`site/`)
 
+This repository is the website alone (moved out of the app's repository on 31 Oct).
+
 The paper's website: the plan is [docs/website/ROADMAP.md](../docs/website/ROADMAP.md),
 the look [docs/website/DESIGN.md](../docs/website/DESIGN.md). Next.js 16 (read
 `node_modules/next/dist/docs` before changing Next code: it differs from what you

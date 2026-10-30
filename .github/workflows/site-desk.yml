@@ -3,6 +3,7 @@
 # Like the news engine's keeper, one job works for almost six hours: the desk writes for up to 25
 # minutes at a time, and rests 30 minutes once the day's articles are done or Flash's free requests
 # are used up (waking early when new code reaches main); then it queues the next job. The hourly schedule revives it if a job ever dies.
+# Moved here from the app's repository on 31 Oct.
 name: site-desk
 on:
   schedule: [{ cron: "37 * * * *" }]

@@ -9,6 +9,7 @@
 # schedule only queues the next keeper, which starts the moment this one ends
 # (one at a time: the concurrency group), or revives the engine if a run died.
 # Each round takes main's latest engine code, so a fix is live within 15 minutes.
+# Moved here from the app's repository on 31 Oct.
 # 28 Oct: the hourly schedule didn't fire for six hours either, so each keeper also
 # queues the next one itself before it ends (a run may start another through the
 # API), and a change to this file starts one. Between rounds it listens to the
