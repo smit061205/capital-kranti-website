@@ -12,7 +12,7 @@ app never carries it.
 
 | What | Where | Keys |
 |---|---|---|
-| The site | Vercel project `capital-kranti` (root directory `site/`) | `DATABASE_URL`, `BLOB_READ_WRITE_TOKEN` (from its Storage tab) |
+| The site | Vercel project `capital-kranti` (root directory `site/`, connected to this repository) | `DATABASE_URL`, `BLOB_READ_WRITE_TOKEN` (from its Storage tab) |
 | Stories, issues, runs | Neon Postgres `capital-kranti-db` | |
 | Photos, e-paper pages and PDFs | Vercel Blob `capital-kranti-photos` (a **private** store: the site serves its files itself at `/media/…`, cached for a year by the CDN) | |
 | The hourly run | GitHub Actions `site-run.yml` | repository secrets `DATABASE_URL`, `OPENROUTER_API_KEY` |
