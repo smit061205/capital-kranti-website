@@ -64,7 +64,9 @@ async function debunks(): Promise<Debunk[]> {
 
 /** Step 3: every open event through the checks before writing. */
 async function advance() {
-  const open = await sql.query(`select id, first_seen from clusters where state in ('new', 'waiting') and updated_at > now() - interval '48 hours'`);
+  // confirmed ones too, however old: one that went stale before its turn to be written leaves the list here, whatever the
+  // writing pass had time for (31 Oct: a story failing its checks took the whole pass and nothing old was cleared)
+  const open = await sql.query(`select id, first_seen from clusters where state = 'confirmed' or (state in ('new', 'waiting') and updated_at > now() - interval '48 hours')`);
   const known = await debunks();
   const tally: Record<string, number> = {};
   for (const c of open) {
