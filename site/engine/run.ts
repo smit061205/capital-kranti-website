@@ -84,12 +84,16 @@ async function write(until = deadline) {
   const left = await aiLeft(sql);
   const can = Math.min(PER_RUN, Math.floor((left - RESERVE) / 5));
   if (can <= 0) { log(`  writing: waits (${left} free requests left today)`); return; }
-  const ready = await sql.query(`select * from clusters where state = 'confirmed' order by write_tries, score desc, first_seen asc limit 40`);
+  // today's news first: a day-old event goes after anything newer, however big it scored
+  const ready = await sql.query(`select * from clusters where state = 'confirmed'
+    order by write_tries, first_seen > now() - interval '12 hours' desc, score desc, first_seen asc limit 400`);
   for (const c of ready) {
     if (wrote >= can || Date.now() > until) break;
     const items = await itemsOf(c.id);
     const g = gate(items, new Date(c.first_seen).toISOString(), []);
-    if (g.state !== "confirmed") continue;
+    // gone stale while it waited: settled here, or it keeps its place at the top of the list and nothing newer is reached
+    // (31 Oct: 29 Oct's biggest events held all 40 places and the site went almost quiet)
+    if (g.state !== "confirmed") { await sql.query(`update clusters set state = $2, reason = $3 where id = $1`, [c.id, g.state, g.why]); continue; }
     const imp = importance(Math.max(...items.map((i) => i.triage.score)), c.tier, g.groups.length, g.official);
     const level = levelOf(imp);
     if (!level) { await sql.query(`update clusters set state = 'dropped', reason = 'too small for a story' where id = $1`, [c.id]); continue; }
