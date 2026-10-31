@@ -26,6 +26,18 @@ export async function GET() {
     sql.query(`select count(*)::int as n from features where status = 'held'`).catch(() => [{ n: null }]),
     sql.query(`select value from state where key = 'desk_redone_3'`).catch(() => []),
   ]);
+  // where each day's news went, in counts only: how many reports came in and were sorted, and what became of the events
+  const [itemsByDay, clustersByDay] = await Promise.all([
+    sql.query(`select (seen_at at time zone 'Asia/Kolkata')::date::text as day, count(*)::int as items,
+        count(*) filter (where source like 'pib%')::int as pib,
+        count(*) filter (where triage is null)::int as unsorted,
+        count(*) filter (where triage ? 'skipped')::int as skipped,
+        count(*) filter (where (triage->>'score')::numeric < 3)::int as small,
+        count(*) filter (where (triage->>'score')::numeric >= 5)::int as big
+      from items where seen_at > now() - interval '6 days' group by 1 order by 1 desc`).catch(() => []),
+    sql.query(`select (first_seen at time zone 'Asia/Kolkata')::date::text as day, state, left(split_part(coalesce(reason, ''), ' ', 1) || ' ' || split_part(coalesce(reason, ''), ' ', 2) || ' ' || split_part(coalesce(reason, ''), ' ', 3), 30) as why, count(*)::int as n
+      from clusters where first_seen > now() - interval '6 days' group by 1, 2, 3 order by 1 desc, n desc`).catch(() => []),
+  ]);
   // how long one small question to the database takes from where the site runs (30 Oct: pages not kept ready took seconds)
   const dbT = Date.now();
   await sql.query(`select 1`).catch(() => null);
@@ -46,6 +58,7 @@ export async function GET() {
         counts: Object.fromEntries(Object.entries(r.details ?? {}).filter(([, v]) => typeof v === "number")), error: r.details?.error ?? null, log: r.details?.log ?? [] })),
     },
     stories_by_state: waiting,
+    news_by_day: { items: itemsByDay, events: clustersByDay },
     usage,
     runs: runs.map((r) => ({
       id: r.id, kind: r.kind, ok: r.ok, scheduled_for: r.scheduled_for, started_at: r.started_at, finished_at: r.finished_at,
