@@ -3,6 +3,7 @@
 // plans' ceilings, and the stories waiting for their English.
 import { get, head } from "@vercel/blob";
 import { db } from "@/lib/db.ts";
+import { engineRounds } from "@/lib/editor.ts";
 
 export const dynamic = "force-dynamic";
 
@@ -59,6 +60,7 @@ export async function GET() {
     },
     stories_by_state: waiting,
     news_by_day: { items: itemsByDay, events: clustersByDay },
+    engine_rounds: await engineRounds(sql).catch((e) => String(e)),
     usage,
     runs: runs.map((r) => ({
       id: r.id, kind: r.kind, ok: r.ok, scheduled_for: r.scheduled_for, started_at: r.started_at, finished_at: r.finished_at,

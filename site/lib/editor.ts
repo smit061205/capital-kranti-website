@@ -69,28 +69,45 @@ export async function emailFrom(origin: string, code: string): Promise<string | 
 
 // ---- what the page shows ----
 
-export interface DeskRun { at: string; ok: boolean; ai: number | null; seconds: number | null }
+export interface DeskRun { at: string; ok: boolean; running: boolean; stories: number; ai: number | null; seconds: number | null }
 /** Aavtikal's desk today: new articles published (of the day's target), older ones written again (of all), what it last did. */
 export interface AvDesk { published: number; target: number; rewritten: number; toRewrite: number; at: string; running: boolean; lines: string[] }
 export interface Desk {
   av: AvDesk | null;
-  runs: DeskRun[]; paused: boolean; today: { stories: number; ai: number; aiLimit: number; uploads: number; uploadLimit: number };
+  runs: DeskRun[]; paused: boolean; today: { stories: number; ai: number; aiLimit: number; aiAavtikal: number; uploads: number; uploadLimit: number };
 }
 
 type Row = Record<string, unknown>;
 const iso = (v: unknown) => (v ? new Date(v as string).toISOString() : "");
+
+/** The engine's last rounds, each with the stories it put up: "OK" alone only says a round didn't crash (31 Oct: every row
+ *  read OK while almost no news went up). A round unfinished past its 12-minute limit died without saying so. */
+export async function engineRounds(sql: Sql): Promise<DeskRun[]> {
+  const rows = await sql.query(
+    `select r.started_at, r.finished_at, r.ok, r.details,
+       (select count(*) from stories s where s.origin = 'live' and s.status = 'published'
+          and s.published_at >= r.started_at and s.published_at <= coalesce(r.finished_at, now()))::int as stories
+     from runs r where r.kind = 'engine' order by r.started_at desc limit 8`);
+  return rows.map((r) => {
+    const d = (r.details ?? {}) as { aiRequests?: number; seconds?: number };
+    const recent = Date.now() - Date.parse(String(r.started_at)) < 13 * 60_000;
+    const running = !r.finished_at && recent;
+    return { at: iso(r.started_at), ok: r.finished_at ? r.ok !== false : running, running, stories: Number(r.stories ?? 0), ai: d.aiRequests ?? null, seconds: d.seconds ?? null };
+  });
+}
 export async function desk(sql: Sql | null): Promise<Desk> {
-  const today = { stories: 0, ai: 0, aiLimit: WEBSITE.dailyGoogleRequests + WEBSITE.dailyFreeRequests, uploads: 0, uploadLimit: 2000 };
+  const today = { stories: 0, ai: 0, aiLimit: WEBSITE.dailyGoogleRequests + WEBSITE.dailyFreeRequests, aiAavtikal: 0, uploads: 0, uploadLimit: 2000 };
   if (!sql) {
     return { av: null, runs: [], paused: false, today };
   }
   const date = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
   const [runs, paused, counts, av, avRun] = await Promise.all([
-    sql.query(`select started_at, ok, details from runs where kind = 'engine' order by started_at desc limit 8`),
+    engineRounds(sql),
     sql.query(`select value from state where key = 'engine_paused'`),
     sql.query(`select
        (select count(*) from stories where origin = 'live' and status = 'published' and published_at > now() - interval '24 hours') as stories,
-       (select coalesce(sum(n), 0) from usage where day = (now() at time zone 'Asia/Kolkata')::date and kind like 'ai%') as ai,
+       (select coalesce(sum(n), 0) from usage where day = (now() at time zone 'Asia/Kolkata')::date and kind in ('ai_free', 'ai_google')) as ai,
+       (select coalesce(sum(n), 0) from usage where day = (now() at time zone 'Asia/Kolkata')::date and kind like 'ai_gemini%') as ai_aavtikal,
        (select coalesce(sum(n), 0) from usage where kind = 'upload' and day >= date_trunc('month', now() at time zone 'Asia/Kolkata')) as uploads`),
     sql.query(`select
        (select count(*) from features where author = 'desk' and status = 'published' and (created_at at time zone 'Asia/Kolkata')::date = $1::date) as published,
@@ -107,12 +124,9 @@ export async function desk(sql: Sql | null): Promise<Desk> {
     av: { published: Number(a.published ?? 0), target: WEBSITE.deskDays[date] ?? WEBSITE.deskDaily, rewritten: Number(a.rewritten ?? 0),
           toRewrite: Number(a.left ?? 0), at: iso(ar?.started_at), running: !!ar && !ar.finished_at && Date.now() - Date.parse(String(ar.started_at)) < 40 * 60_000,
           lines: ((ar?.details as { log?: string[] } | null)?.log ?? []).slice(-12) },
-    runs: runs.map((r) => {
-      const d = (r.details ?? {}) as { aiRequests?: number; seconds?: number };
-      return { at: iso(r.started_at), ok: r.ok !== false, ai: d.aiRequests ?? null, seconds: d.seconds ?? null };
-    }),
+    runs,
     paused: paused[0]?.value === "yes",
-    today: { ...today, stories: Number(c.stories ?? 0), ai: Number(c.ai ?? 0), uploads: Number(c.uploads ?? 0) },
+    today: { ...today, stories: Number(c.stories ?? 0), ai: Number(c.ai ?? 0), aiAavtikal: Number(c.ai_aavtikal ?? 0), uploads: Number(c.uploads ?? 0) },
   };
 }
 

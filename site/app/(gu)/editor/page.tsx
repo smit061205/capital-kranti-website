@@ -196,8 +196,8 @@ export default async function Editor({ searchParams }: { searchParams: Promise<Q
           <h3 className={s.sub}>{w.lastRuns}</h3>
           <ul className={s.runs}>
             {d.runs.map((r) => (
-              <li key={r.at}><span>{time(r.at)}</span><span className={r.ok ? s.ok : s.bad}>{r.ok ? w.ok : w.failed}</span>
-                <span className={s.when}>{r.seconds != null && `${nn(r.seconds)} ${w.seconds}`}{r.ai != null && ` · ${nn(r.ai)} ${w.requests}`}</span></li>
+              <li key={r.at}><span>{time(r.at)}</span><span className={r.ok ? s.ok : s.bad}>{r.running ? w.runningNow : r.ok ? w.ok : w.failed}</span>
+                <span className={s.when}>{`${nn(r.stories)} ${w.storiesUp}`}{r.seconds != null && ` · ${nn(r.seconds)} ${w.seconds}`}{r.ai != null && ` · ${nn(r.ai)} ${w.requests}`}</span></li>
             ))}
           </ul>
         </>}
@@ -208,6 +208,7 @@ export default async function Editor({ searchParams }: { searchParams: Promise<Q
         <dl className={s.use}>
           <div><dt>{w.stories}</dt><dd>{nn(d.today.stories)}</dd></div>
           <div><dt>{w.ai}</dt><dd>{nn(d.today.ai)} / {nn(d.today.aiLimit)}</dd></div>
+          <div><dt>{w.aiAavtikal}</dt><dd>{nn(d.today.aiAavtikal)}</dd></div>
           <div><dt>{w.uploads}</dt><dd>{nn(d.today.uploads)} / {nn(d.today.uploadLimit)}</dd></div>
           <div><dt>{w.cost}</dt><dd>₹{nn(0)}</dd></div>
         </dl>
