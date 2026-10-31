@@ -48,12 +48,13 @@ const PER_RUN = 8;
 
 const CORRECTION = /\b(corrigendum|correction|corrected|withdrawn|retracted|clarification|erratum)\b|સુધારો|સ્પષ્ટતા|शुद्धिपत्र|संशोधन|स्पष्टीकरण/i;
 
+const ITEM = `id, cluster_id, source, url, title, summary, lang, published_at, seen_at, image, triage`;
+const itemOf = (r: Record<string, unknown>): ClusterItem => ({ id: r.id as string, source: r.source as string, url: r.url as string, title: r.title as string,
+  summary: r.summary as string, lang: r.lang as ClusterItem["lang"], publishedAt: r.published_at ? new Date(r.published_at as string).toISOString() : null,
+  seenAt: new Date(r.seen_at as string).toISOString(), image: r.image as string | null, triage: r.triage as Triage });
+
 async function itemsOf(clusterId: string): Promise<ClusterItem[]> {
-  const rows = await sql.query(
-    `select id, source, url, title, summary, lang, published_at, seen_at, image, triage from items where cluster_id = $1 order by seen_at`, [clusterId]);
-  return rows.map((r) => ({ id: r.id, source: r.source, url: r.url, title: r.title, summary: r.summary, lang: r.lang,
-    publishedAt: r.published_at ? new Date(r.published_at).toISOString() : null, seenAt: new Date(r.seen_at).toISOString(),
-    image: r.image, triage: r.triage as Triage }));
+  return (await sql.query(`select ${ITEM} from items where cluster_id = $1 order by seen_at`, [clusterId])).map(itemOf);
 }
 
 async function debunks(): Promise<Debunk[]> {
@@ -66,12 +67,19 @@ async function debunks(): Promise<Debunk[]> {
 async function advance() {
   // confirmed ones too, however old: one that went stale before its turn to be written leaves the list here, whatever the
   // writing pass had time for (31 Oct: a story failing its checks took the whole pass and nothing old was cleared)
-  const open = await sql.query(`select id, first_seen from clusters where state = 'confirmed' or (state in ('new', 'waiting') and updated_at > now() - interval '48 hours')`);
+  const open = await sql.query(`select id, first_seen, state, reason from clusters where state = 'confirmed' or (state in ('new', 'waiting') and updated_at > now() - interval '48 hours')`);
+  // every event's reports in one question, and saved only when something changed (31 Oct: one question each, for some 270
+  // events, took up to three minutes of the round, time the writing needs)
+  const items = new Map<string, ClusterItem[]>();
+  for (const r of await sql.query(`select ${ITEM} from items where cluster_id = any($1) order by seen_at`, [open.map((c) => c.id)])) {
+    items.set(r.cluster_id as string, [...(items.get(r.cluster_id as string) ?? []), itemOf(r)]);
+  }
   const known = await debunks();
   const tally: Record<string, number> = {};
   for (const c of open) {
-    const g = gate(await itemsOf(c.id), new Date(c.first_seen).toISOString(), known);
+    const g = gate(items.get(c.id) ?? [], new Date(c.first_seen).toISOString(), known);
     tally[g.state] = (tally[g.state] ?? 0) + 1;
+    if (g.state === c.state && g.why === c.reason) continue;
     await sql.query(`update clusters set state = $2, reason = $3 where id = $1`, [c.id, g.state, g.why]);
     if (g.state === "blocked") await tell(`🚫 <b>ફેક્ટ-ચેક:</b> ${g.why}`);
   }
