@@ -5,10 +5,6 @@
 @font-face{font-family:"CK Cond";src:url("./fonts/cond-gu.woff2") format("woff2");font-weight:800;font-display:swap;unicode-range:U+0951-0952,U+0964-0965,U+0A80-0AFF,U+200C-200D,U+20B9,U+25CC,U+A830-A839}
 @font-face{font-family:"CK Cond";src:url("./fonts/cond-hi.woff2") format("woff2");font-weight:800;font-display:swap;unicode-range:U+0900-0950,U+0953-0963,U+0966-097F,U+1CD0-1CF9,U+20A8,U+A8E0-A8FF}
 @font-face{font-family:"CK Cond";src:url("./fonts/cond-latin.woff2") format("woff2");font-weight:800;font-display:swap;unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122,U+2212}
-/* the news in one weight, cut from Noto Serif (2 Nov: the all-weights files were 115 KB, Hindi 124 KB; these are 32 and 49) */
-@font-face{font-family:"CK Read";src:url("./fonts/read-gu.woff2") format("woff2");font-weight:400;font-display:swap;unicode-range:U+0951-0952,U+0964-0965,U+0A80-0AFF,U+200C-200D,U+20B9,U+25CC,U+A830-A839}
-@font-face{font-family:"CK Read";src:url("./fonts/read-hi.woff2") format("woff2");font-weight:400;font-display:swap;unicode-range:U+0900-0950,U+0953-0963,U+0966-097F,U+1CD0-1CF9,U+20A8,U+A8E0-A8FF}
-@font-face{font-family:"CK Read";src:url("./fonts/read-latin.woff2") format("woff2");font-weight:400;font-display:swap;unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+2000-206F,U+20AC,U+2122,U+2212}
 /* Capital Kranti's own design system (docs/website/DESIGN.md), as in the approved
    sample (docs/website/sample/page_template.html): phone first; a 4/8/12-column grid
    whose 1px rules sit in the middle of the gutters; the front page as a stack of
@@ -18,11 +14,8 @@
   --bg:#FDFDFC; --surface:#f6f5f8; --ink:#1d1d21; --strong:#111114; --soft:#3f3f46; --muted:#5f5f66;
   --rule:#e4e2e8; --rule-strong:#111114; --brand:#7f3894; --navy:#2e3192; --on-navy:#ffffff; --cyan:#0aaae4;
   --live:#0b6f99; --breaking:#b3261e; --checked:#1d7a46; --whatsapp:#1a7f45; --shade:rgba(17,17,20,.45); --photo:none;
-  --serif:"CK Read",'Gujarati Sangam MN','Shruti',Georgia,serif;
-  --serif-fl:var(--font-serif),'Gujarati Sangam MN','Shruti',Georgia,serif;
-  /* the interface shares the headlines' face (2 Nov: one family less to fetch); Aavtikal keeps Anek and the all-weights serif (--ui-fl, --serif-fl: fl.module.css) */
-  --ui:var(--font-head),'Gujarati MT','Shruti',system-ui,sans-serif;
-  --ui-fl:var(--font-ui),'Gujarati MT','Shruti',system-ui,sans-serif;
+  --serif:var(--font-serif),'Gujarati Sangam MN','Shruti',Georgia,serif;
+  --ui:var(--font-ui),'Gujarati MT','Shruti',system-ui,sans-serif;
   --cond:"CK Cond",var(--ui);--mark:"CK Mark",var(--ui);--mark-cond:"CK Mark Cond",var(--ui);
   /* headlines (29 Oct): Hind Vadodara; the stories themselves stay in the serif */
   --head:var(--font-head),'Gujarati Sangam MN','Shruti',system-ui,sans-serif;
@@ -36,7 +29,7 @@
   --d1:.1s; --d2:.2s; --d3:.3s; --d4:.4s; --ease:cubic-bezier(.2,.7,.2,1);
 }
 /* the Hindi pages: Devanagari first, Gujarati behind it (a story not yet in Hindi) */
-html[lang="hi"]{--head:var(--font-head-hi),var(--font-head),'Kohinoor Devanagari',system-ui,sans-serif;--serif:"CK Read",'Kohinoor Devanagari',Georgia,serif;--serif-fl:var(--font-serif-hi),var(--font-serif),'Kohinoor Devanagari',Georgia,serif;--ui:var(--font-head-hi),var(--font-head),'Kohinoor Devanagari',system-ui,sans-serif;--ui-fl:var(--font-ui-hi),var(--font-ui),'Kohinoor Devanagari',system-ui,sans-serif}
+html[lang="hi"]{--head:var(--font-head-hi),var(--font-head),'Kohinoor Devanagari',system-ui,sans-serif;--serif:var(--font-serif-hi),var(--font-serif),'Kohinoor Devanagari',Georgia,serif;--ui:var(--font-ui-hi),var(--font-ui),'Kohinoor Devanagari',system-ui,sans-serif}
 :root[data-size="2"]{--scale:1.15} :root[data-size="3"]{--scale:1.3}
 @media (min-width:740px){ :root{--gut:24px; --side:24px} }
 @media (min-width:1024px){ :root{--gut:32px; --side:32px} }

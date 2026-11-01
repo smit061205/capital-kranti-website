@@ -46,8 +46,8 @@ older notes below disagree, this block is right.*
   removed list. Telegram only sends notes. The readers' pages say so (`views/Policy.tsx`, `lib/flagship.ts`).
 - **Speed (30 Oct):** the site runs in Singapore (`site/vercel.json`, beside the database;
   `/api/status` shows `speed`). No font is loaded ahead, and the wide name and Aavtikal's condensed
-  headlines are small files of our own (`site/app/fonts/`). News pages use Hind for the interface and our
-  one-weight cut of Noto Serif ("CK Read") for reading; Anek and the all-weights serif load on Aavtikal only (2 Nov). Pictures come at the size shown
+  headlines are small files of our own (`site/app/fonts/`). Keep the fonts as they are: lighter ones were
+  tried on 2 Nov and the user preferred these (Anek for the interface, Noto Serif for reading). Pictures come at the size shown
   (`site/lib/photo.ts`). Links fetch nothing ahead (`prefetch={false}`, keep it on new links).
   Each language has its own root layout, so changing language is a full page load:
   `components/LangLink.tsx` is a plain link and fetches the page on touch, and `proxy.ts` lets that through.
