@@ -53,21 +53,21 @@ export const POLICY: Record<string, Record<Lang, Page>> = {
   },
   "how-we-check": {
     gu: { title: "અમે સમાચાર કેવી રીતે ચકાસીએ છીએ", paras: [
-      "કોણે કહ્યું: સરકાર કે સત્તાવાર સંસ્થા પોતે જાહેર કરે તે સમાચાર જ એકલા સ્રોત પર પ્રકાશિત થાય છે. કોઈ માધ્યમના સમાચાર માટે ઓછામાં ઓછાં બે સ્વતંત્ર માધ્યમો (અલગ માલિકીનાં) એક જ વાત કહે ત્યારે જ તે પ્રકાશિત થાય છે.",
+      "કોણે કહ્યું: સરકાર કે સત્તાવાર સંસ્થા પોતે જાહેર કરે તે સમાચાર સીધા પ્રકાશિત થાય છે. બીજા સમાચાર અમારી યાદીનાં માન્ય માધ્યમોના અહેવાલ પરથી પ્રકાશિત થાય છે; ઘણી વાર તે એક જ માધ્યમનો અહેવાલ હોય છે, અને સમાચારમાં તેનો સ્રોત લખેલો હોય છે.",
       "તાજા અને સાચા: જૂના સમાચાર ફરી ફરતા હોય તો પકડાય છે. ફેક્ટ-ચેક સંસ્થાઓએ (જેમ કે PIB ફેક્ટ ચેક) ખોટા જાહેર કરેલા દાવા પ્રકાશિત થતા નથી.",
       "દરેક દાવો અને આંકડો: સમાચારનો દરેક દાવો અને દરેક આંકડો (રકમ, તારીખ, સંખ્યા) મૂળ સ્રોત સાથે મેળવાય છે; લખનાર સિવાયની બીજી તપાસ પણ દરેક દાવો ફરી તપાસે છે. મેળ ન ખાય તો સમાચાર પ્રકાશિત થતા નથી.",
       "અનુવાદ: અંગ્રેજી અને હિંદી અનુવાદના આંકડા પણ ગુજરાતી સમાચાર સાથે મેળવાય છે. મેળ ન ખાય તો ગુજરાતી સમાચાર જ બતાવાય છે.",
       "પ્રકાશન પછી પણ: સ્રોત પોતાના સમાચાર સુધારે કે પાછા ખેંચે તો અમારા સમાચાર પણ તરત રોકાય છે અને સુધારાય છે. દરેક સમાચારના અંતે મૂળ સ્રોતની લિંક હોય છે, જેથી વાચક જાતે મેળવી શકે.",
     ] },
     en: { title: "How we check the news", paras: [
-      "Who said it: only a government or official body speaking for itself is published on its own. A report from a news outlet is published only when at least two independent outlets (with different owners) say the same.",
+      "Who said it: a government or official body speaking for itself is published directly. Other news is published from the reports of the outlets on our list; often that is one outlet's report, and the story names its source.",
       "Fresh and true: old news going round again is caught. Claims that fact-checkers (such as PIB Fact Check) have found false are not published.",
       "Every claim and number: each claim and each number in a story (amounts, dates, counts) is matched against the original sources, and a second check, separate from the writing, goes over every claim again. If anything doesn’t match, the story isn’t published.",
       "Translations: the numbers in each English and Hindi version are matched against the Gujarati story too. If they don’t match, the Gujarati story is shown instead.",
       "After publishing too: if a source corrects or withdraws its report, our story is held and corrected at once. Every story ends with links to its original sources, so readers can check it themselves.",
     ] },
     hi: { title: "हम समाचार कैसे जाँचते हैं", paras: [
-      "किसने कहा: केवल सरकार या आधिकारिक संस्था के अपने बयान ही एक स्रोत पर प्रकाशित होते हैं। किसी समाचार माध्यम की ख़बर तभी प्रकाशित होती है जब कम से कम दो स्वतंत्र माध्यम (अलग मालिकों वाले) एक ही बात कहें।",
+      "किसने कहा: सरकार या आधिकारिक संस्था के अपने बयान सीधे प्रकाशित होते हैं। दूसरे समाचार हमारी सूची के माध्यमों की ख़बरों से प्रकाशित होते हैं; अक्सर वह एक ही माध्यम की ख़बर होती है, और समाचार में उसका स्रोत लिखा होता है।",
       "ताज़ा और सच: पुराने समाचार फिर से फैलें तो पकड़े जाते हैं। फ़ैक्ट-चेक संस्थाओं (जैसे PIB फ़ैक्ट चेक) ने जिन दावों को ग़लत बताया है, वे प्रकाशित नहीं होते।",
       "हर दावा और आँकड़ा: समाचार का हर दावा और हर आँकड़ा (रक़म, तारीख़, संख्या) मूल स्रोतों से मिलाया जाता है, और लिखने से अलग एक दूसरी जाँच हर दावे को फिर परखती है। मेल न खाए तो समाचार प्रकाशित नहीं होता।",
       "अनुवाद: अंग्रेज़ी और हिंदी संस्करणों के आँकड़े भी गुजराती समाचार से मिलाए जाते हैं। मेल न खाए तो गुजराती समाचार ही दिखाया जाता है।",

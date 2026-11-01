@@ -1,6 +1,6 @@
 // The engine's own checks, without the network, the database or the AI (CI runs
 // it: site-engine.yml): feeds read right, an event is confirmed only by an
-// official source or two independent outlets, old news and debunked claims are
+// official source or a listed outlet, old news and debunked claims are
 // stopped, copied wording is caught, and items about one event group together.
 // Run: node --experimental-strip-types site/engine/selftest.ts
 import assert from "node:assert/strict";
@@ -58,23 +58,20 @@ test("an item linking off the source's own site isn't its own", () => {
   assert.ok(!ownItem(bbc, "https://evil.example/bbc.com/news"));
 });
 test("an official source confirms on its own", () => {
-  const g = gate([item("pib-en", ["cabinet", "canal", "gujarat"])], hoursAgo(1), []);
+  const g = gate([item("pib-en", ["cabinet", "canal", "gujarat"])], []);
   assert.equal(g.state, "confirmed");
 });
-test("one outlet waits; two outlets of one group still wait; two groups confirm", () => {
-  assert.equal(gate([item("bbc-world", ["a", "b", "c"])], hoursAgo(1), []).state, "waiting");
-  assert.equal(gate([item("bbc-world", ["a"]), item("bbc-hi", ["a"])], hoursAgo(1), []).state, "waiting");
-  assert.equal(gate([item("bbc-world", ["a"]), item("the-hindu", ["a"])], hoursAgo(1), []).state, "confirmed");
-});
-test("an unconfirmed event is dropped after the wait", () => {
-  assert.equal(gate([item("ndtv", ["a"], 1)], hoursAgo(7), []).state, "dropped");
+test("one outlet is enough on its own", () => {
+  assert.equal(gate([item("bbc-world", ["a", "b", "c"])], []).state, "confirmed");
+  assert.equal(gate([item("ndtv", ["a"], 1)], []).state, "confirmed");
+  assert.equal(gate([item("bbc-world", ["a"]), item("the-hindu", ["a"])], []).state, "confirmed");
 });
 test("old news going round again is dropped", () => {
-  assert.equal(gate([item("pib-en", ["a"], 72)], hoursAgo(72), []).state, "dropped");
+  assert.equal(gate([item("pib-en", ["a"], 72)], []).state, "dropped");
 });
 test("a debunked claim is blocked", () => {
   const keys = ["rbi", "500", "note", "ban", "withdrawn"];
-  const g = gate([item("pib-en", keys)], hoursAgo(1), [{ claim: "RBI withdraws ₹500 notes", keys: ["rbi", "500", "note", "withdrawn"], url: "u", source: "altnews" }]);
+  const g = gate([item("pib-en", keys)], [{ claim: "RBI withdraws ₹500 notes", keys: ["rbi", "500", "note", "withdrawn"], url: "u", source: "altnews" }]);
   assert.equal(g.state, "blocked");
 });
 test("the number check passes true figures and still catches made-up ones", () => {

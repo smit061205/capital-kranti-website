@@ -103,8 +103,8 @@ verification loop), `docs/website/UIUX.md` (the UI choices and where each lives)
 - **The news engine runs every 15 minutes** (`site-engine.yml`, started 26 Oct after the
   user approved two dry-run stories).
   - It reads 122 sources politely and triages them in batches of 12. It groups reports of
-    the same event, then gates each one: fresh, not debunked, official or confirmed by two
-    independent outlets, and a 6-hour wait.
+    the same event, then gates each one: fresh, not debunked, and from a listed source (one outlet
+    is enough since 2 Nov; the user dropped the two-source rule).
   - It ranks by importance. Gemma writes in Gujarati, every number and claim is checked, and
     national and world news gets English and Hindi.
   - It publishes confirmed, non-sensitive stories itself and holds the rest for Telegram.

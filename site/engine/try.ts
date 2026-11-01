@@ -44,7 +44,7 @@ for (const it of items.filter((x) => x.triage.score >= 3 && SOURCES.find((s) => 
 }
 const debunks = items.filter((x) => x.triage.debunk).map((x) => ({ claim: x.triage.debunk!, keys: x.triage.keys, url: x.url, source: x.source }));
 const ranked = groups.map((g) => {
-  const gt = gate(g, g[0].seenAt, debunks);
+  const gt = gate(g, debunks);
   const imp = importance(Math.max(...g.map((x) => x.triage.score)), g[0].triage.tier, gt.state === "confirmed" ? gt.groups.length : 1, gt.state === "confirmed" && gt.official);
   return { g, gt, imp };
 }).sort((a, b) => b.imp - a.imp);

@@ -10,7 +10,7 @@
 // around. `site/engine/probe.ts` checks the whole list from GitHub's servers.
 //
 // trust:  "official" -- confirmed on its own (a government speaking for itself)
-//         "outlet"   -- needs a second, independent outlet (a different group)
+//         "outlet"   -- a news outlet: enough on its own since 2 Nov, and more of them raise a story's importance
 //         "factcheck"-- read only for debunked claims (§3.1 step 6)
 // group:  who owns it: two outlets of one group are one voice
 // tier:   where its news usually belongs (the triage decides each item)

@@ -23,17 +23,14 @@ export interface Debunk { claim: string; keys: string[]; url: string; source: st
 
 // ---- §3.1: the checks before writing ----
 
-/** How long an outlet-only event waits for a second, independent outlet. */
-export const WAIT_H = 6;
 /** Older than this, an item isn't today's news (old news going round again). */
 const STALE_H = 48;
 
 export type Gate =
   | { state: "confirmed"; groups: string[]; official: boolean; why: string }
-  | { state: "waiting"; groups: string[]; why: string }
   | { state: "dropped" | "blocked"; why: string; debunk?: Debunk };
 
-export function gate(items: ClusterItem[], firstSeen: string, debunks: Debunk[]): Gate {
+export function gate(items: ClusterItem[], debunks: Debunk[]): Gate {
   // step 3: only fresh items count; all stale = old news recirculating
   const fresh = items.filter((it) => Date.now() - Date.parse(it.publishedAt ?? it.seenAt) < STALE_H * 3600_000);
   if (!fresh.length) return { state: "dropped", why: "old news (every report is more than 2 days old)" };
@@ -45,14 +42,14 @@ export function gate(items: ClusterItem[], firstSeen: string, debunks: Debunk[])
       return { state: "blocked", why: `a fact-checker (${d.source}) says this is false: ${d.claim}`, debunk: d };
     }
   }
-  // steps 1 and 4: who said it, and do independent sources agree
+  // steps 1 and 4: who said it. One listed source is enough (the user, 2 Nov: outlets no longer wait for a second one,
+  // which dropped most of each day's news); the checks above and the story's own checks against its source still stand
   const defs = fresh.map((it) => sourceById.get(it.source)).filter((s): s is SourceDef => !!s);
   const official = defs.some((s) => s.trust === "official");
   const groups = [...new Set(defs.filter((s) => s.trust !== "factcheck").map((s) => s.group))];
   if (official) return { state: "confirmed", groups, official, why: "from an official source" };
-  if (groups.length >= 2) return { state: "confirmed", groups, official, why: `${groups.length} independent outlets report it` };
-  if (Date.now() - Date.parse(firstSeen) > WAIT_H * 3600_000) return { state: "dropped", why: `no second independent source in ${WAIT_H} hours` };
-  return { state: "waiting", groups, why: "waiting for a second independent source" };
+  if (!groups.length) return { state: "dropped", why: "no listed news source reports it" };
+  return { state: "confirmed", groups, official, why: groups.length === 1 ? "one listed outlet reports it" : `${groups.length} independent outlets report it` };
 }
 
 // ---- how big a story it is ----

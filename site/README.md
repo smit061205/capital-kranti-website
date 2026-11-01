@@ -55,8 +55,8 @@ sets a busy one aside for 10 minutes rather than retrying it):
    tier, genres, sensitive or not, one English line and keywords. The keywords group
    items about one event into a cluster, across Gujarati, Hindi and English.
 3. **Genuine?** (`newsroom.ts`, `gate`): fresh (not old news recirculating), not debunked
-   by a fact-checker, and from an official source or two independent outlets (two of one
-   owner count once). Otherwise it waits up to 6 hours for a second source, then drops.
+   by a fact-checker, and from a listed source. One outlet is enough (the user, 2 Nov: the
+   old wait for a second outlet dropped most of each day's news).
 4. **Write** (`newsroom.ts`): the most important confirmed events first, in Gujarati, its
    length by importance (lead/top 300-450 words, normal 150-250, brief 60-100), from the
    sources' facts only. Checked: numbers by code (`numbersNotIn`), no sentence twice, no

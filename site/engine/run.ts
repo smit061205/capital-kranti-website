@@ -3,7 +3,7 @@
 //   0. messages to the Telegram bot since the last run (lib/telegram.ts);
 //   1. every source asked what's new (collect.ts);
 //   2. new items ranked and grouped into events (triage.ts);
-//   3. each event's checks: fresh, not debunked, official or 2+ independent outlets (newsroom.ts gate);
+//   3. each event's checks: fresh, not debunked, from a listed source (newsroom.ts gate);
 //   4. the most important confirmed events written in Gujarati, checked claim by claim
 //      by a second free model, English and Hindi added for national and world news;
 //   5. live at once, with no one to approve it (the user, 30 Oct); a story that doesn't pass its checks doesn't go up;
@@ -77,7 +77,7 @@ async function advance() {
   const known = await debunks();
   const tally: Record<string, number> = {};
   for (const c of open) {
-    const g = gate(items.get(c.id) ?? [], new Date(c.first_seen).toISOString(), known);
+    const g = gate(items.get(c.id) ?? [], known);
     tally[g.state] = (tally[g.state] ?? 0) + 1;
     if (g.state === c.state && g.why === c.reason) continue;
     await sql.query(`update clusters set state = $2, reason = $3 where id = $1`, [c.id, g.state, g.why]);
@@ -100,7 +100,7 @@ async function write(until = deadline) {
   for (const c of ready) {
     if (wrote >= can || Date.now() > until) break;
     const items = await itemsOf(c.id);
-    const g = gate(items, new Date(c.first_seen).toISOString(), []);
+    const g = gate(items, []);
     // gone stale while it waited: settled here, or it keeps its place at the top of the list and nothing newer is reached
     // (31 Oct: 29 Oct's biggest events held all 40 places and the site went almost quiet)
     if (g.state !== "confirmed") { await sql.query(`update clusters set state = $2, reason = $3 where id = $1`, [c.id, g.state, g.why]); continue; }
