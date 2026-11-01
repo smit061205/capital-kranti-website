@@ -176,7 +176,8 @@ export async function check(sql: Sql | null, w: Written, src: SourceText[], date
   if (wrong.length) problems.push(`numbers not in any source: ${wrong.join(", ")}`);
   if (repeats(w.body)) problems.push("says the same thing twice");
   // letters from another script inside the Gujarati (29 Oct: Telugu letters mid-sentence) are a model's slip
-  const stray = `${w.headline} ${w.deck} ${w.body}`.match(/[\u0900-\u097F\u0980-\u0A7F\u0B00-\u0DFF_]+/g);
+  // and English letters after Gujarati ones in a word (1 Nov: "નini" for "નવ" reached a headline; "CCIની" is fine)
+  const stray = `${w.headline} ${w.deck} ${w.body}`.match(/[\u0900-\u097F\u0980-\u0A7F\u0B00-\u0DFF_]+|[\u0A80-\u0AFF]+[A-Za-z]+/g);
   if (stray) problems.push(`letters from another script: ${[...new Set(stray)].slice(0, 3).join(", ")}`);
   for (const s of src.filter((s) => s.source.lang === "gu")) {
     const share = copiedShare(w.body, s.text);
@@ -194,7 +195,7 @@ export async function check(sql: Sql | null, w: Written, src: SourceText[], date
   return { ok: problems.length === 0, problems, claims: res.value, model: res.model };
 }
 
-const STRAY = /[\u0900-\u097F\u0980-\u0A7F\u0B00-\u0DFF]/;
+const STRAY = /[\u0900-\u097F\u0980-\u0A7F\u0B00-\u0DFF]|[\u0A80-\u0AFF][A-Za-z]/;
 const MEND = `You fix Gujarati spelling. You get a JSON list of words from a Gujarati news story that slipped into another script.
 Write each one in Gujarati letters, keeping its sound: names stay the same names. Change nothing else.
 Reply with JSON only: {"words":{"the word as given":"the word in Gujarati letters"}}`;
