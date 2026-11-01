@@ -8,25 +8,43 @@ import Frame from "../components/Frame.tsx";
 
 type Page = { title: string; paras: string[] };
 const contact = (lang: Lang) => ({
-  gu: `ઈમેલ: ${PAPER.email} · ફોન: ${num(PAPER.phone, "gu")} · ${PAPER.gu.place}, ગુજરાત`,
-  en: `Email: ${PAPER.email} · Phone: ${PAPER.phone} · ${PAPER.en.place}, Gujarat`,
-  hi: `ईमेल: ${PAPER.email} · फ़ोन: ${PAPER.phone} · ${PAPER.hi.place}, गुजरात`,
+  gu: `ઈમેલ: ${PAPER.email} · મોબાઇલ: ${num(PAPER.phone, "gu")} · ફોન અને ફેક્સ: ${num(PAPER.landline, "gu")}`,
+  en: `Email: ${PAPER.email} · Mobile: ${PAPER.phone} · Phone and fax: ${PAPER.landline}`,
+  hi: `ईमेल: ${PAPER.email} · मोबाइल: ${PAPER.phone} · फ़ोन और फ़ैक्स: ${PAPER.landline}`,
 })[lang];
+// from the paper's own old website (capitalkranti.co.in, 2 Nov)
+const offices = {
+  gu: ["તંત્રી: પાર્થ ઠક્કર", "કાર્યાલય: કેપિટલ ક્રાંતિ દૈનિક, ૯૦૫/૫/બી, જીઆઈડીસી એન્જિનિયરિંગ એસ્ટેટ, સેક્ટર ૨૮, ગાંધીનગર, ગુજરાત – ૩૮૨૦૨૮", "પત્રવ્યવહાર: કેપિટલ ક્રાંતિ દૈનિક, બ્લોક નં. ૩૨/૪, ‘જીએચ’ ટાઇપ, સેક્ટર ૨૮, ગાંધીનગર, ગુજરાત – ૩૮૨૦૨૮"],
+  en: ["Editor: Parth Thakkar", "Office: Capital Kranti Daily, 905/5/B, GIDC Engineering Estate, Sector 28, Gandhinagar, Gujarat 382028", "Correspondence: Capital Kranti Daily, Block No. 32/4, ‘GH’ Type, Sector 28, Gandhinagar, Gujarat 382028"],
+  hi: ["संपादक: पार्थ ठक्कर", "कार्यालय: कैपिटल क्रांति दैनिक, 905/5/बी, जीआईडीसी इंजीनियरिंग एस्टेट, सेक्टर 28, गांधीनगर, गुजरात 382028", "पत्राचार: कैपिटल क्रांति दैनिक, ब्लॉक नं. 32/4, ‘जीएच’ टाइप, सेक्टर 28, गांधीनगर, गुजरात 382028"],
+};
 
 export const POLICY: Record<string, Record<Lang, Page>> = {
   about: {
     gu: { title: "અમારા વિશે", paras: [
       `કેપિટલ ક્રાંતિ ગાંધીનગરથી પ્રકાશિત થતું ગુજરાતી દૈનિક છે (RNI ${PAPER.rni}). ગુજરાતના પાટનગરથી, ${num(PAPER.founded, "gu")}થી, અમે સરકાર, ખેતી, અર્થતંત્ર, શિક્ષણ અને સમાજના સમાચાર વાચકો સુધી પહોંચાડીએ છીએ.`,
+      "“મને સર્વ સ્વતંત્રતાઓની સાથોસાથ જાણવાની, બોલવાની અને વિવેકબુદ્ધિ અનુસાર મુક્ત રીતે દલીલ કરવાની સ્વતંત્રતા આપો.” – જોન મિલ્ટન",
+      "અમે ન્યાય, પારદર્શકતા, જાણવાની સ્વતંત્રતા અને અભિપ્રાયો, વિચારો અને સંવેદનાઓને અભિવ્યક્ત કરવાની સ્વતંત્રતામાં માનીએ છીએ.",
+      "અમે ગાંધીનગરનાં સૌથી શરૂઆતનાં અખબારોમાંનાં એક છીએ અને ખાસ વાચકોનો વિશાળ વર્ગ ધરાવીએ છીએ. ગાંધીનગર, અમદાવાદ, બનાસકાંઠા, સાબરકાંઠા, પાટણ અને મહેસાણા જિલ્લા સુધી અમે ફેલાયેલા છીએ, અને સૌરાષ્ટ્રનો પણ મોટો ભાગ આવરી લઈએ છીએ.",
+      "જાહેરાતો પ્રકાશિત કરવા માટે ગુજરાત સરકાર અને ભારત સરકાર (ડીએવીપી) દ્વારા માન્ય દૈનિક તરીકે, અમે ગુજરાત અને બીજાં રાજ્યોનાં વ્યવસાયિક ગૃહોની પસંદ છીએ, અને સમગ્ર ભારતની પબ્લિક રિલેશન એજન્સીઓ સાથે જોડાયેલા છીએ.",
       "આ વેબસાઇટ પર દિવસભર તાજા સમાચાર, દરરોજ સાંજે છપાયેલા પેપરના સમાચાર અને જૂના અંકો મળે છે. સમાચાર ગુજરાતીમાં, અને દેશ-વિદેશના સમાચાર હિંદી અને અંગ્રેજીમાં પણ વાંચી શકાય છે.",
       "અમારું સૂત્ર છે: સમાજનો વિવેકપૂર્ણ દ્રષ્ટિકોણ. અમે હકીકતો આપીએ છીએ, સ્રોત જણાવીએ છીએ અને ભૂલ થાય તો ખુલ્લેઆમ સુધારીએ છીએ.",
     ] },
     en: { title: "About us", paras: [
       `Capital Kranti is a Gujarati daily newspaper published from Gandhinagar (RNI ${PAPER.rni}). From Gujarat’s capital, since ${PAPER.founded}, it has brought readers the news of government, farming, the economy, education and society.`,
+      "“Give me the liberty to know, to utter, and to argue freely according to conscience, above all liberties.” – John Milton",
+      "We believe in justice, transparency, and the liberty to know and to express views, ideas and emotions.",
+      "We are one of the oldest newspapers in Gandhinagar, with a large number of exclusive readers. We are spread across the districts of Gandhinagar, Ahmedabad, Banaskantha, Sabarkantha, Patan and Mehsana, and also cover a significant part of Saurashtra.",
+      "Empanelled with the Government of Gujarat and the Government of India (DAVP) for publishing advertisements, we are a popular choice among commercial houses from Gujarat and other states, and are connected to public relations agencies across India.",
       "This website carries the latest news through the day, the stories of each evening’s printed paper and past issues. Stories are in Gujarati; national and world stories are also in Hindi and English.",
       "Our motto is “a thoughtful view of society”. We give the facts, say where they come from, and correct mistakes openly.",
     ] },
     hi: { title: "हमारे बारे में", paras: [
       `कैपिटल क्रांति गांधीनगर से प्रकाशित होने वाला गुजराती दैनिक है (RNI ${PAPER.rni})। गुजरात की राजधानी से, ${PAPER.founded} से, हम सरकार, खेती, अर्थव्यवस्था, शिक्षा और समाज के समाचार पाठकों तक पहुँचाते हैं।`,
+      "“मुझे सभी स्वतंत्रताओं से ऊपर जानने, बोलने और विवेक के अनुसार मुक्त रूप से तर्क करने की स्वतंत्रता दो।” – जॉन मिल्टन",
+      "हम न्याय, पारदर्शिता, जानने की स्वतंत्रता और विचारों, मतों तथा भावनाओं को व्यक्त करने की स्वतंत्रता में विश्वास रखते हैं।",
+      "हम गांधीनगर के सबसे पुराने अख़बारों में से एक हैं और हमारे ख़ास पाठकों का बड़ा वर्ग है। हम गांधीनगर, अहमदाबाद, बनासकांठा, साबरकांठा, पाटण और महेसाणा ज़िलों तक फैले हैं और सौराष्ट्र के भी बड़े हिस्से को कवर करते हैं।",
+      "विज्ञापन प्रकाशित करने के लिए गुजरात सरकार और भारत सरकार (डीएवीपी) से मान्य दैनिक के रूप में, हम गुजरात और दूसरे राज्यों के व्यावसायिक घरानों की पसंद हैं और पूरे भारत की जनसंपर्क एजेंसियों से जुड़े हैं।",
       "इस वेबसाइट पर दिन भर ताज़ा समाचार, हर शाम छपे अख़बार के समाचार और पुराने अंक मिलते हैं। समाचार गुजराती में हैं; देश और विदेश के समाचार हिंदी और अंग्रेज़ी में भी पढ़े जा सकते हैं।",
       "हमारा सूत्र है: समाज का विवेकपूर्ण दृष्टिकोण। हम तथ्य देते हैं, स्रोत बताते हैं और ग़लती होने पर खुलकर सुधारते हैं।",
     ] },
@@ -89,9 +107,9 @@ export const POLICY: Record<string, Record<Lang, Page>> = {
     ] },
   },
   contact: {
-    gu: { title: "સંપર્ક", paras: [contact("gu"), "સમાચાર, ભૂલ, જાહેરાત કે અન્ય કોઈ બાબત માટે ઈમેલ કરો. અમે જલદી જવાબ આપીશું."] },
-    en: { title: "Contact", paras: [contact("en"), "Email us about news, a mistake, advertising or anything else. We’ll reply as soon as we can."] },
-    hi: { title: "संपर्क", paras: [contact("hi"), "समाचार, ग़लती, विज्ञापन या किसी और बात के लिए ईमेल करें। हम जल्द जवाब देंगे।"] },
+    gu: { title: "સંપર્ક", paras: [contact("gu"), ...offices.gu, "સમાચાર, ભૂલ, જાહેરાત કે અન્ય કોઈ બાબત માટે ઈમેલ કરો. અમે જલદી જવાબ આપીશું."] },
+    en: { title: "Contact", paras: [contact("en"), ...offices.en, "Email us about news, a mistake, advertising or anything else. We’ll reply as soon as we can."] },
+    hi: { title: "संपर्क", paras: [contact("hi"), ...offices.hi, "समाचार, ग़लती, विज्ञापन या किसी और बात के लिए ईमेल करें। हम जल्द जवाब देंगे।"] },
   },
   terms: {
     gu: { title: "ઉપયોગના નિયમો", paras: [

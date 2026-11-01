@@ -11,5 +11,6 @@ export const PAPER = {
   rni: "54922/93",
   email: "capitalkranti@gmail.com",
   phone: "98256 08744",
-  founded: 1992,
+  landline: "(079) 23210071",
+  founded: 1993,
 };
