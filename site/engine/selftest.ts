@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { readJson } from "./ai.ts";
 import { ownItem } from "./collect.ts";
 import { parseFeed, pageText } from "./feed.ts";
-import { copiedShare, gate, importance, levelOf, type ClusterItem } from "./newsroom.ts";
+import { copiedShare, gate, importance, levelOf, toGujarati, type ClusterItem } from "./newsroom.ts";
 import { SOURCES, sourceById } from "./sources.ts";
 import { numbersNotIn } from "./text.ts";
 import { keySet, placeTier, similarity, SAME_EVENT } from "./triage.ts";
@@ -73,6 +73,9 @@ test("a debunked claim is blocked", () => {
   const keys = ["rbi", "500", "note", "ban", "withdrawn"];
   const g = gate([item("pib-en", keys)], [{ claim: "RBI withdraws ₹500 notes", keys: ["rbi", "500", "note", "withdrawn"], url: "u", source: "altnews" }]);
   assert.equal(g.state, "blocked");
+});
+test("Hindi letters become Gujarati ones", () => {
+  assert.equal(toGujarati("નંदन नीलेकणि।"), "નંદન નીલેકણિ.");
 });
 test("the number check passes true figures and still catches made-up ones", () => {
   assert.deepEqual(numbersNotIn("કુલ ૪૧,૭૪,૦૦૦ મતદારો", "41.74 lakh voters"), []);

@@ -199,18 +199,25 @@ const MEND = `You fix Gujarati spelling. You get a JSON list of words from a Guj
 Write each one in Gujarati letters, keeping its sound: names stay the same names. Change nothing else.
 Reply with JSON only: {"words":{"the word as given":"the word in Gujarati letters"}}`;
 
+/** Hindi letters as Gujarati ones: the two alphabets sit in the same order, so this needs no model (2 Nov: "नीलेकणि" failed a story
+ *  when it reads નીલેકણિ). A Hindi full stop becomes a full stop. */
+export const toGujarati = (s: string) => s.replace(/[\u0964\u0965]/g, ".").replace(/[\u0900-\u097F]/g, (c) => {
+  const g = String.fromCharCode(c.charCodeAt(0) + 0x180);
+  return /\p{Script=Gujarati}/u.test(g) ? g : c;
+});
+
 /** A few words in another script (1 Nov: Hindi names in a Gujarati story, one failure in four) put into Gujarati letters, at
  *  once, instead of the whole story being thrown away. The story is checked afterwards like any other. */
-async function mendLetters(sql: Sql | null, w: Written): Promise<Written> {
+async function mendLetters(sql: Sql | null, written: Written): Promise<Written> {
+  const w = { ...written, kicker: toGujarati(written.kicker), headline: toGujarati(written.headline), deck: toGujarati(written.deck), body: toGujarati(written.body), caption: toGujarati(written.caption) };
   const words = [...new Set([w.kicker, w.headline, w.deck, w.body, w.caption].join(" ").split(/[\s,.;:!?()'"‘’“”।—-]+/).filter((x) => STRAY.test(x)))];
   if (!sql || !words.length) return w;
   const res = await askGemini(sql, "lite", { system: MEND, user: JSON.stringify(words), maxTokens: 2000, temperature: 0 }, (v) => {
     const map = (v as { words?: Record<string, unknown> })?.words;
-    if (!map || !words.every((x) => typeof map[x] === "string" && map[x] && !STRAY.test(map[x] as string))) return null;
-    return map as Record<string, string>;
+    return map ? Object.fromEntries(Object.entries(map).filter(([k, x]) => words.includes(k) && typeof x === "string" && x && !STRAY.test(x))) as Record<string, string> : null;
   }, { wait: false, timeoutMs: 30_000 });
   if (!res.ok) return w;
-  const swap = (s: string) => words.reduce((t, x) => t.split(x).join(res.value[x]), s);
+  const swap = (s: string) => Object.entries(res.value).reduce((t, [x, y]) => t.split(x).join(y), s);
   return { ...w, kicker: swap(w.kicker), headline: swap(w.headline), deck: swap(w.deck), body: swap(w.body), caption: swap(w.caption) };
 }
 
