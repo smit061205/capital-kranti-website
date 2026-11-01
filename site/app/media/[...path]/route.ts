@@ -1,7 +1,7 @@
 // The photo store is private (as it was made in Vercel), so the site serves its
 // files itself, at its own address. Each file's name carries its content's
 // fingerprint, so a file never changes: the CDN keeps it for a year and the
-// store is read only on the first view of each file. `?w=500` or `?w=960` gives a smaller copy
+// store is read only on the first view of each file. `?w=500`, `?w=720` or `?w=960` gives a smaller copy (WebP)
 // (lib/photo.ts), made once and kept by the CDN the same way.
 import { get } from "@vercel/blob";
 import sharp from "sharp";
@@ -16,9 +16,9 @@ export async function GET(req: Request, { params }: { params: Promise<{ path: st
   const got = await get(name, { access: "private" }).catch(() => null);
   if (!got) return new Response("not found", { status: 404 });
   const w = Number(new URL(req.url).searchParams.get("w"));
-  if ((w === 500 || w === 960) && m[1] !== "pdf") {
-    const small = await sharp(await new Response(got.stream).arrayBuffer()).resize({ width: w, withoutEnlargement: true }).jpeg({ quality: 76, mozjpeg: true }).toBuffer();
-    return new Response(new Uint8Array(small), { headers: { "content-type": "image/jpeg", "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable" } });
+  if ((w === 500 || w === 720 || w === 960) && m[1] !== "pdf") {
+    const small = await sharp(await new Response(got.stream).arrayBuffer()).resize({ width: w, withoutEnlargement: true }).webp({ quality: 76 }).toBuffer();
+    return new Response(new Uint8Array(small), { headers: { "content-type": "image/webp", "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable" } });
   }
   return new Response(got.stream, {
     headers: {

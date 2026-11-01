@@ -1,12 +1,13 @@
 // Pictures at the size the reader needs (the user, 30 Oct: the site was slow; a 1920-wide file went to every small card).
 // Wikimedia makes its copies at fixed widths (500, 960 and 1920 work; 640 and 800 are refused), and the site's own photos
-// are made smaller by app/media, once each, then kept by the CDN. Anything else stays as it is.
-const STEPS = [500, 960, 1920] as const;
+// are made smaller by app/media, once each, then kept by the CDN, with 720 as well (2 Nov: most phones were sent the full file). Anything else stays as it is.
+const STEPS = [500, 720, 960, 1920] as const;
 
 /** A picture's address at a width, or null when no smaller copy can be asked for. */
 function at(url: string, w: number): string | null {
   const plain = url.replace(/\?.*$/, "");
   if (/^\/media\/.*\.(jpe?g|png)$/.test(plain)) return `${plain}?w=${w}`;
+  if (w === 720) return null;
   if (!/^https:\/\/(upload|thumb)\.wikimedia\.org\/wikipedia\/commons\//.test(plain) || !/\.(jpe?g|png)$/i.test(plain.replace(/\/\d+px-[^/]+$/, ""))) return null;
   if (/\/thumb\//.test(plain)) return plain.replace(/\/\d+px-/, `/${w}px-`);
   const file = plain.split("/").pop();

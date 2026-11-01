@@ -17,7 +17,7 @@ export default function PhotoZoom({ src, width, height, alt, caption, label, clo
       </button>
       <dialog ref={d} className="lightbox" onClick={(e) => { if (e.target === d.current) d.current?.close(); }}>
         <figure>
-          <img src={src} width={width} height={height} alt={alt} />
+          <img src={src} width={width} height={height} alt={alt} loading="lazy" />
           {caption && <figcaption>{caption}</figcaption>}
         </figure>
         <button type="button" className="lbclose" aria-label={close} onClick={() => d.current?.close()}>
