@@ -135,8 +135,8 @@ async function write(until = deadline) {
     const id = `live-${c.id.slice(1)}`;
     // past the round's time: the story goes up now and its English and Hindi come with a later round (translations())
     const translated = needsTranslation(c.tier) && Date.now() < deadline;
-    let en = translated ? await translate(sql, w, "en", indiaDate()) : null;
-    let hi = translated ? await translate(sql, w, "hi", indiaDate()) : null;
+    // both at once: neither needs the other's answer
+    let [en, hi] = translated ? await Promise.all([translate(sql, w, "en", indiaDate()), translate(sql, w, "hi", indiaDate())]) : [null, null];
     let photo = await photoOf(sql, src, id);
     // no official photo: a file photo of the story's subject from Wikimedia Commons (not for sensitive news)
     if (!photo && !c.sensitive) {
@@ -269,17 +269,20 @@ async function translations() {
                                       or origin <> 'live' and published_at > now() - interval '30 days' and hi_status <> 'done')
       order by origin = 'live' desc, importance desc nulls last, published_at desc limit $1`, [can]);
   let done = 0;
-  for (const r of rows) {
-    if (Date.now() > deadline) break;
+  const one = async (r: (typeof rows)[number]) => {
     const w = { kicker: r.kicker, headline: r.headline, deck: r.deck, body: r.body, caption: r.caption, model: "" };
-    const en = r.en_status === "done" || r.origin !== "live" ? null : await translate(sql, w, "en", indiaDate());
-    const hi = r.hi_status === "done" ? null : await translate(sql, w, "hi", indiaDate());
+    const [en, hi] = await Promise.all([
+      r.en_status === "done" || r.origin !== "live" ? null : translate(sql, w, "en", indiaDate()),
+      r.hi_status === "done" ? null : translate(sql, w, "hi", indiaDate()),
+    ]);
     await sql.query(
       `update stories set en = coalesce($2::jsonb, en), en_status = case when $2::jsonb is not null then 'done' else en_status end,
           hi = coalesce($3::jsonb, hi), hi_status = case when $3::jsonb is not null then 'done' else hi_status end, updated_at = now()
         where id = $1`, [r.id, en ? JSON.stringify(en) : null, hi ? JSON.stringify(hi) : null]);
     if (en || hi) done++;
-  }
+  };
+  // three stories at a time, six requests: Flash Lite allows 15 a minute, shared with the writing and the desk
+  for (let i = 0; i < rows.length && Date.now() <= deadline; i += 3) await Promise.all(rows.slice(i, i + 3).map(one));
   if (done) await touched(sql);
   return done;
 }
