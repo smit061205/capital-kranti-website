@@ -9,6 +9,7 @@ import { ownItem } from "./collect.ts";
 import { parseFeed, pageText } from "./feed.ts";
 import { copiedShare, gate, importance, levelOf, type ClusterItem } from "./newsroom.ts";
 import { SOURCES, sourceById } from "./sources.ts";
+import { numbersNotIn } from "./text.ts";
 import { keySet, placeTier, similarity, SAME_EVENT } from "./triage.ts";
 import { coverTier } from "./cover.ts";
 import { commonsAt } from "./wikiphoto.ts";
@@ -75,6 +76,12 @@ test("a debunked claim is blocked", () => {
   const keys = ["rbi", "500", "note", "ban", "withdrawn"];
   const g = gate([item("pib-en", keys)], hoursAgo(1), [{ claim: "RBI withdraws ₹500 notes", keys: ["rbi", "500", "note", "withdrawn"], url: "u", source: "altnews" }]);
   assert.equal(g.state, "blocked");
+});
+test("the number check passes true figures and still catches made-up ones", () => {
+  assert.deepEqual(numbersNotIn("કુલ ૪૧,૭૪,૦૦૦ મતદારો", "41.74 lakh voters"), []);
+  assert.deepEqual(numbersNotIn("સવારે ૧૦:૦૦ વાગ્યે", "at 10 am"), []);
+  assert.deepEqual(numbersNotIn("ટીવી9ના અહેવાલ મુજબ", "a report\n\nટીવી9 ગુજરાતી"), []);
+  assert.deepEqual(numbersNotIn("કુલ ૪૨,૦૦,૦૦૦ મતદારો", "41.74 lakh voters"), ["42,00,000"]);
 });
 test("copied wording is caught, our own words aren't", () => {
   const src = "રાજ્ય સરકારે આજે નર્મદા નહેરના સમારકામ માટે બે હજાર કરોડ રૂપિયાની યોજનાને મંજૂરી આપી હતી અને કામ તરત શરૂ થશે";

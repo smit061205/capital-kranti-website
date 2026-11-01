@@ -138,6 +138,8 @@ export function numbersNotIn(out: string, source: string, date?: string): string
     const v = Number(m[1]);
     const unit = m[2].toLowerCase();
     const units = /million/.test(unit) ? v * 1e6 : /billion/.test(unit) ? v * 1e9 : /crore|કરોડ|करोड/.test(unit) ? v * 1e7 : v * 1e5;
+    // and in full: "41.74 lakh" is the story's ૪૧,૭૪,૦૦૦ (1 Nov: a true figure failed the check three times)
+    known.add(asNumber(units));
     for (const per of [1e5, 1e6, 1e7, 1e9]) known.add(asNumber(units / per));
   }
   // "આઠ હજાર 224", "બે હજાર 356": thousands in words, the rest in figures (All India Radio's way) = 8224, 2356
@@ -148,7 +150,8 @@ export function numbersNotIn(out: string, source: string, date?: string): string
   const words = new Set(source.toLowerCase().split(/[\s,.;:()'"‘’“”!?।-]+/));
   return [...digits(out)].filter((n) => {
     const v = plain(n);
-    if (known.has(v)) return false;
+    // the minutes of "10:00" are not a figure
+    if (known.has(v) || /^0+$/.test(v)) return false;
     const k = Number(v);
     return !(Number.isInteger(k) && k >= 1 && k <= 20 && NUMBER_WORDS[k].some((w) => words.has(w) || [...words].some((x) => x.startsWith(w) && x.length <= w.length + 3)));
   });

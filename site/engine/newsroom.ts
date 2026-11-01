@@ -171,7 +171,8 @@ export async function check(sql: Sql | null, w: Written, src: SourceText[], date
   const problems: string[] = [];
   const all = src.map((s) => `${s.title}\n${s.text}`).join("\n\n");
   const text = [w.kicker, w.headline, w.deck, w.body, w.caption].join("\n\n");
-  const wrong = numbersNotIn(text, all, date);
+  // an outlet's own name counts as known: the 9 of "ટીવી9" is no figure (1 Nov: it failed story after story)
+  const wrong = numbersNotIn(text, `${all}\n\n${src.map((s) => s.source.name).join("\n")}`, date);
   if (wrong.length) problems.push(`numbers not in any source: ${wrong.join(", ")}`);
   if (repeats(w.body)) problems.push("says the same thing twice");
   // letters from another script inside the Gujarati (29 Oct: Telugu letters mid-sentence) are a model's slip
@@ -193,6 +194,26 @@ export async function check(sql: Sql | null, w: Written, src: SourceText[], date
   return { ok: problems.length === 0, problems, claims: res.value, model: res.model };
 }
 
+const STRAY = /[\u0900-\u097F\u0980-\u0A7F\u0B00-\u0DFF]/;
+const MEND = `You fix Gujarati spelling. You get a JSON list of words from a Gujarati news story that slipped into another script.
+Write each one in Gujarati letters, keeping its sound: names stay the same names. Change nothing else.
+Reply with JSON only: {"words":{"the word as given":"the word in Gujarati letters"}}`;
+
+/** A few words in another script (1 Nov: Hindi names in a Gujarati story, one failure in four) put into Gujarati letters, at
+ *  once, instead of the whole story being thrown away. The story is checked afterwards like any other. */
+async function mendLetters(sql: Sql | null, w: Written): Promise<Written> {
+  const words = [...new Set([w.kicker, w.headline, w.deck, w.body, w.caption].join(" ").split(/[\s,.;:!?()'"‘’“”।—-]+/).filter((x) => STRAY.test(x)))];
+  if (!sql || !words.length) return w;
+  const res = await askGemini(sql, "lite", { system: MEND, user: JSON.stringify(words), maxTokens: 2000, temperature: 0 }, (v) => {
+    const map = (v as { words?: Record<string, unknown> })?.words;
+    if (!map || !words.every((x) => typeof map[x] === "string" && map[x] && !STRAY.test(map[x] as string))) return null;
+    return map as Record<string, string>;
+  }, { wait: false, timeoutMs: 30_000 });
+  if (!res.ok) return w;
+  const swap = (s: string) => words.reduce((t, x) => t.split(x).join(res.value[x]), s);
+  return { ...w, kicker: swap(w.kicker), headline: swap(w.headline), deck: swap(w.deck), body: swap(w.body), caption: swap(w.caption) };
+}
+
 /** Write, check, and (once) rewrite with the problems named. */
 /** Flash Lite requests left for Aavtikal and the translations before the news goes back to writing with a Gemma */
 const LITE_KEPT = 300;
@@ -209,7 +230,7 @@ export async function writeChecked(sql: Sql | null, src: SourceText[], level: Le
       ? await askGemini(sql, "lite", ask, checkWritten, { wait: false, timeoutMs: 90_000 }).then((r) => (r.ok ? r : askJson(sql, ask, checkWritten)))
       : await askJson(sql, ask, checkWritten);
     if (!res.ok) return { ok: false as const, why: res.why, stop: res.stop, retry: res.busy };
-    const w = { ...res.value, model: res.model };
+    const w = await mendLetters(sql, { ...res.value, model: res.model });
     // far shorter than the sources allow (29 Oct: a £10 billion package told in two paragraphs): written again once, before checking
     const words = (x: string) => x.split(/\s+/).filter(Boolean).length;
     if (attempt === 0 && words(w.body) < lo * 0.75) {
