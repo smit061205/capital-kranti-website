@@ -180,6 +180,8 @@ export async function check(sql: Sql | null, w: Written, src: SourceText[], date
     const share = copiedShare(w.body, s.text);
     if (share > 0.12) problems.push(`copies ${Math.round(share * 100)}% of ${s.source.name}'s wording`);
   }
+  // the code's own checks failed: the story goes back now, without a model's minutes on a version that can't go up
+  if (problems.length) return { ok: false, problems, claims: [] };
   const res = await askJson(sql, { system: CHECKER, user: `STORY:\n${text}\n\n===\n\n${sourcesBlock(src)}`, role: "checker", avoid: w.model, maxTokens: 6000 },
     (v) => {
       const x = v as { claims?: Claim[] };
@@ -212,6 +214,20 @@ async function mendLetters(sql: Sql | null, w: Written): Promise<Written> {
   return { ...w, kicker: swap(w.kicker), headline: swap(w.headline), deck: swap(w.deck), body: swap(w.body), caption: swap(w.caption) };
 }
 
+const FACTS = `You take notes for a news writer. From the sources given, list every fact as a short note in English, in your own words:
+who, what, where, when, how many, why, what happens next, who said what. Keep every number exactly, and write people's and places' names
+as the source writes them. Leave nothing out and add nothing. Reply with JSON only: {"facts":["..."]}`;
+
+/** The sources as notes (2 Nov: with one Gujarati source to go on, the writer copied its sentences, up to 69%, in story after
+ *  story; it can't copy wording it never sees). The story is still checked against the sources themselves. */
+async function factsOf(sql: Sql, src: SourceText[]): Promise<string | null> {
+  const res = await askGemini(sql, "lite", { system: FACTS, user: sourcesBlock(src), maxTokens: 6000, temperature: 0.1 }, (v) => {
+    const facts = (v as { facts?: unknown })?.facts;
+    return Array.isArray(facts) && facts.length >= 3 && facts.every((f) => typeof f === "string") ? (facts as string[]) : null;
+  }, { wait: false, timeoutMs: 60_000 });
+  return res.ok ? `NOTES ON THE FACTS (from ${src.map((s) => s.source.name).join(", ")}; use all of them and only them):\n${res.value.map((f) => `- ${f}`).join("\n")}` : null;
+}
+
 /** Write, check, and (once) rewrite with the problems named. */
 /** Flash Lite requests left for Aavtikal and the translations before the news goes back to writing with a Gemma */
 const LITE_KEPT = 300;
@@ -220,11 +236,13 @@ export async function writeChecked(sql: Sql | null, src: SourceText[], level: Le
   const [lo, hi] = lengthFor(level, src);
   let note = "";
   let last: { w: Written; c: Checked } | null = null;
+  const lite = !!sql && (await geminiRemaining(sql, "lite")) > LITE_KEPT;
+  const brief = (lite && src.some((s) => s.source.lang === "gu") && (await factsOf(sql, src))) || sourcesBlock(src);
   for (let attempt = 0; attempt < 2; attempt++) {
-    const ask = { system: WRITER(lo, hi), user: `EVENT: ${event}\n\n${sourcesBlock(src)}${note}`, role: "writer" as const, temperature: 0.3, maxTokens: 12000 };
+    const ask = { system: WRITER(lo, hi), user: `EVENT: ${event}\n\n${brief}${note}`, role: "writer" as const, temperature: 0.3, maxTokens: 12000 };
     // Flash Lite writes, a Gemma when it can't (the user, 1 Nov: a Gemma took minutes a story and often failed); never the
     // last of its day, which Aavtikal shares. A Gemma still does the checking, so the checker is never the writer.
-    const res = sql && (await geminiRemaining(sql, "lite")) > LITE_KEPT
+    const res = lite
       ? await askGemini(sql, "lite", ask, checkWritten, { wait: false, timeoutMs: 90_000 }).then((r) => (r.ok ? r : askJson(sql, ask, checkWritten)))
       : await askJson(sql, ask, checkWritten);
     if (!res.ok) return { ok: false as const, why: res.why, stop: res.stop, retry: res.busy };
