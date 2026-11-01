@@ -535,6 +535,10 @@ async function translate(sql: Sql, gu: Words3, figs: Figure[], lang: "en" | "hi"
 
 const slug = (s: string) => s.toLowerCase().normalize("NFD").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 60).replace(/-$/, "") || "article";
 
+/** The subjects a beat has failed on this round (2 Nov: AI needed the most, so only AI was tried, on ideas with no photograph,
+ *  and Tech and Science, with their machines and missions, never had a turn: 1 article in eight rounds). */
+const failed = new Map<Beat, number>();
+
 /** Which beat needs an article most: the day's target shared about 4 : 3 : 3 between AI, Tech and Science. */
 async function beatToday(sql: Sql, date: string, target: number): Promise<Beat | null> {
   const rows = await sql.query(
@@ -544,16 +548,28 @@ async function beatToday(sql: Sql, date: string, target: number): Promise<Beat |
   const done = Object.values(have).reduce((a, b) => a + b, 0);
   if (done >= target) return null;
   const share: Record<Beat, number> = { ai: 0.4, tech: 0.3, science: 0.3 };
-  return [...WEBSITE.deskBeats].sort((a, b) => ((have[a] ?? 0) - share[a] * target) - ((have[b] ?? 0) - share[b] * target))[0];
+  const need = (b: Beat) => (have[b] ?? 0) + 2 * (failed.get(b) ?? 0) - share[b] * target;
+  return [...WEBSITE.deskBeats].sort((a, b) => need(a) - need(b))[0];
 }
 
-type Outcome = "published" | "skipped" | "done" | "stop";
+type Outcome = "published" | "skipped" | "busy" | "done" | "stop";
 
 const stateList = async (sql: Sql, key: string) =>
   String((await sql.query(`select value from state where key = $1`, [key]))[0]?.value ?? "").split("\n").filter(Boolean);
-const addToList = (sql: Sql, key: string, item: string) => sql.query(
+const addToList = (sql: Sql, key: string, item: string, keep = 60) => sql.query(
   `insert into state (key, value) values ($1, $2) on conflict (key) do update set value = (
-     select string_agg(t, E'\n') from (select unnest(string_to_array($2 || E'\n' || state.value, E'\n')) as t limit 60) x)`, [key, item]);
+     select string_agg(t, E'\n') from (select unnest(string_to_array($2 || E'\n' || state.value, E'\n')) as t limit $3::int) x)`, [key, item, keep]);
+
+/** The model answers from a Gemma, or Flash Lite when they are busy (2 Nov: the news round started and the desk's choosing failed). */
+const askAny = <T,>(sql: Sql, a: { system: string; user: string; maxTokens: number; temperature?: number }, check: (v: unknown) => T | null) =>
+  askJson(sql, a, check).then((r) => (r.ok ? r : askGemini(sql, "lite", a, check)));
+
+/** A subject not to come back to: its pages aren't offered again (2 Nov: the same subjects were picked round after round,
+ *  whatever the COVERED list said, and every round ended on them). */
+async function setAside(sql: Sql, subj: { topic: string; leads: { url: string }[] }) {
+  await addToList(sql, "desk_skipped", subj.topic);
+  for (const l of subj.leads) await addToList(sql, "desk_skipped_leads", l.url, 300);
+}
 
 /** The proper names and numbers in a subject's line ("Gemini", "4", "Carbon"): two subjects sharing two are compared. */
 const nameWords = (t: string) => new Set((t.match(/[A-Za-z0-9][\w.+-]*/g) ?? [])
@@ -572,7 +588,7 @@ async function alreadyCovered(sql: Sql, topic: string, covered: string[]): Promi
   const particular = (w: string) => /\d/.test(w) && /[A-Za-z]/.test(w) || /^[A-Z]{3,}$/.test(w) && !COMMON.has(w) || w.length >= 6 && !COMMON.has(w);
   const near = covered.filter((c) => { const shared = [...mine].filter((w) => nameWords(c).has(w)); return shared.length >= 2 || shared.some(particular); }).slice(0, 8);
   if (!near.length) return null;
-  const res = await askJson(sql, { system: SAME, user: `NEW: ${topic}\n\nEARLIER:\n${near.map((c, i) => `${i + 1}. ${c}`).join("\n")}`, maxTokens: 60 },
+  const res = await askAny(sql, { system: SAME, user: `NEW: ${topic}\n\nEARLIER:\n${near.map((c, i) => `${i + 1}. ${c}`).join("\n")}`, maxTokens: 60 },
     (v) => { const x = v as { same?: unknown }; return typeof x?.same === "number" ? x.same : null; });
   return res.ok && res.value >= 1 && res.value <= near.length ? near[res.value - 1] : null;
 }
@@ -642,17 +658,20 @@ const madeLine = (m: Made) => `${m.words} words, ${m.figs.length} figure(s) (${m
 
 const LASTING = (beat: Beat) => `You are the editor of Aavtikal, a Gujarati magazine of deep explainers. Today's news gave no subject for its
 ${beat.toUpperCase()} section (${BEAT_WORDS[beat]}), so choose ONE lasting explainer subject Indian readers would value: an important
-technology, scientific idea, machine, mission, discovery or famous model, one with a solid English Wikipedia article full of facts and
-numbers. Never politics, a company's business, or a subject already covered (listed under COVERED).
+technology, machine, mission, discovery or famous system, one with a solid English Wikipedia article full of facts and numbers.
+It must be something a camera can photograph, since every article opens with a real photograph: a machine, a chip, a robot, a spacecraft,
+a telescope, a laboratory, a supercomputer. Never an idea or method that exists only as a diagram (attention, tokenization, pruning).
+Never politics, a company's business, or a subject already covered (listed under COVERED).
 Give the subject in one English line and the exact titles of 1 or 2 English Wikipedia articles on it.
 Reply with JSON only: {"topic":"","wiki":[""]}`;
 
 /** Today's news subject for a beat: nothing already written about (its pages not read again, its subject not repeated). */
-async function newsSubject(sql: Sql, beat: Beat, covered: string[], log: (s: string) => void): Promise<Subject | "stop" | null> {
+async function newsSubject(sql: Sql, beat: Beat, covered: string[], log: (s: string) => void, tries = 0): Promise<Subject | "stop" | "busy" | null> {
   const usedUrls = new Set((await sql.query(
     `select jsonb_array_elements(sources)->>'url' as u from features where created_at > now() - interval '30 days' and status <> 'withdrawn'`)).map((r) => r.u as string));
-  const list = (await leads(sql, beat)).filter((l) => !usedUrls.has(l.url)).map((l, i) => ({ ...l, n: i + 1 }));
-  const pick = await askJson(sql, {
+  const aside = new Set(await stateList(sql, "desk_skipped_leads"));
+  const list = (await leads(sql, beat)).filter((l) => !usedUrls.has(l.url) && !aside.has(l.url)).map((l, i) => ({ ...l, n: i + 1 }));
+  const pick = await askAny(sql, {
     system: PICK(beat),
     user: `ITEMS:\n${list.map((l) => `${l.n}. [${l.from}${l.official ? ", official" : ""}, ${l.at.slice(0, 10)}] ${l.title} -- ${l.summary}`).join("\n")}\n\nCOVERED:\n${covered.join("\n") || "(nothing yet)"}`,
     maxTokens: 600,
@@ -661,41 +680,43 @@ async function newsSubject(sql: Sql, beat: Beat, covered: string[], log: (s: str
     const wiki = (Array.isArray(x?.wiki) ? x.wiki : [x?.wiki]).map((w) => String(w ?? "").trim()).filter(Boolean).slice(0, 3);
     return Array.isArray(x?.pick) ? { pick: x.pick.map(Number).filter((n) => n >= 1 && n <= list.length), topic: String(x.topic ?? ""), wiki } : null;
   });
-  if (!pick.ok) { log(`${beat}: no subject picked (${pick.why.slice(0, 120)})`); return pick.stop ? "stop" : null; }
+  if (!pick.ok) { log(`${beat}: no subject picked (${pick.why.slice(0, 120)})`); return pick.stop ? "stop" : pick.busy ? "busy" : null; }
   if (!pick.value.pick.length || !pick.value.topic) { log(`${beat}: nothing in today's news deserves an explainer`); return null; }
   const topic = pick.value.topic.slice(0, 200);
   log(`${beat}: ${topic}`);
+  const picked = pick.value.pick.map((n) => list[n - 1]);
   const twin = await alreadyCovered(sql, topic, covered);
-  if (twin) { log(`  already written: ${twin}`); await addToList(sql, "desk_skipped", topic); return null; }
-  return { beat, topic, wiki: pick.value.wiki, leads: pick.value.pick.map((n) => list[n - 1]) };
+  if (twin) { log(`  already written: ${twin}`); await setAside(sql, { topic, leads: picked }); return tries < 2 ? newsSubject(sql, beat, covered, log, tries + 1) : null; }
+  return { beat, topic, wiki: pick.value.wiki, leads: picked };
 }
 
 /** A lasting subject from Wikipedia, when the news gave none (the user, 29 Oct: the day's articles every day, without fail; 15 from 30 Oct). */
-async function lastingSubject(sql: Sql, beat: Beat, covered: string[], log: (s: string) => void): Promise<Subject | "stop" | null> {
-  const res = await askJson(sql, { system: LASTING(beat), user: `COVERED:\n${covered.join("\n") || "(nothing yet)"}`, maxTokens: 300 }, (v) => {
+async function lastingSubject(sql: Sql, beat: Beat, covered: string[], log: (s: string) => void, tries = 0): Promise<Subject | "stop" | "busy" | null> {
+  // a high temperature: at the usual one the model gives the same subject every time it is asked
+  const res = await askAny(sql, { system: LASTING(beat), user: `COVERED:\n${covered.join("\n") || "(nothing yet)"}`, maxTokens: 300, temperature: 0.9 }, (v) => {
     const x = v as { topic?: string; wiki?: unknown[] };
     const wiki = (Array.isArray(x?.wiki) ? x.wiki : []).map((w) => String(w ?? "").trim()).filter(Boolean).slice(0, 2);
     return x?.topic && wiki.length ? { topic: String(x.topic).slice(0, 200), wiki } : null;
   });
-  if (!res.ok) { log(`${beat}: no lasting subject (${res.why.slice(0, 120)})`); return res.stop ? "stop" : null; }
+  if (!res.ok) { log(`${beat}: no lasting subject (${res.why.slice(0, 120)})`); return res.stop ? "stop" : res.busy ? "busy" : null; }
   log(`${beat} (a lasting subject): ${res.value.topic}`);
   const twin = await alreadyCovered(sql, res.value.topic, covered);
-  if (twin) { log(`  already written: ${twin}`); await addToList(sql, "desk_skipped", res.value.topic); return null; }
+  if (twin) { log(`  already written: ${twin}`); await addToList(sql, "desk_skipped", res.value.topic); return tries < 2 ? lastingSubject(sql, beat, [res.value.topic, ...covered], log, tries + 1) : null; }
   return { beat, topic: res.value.topic, wiki: res.value.wiki, leads: [] };
 }
 
 /** An article written on a subject: published when it checks out, else not put in at all (no approvals, the user, 30 Oct). */
-async function writeUp(sql: Sql, subj: Subject, date: string, log: (s: string) => void): Promise<Outcome | "busy"> {
+async function writeUp(sql: Sql, subj: Subject, date: string, log: (s: string) => void): Promise<Outcome> {
   let id = slug(subj.topic);
   if ((await sql.query(`select 1 from features where id = $1`, [id])).length) id = `${id}-${date.slice(5).replace("-", "")}`;
   const m = await make(sql, subj, id, date, log);
   if (m === "stop") return "stop";
   if (m === "busy") return "busy";
-  if (typeof m === "string") { if (m === "thin" || m === "nophoto") await addToList(sql, "desk_skipped", subj.topic); return "skipped"; }
+  if (typeof m === "string") { if (m === "thin" || m === "nophoto") await setAside(sql, subj); return "skipped"; }
   // the check couldn't run: the subject waits for the next round
   if (m.problems.some((p) => p.startsWith("the claim check didn't answer"))) return "busy";
   if (m.problems.length) {
-    await addToList(sql, "desk_skipped", subj.topic);
+    await setAside(sql, subj);
     log(`  not put up: ${id}: ${m.problems.slice(0, 2).join("; ")}`);
     return "skipped";
   }
@@ -730,15 +751,15 @@ async function oneArticle(sql: Sql, log: (s: string) => void): Promise<Outcome> 
     ...(await stateList(sql, "desk_skipped")),
   ];
   const news = await newsSubject(sql, beat, covered, log);
-  if (news === "stop") return "stop";
+  if (news === "stop" || news === "busy") return news;
   const r = news ? await writeUp(sql, news, date, log) : "skipped";
   // Google too busy to write: the same subject later, not another one now (29 Oct: a busy spell sent the desk to a lasting subject)
-  if (r === "busy") return "skipped";
   if (r !== "skipped") return r;
   const lasting = await lastingSubject(sql, beat, covered, log);
-  if (lasting === "stop") return "stop";
+  if (lasting === "stop" || lasting === "busy") return lasting;
   const l = lasting ? await writeUp(sql, lasting, date, log) : "skipped";
-  return l === "busy" ? "skipped" : l;
+  if (l === "skipped") failed.set(beat, (failed.get(beat) ?? 0) + 1);
+  return l;
 }
 
 // ---- the older articles written again to today's standard (the user, 29 Oct) ----
@@ -971,6 +992,8 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     // (a third of a short round), so the round isn't cut off with an article half done (29 Oct)
     const margin = Math.min(15 * 60_000, (deadline - started) * 0.35);
     while (deadline - Date.now() > margin && !(newDone && oldDone)) {
+      // every article needs Flash Lite for its pictures: without it there's nothing to try until Google's day turns
+      if (!(await geminiLeft(sql, "lite"))) { log("Flash Lite's free requests for today are used up"); break; }
       // the older articles first (the user, 29 Oct: "trigger rewriting now"), then the day's new ones
       // a rewrite only with writing requests to spare beyond today's articles (and a few for failed tries)
       if (!oldDone && (await geminiRemaining(sql, "writer")) <= (await stillToday(sql, indiaDate())) + 4) oldDone = true;
@@ -984,11 +1007,14 @@ if (import.meta.url === `file://${process.argv[1]}`) {
         const r = await oneArticle(sql, log);
         if (r === "stop") break;
         if (r === "done") newDone = true;
-        else if (++details[r] >= 4 && r === "skipped") newDone = true;
+        // busy models say nothing about the subjects: the same round goes on when they are free (2 Nov: four busy tries
+        // in five minutes ended a round and the desk rested half an hour)
+        else if (r === "busy") { log("the free models are busy: trying again in three minutes"); await new Promise((w) => setTimeout(w, 180_000)); }
+        else if (++details[r] >= 6 && r === "skipped") newDone = true;
       }
     }
     // nothing more to do for now (the day's articles made, or Flash's requests used up): the job rests a while
-    if (newDone && oldDone || !(await geminiLeft(sql, "writer"))) process.exitCode = 3;
+    if (newDone && oldDone || !(await geminiLeft(sql, "writer")) || !(await geminiLeft(sql, "lite"))) process.exitCode = 3;
     await retranslate(sql, log, deadline);
     await sql.query(`update runs set finished_at = now(), ok = true, details = $2 where id = $1`, [run.id, JSON.stringify({ ...details, log: lines.slice(-30) })]);
   } catch (e) {

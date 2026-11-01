@@ -39,7 +39,11 @@ older notes below disagree, this block is right.*
   real pictures only (the user, 30 Oct, replacing the drawn covers of that morning):** nothing
   drawn, nothing AI-looking. If the first pictures have none, Commons and NASA are searched
   wider; a new subject with no real picture is set aside; a published article with none comes
-  off the site (held) and returns by itself once one is found. On 30 Oct the re-check of every old
+  off the site (held) and returns by itself once one is found. **Flash Lite is shared (2 Nov):**
+  the news writes and translates with it, keeping its last 300 of Google's day for Aavtikal
+  (`LITE_KEPT`), then uses a Gemma until 12:30 PM IST. Busy models never end a desk round: it waits
+  three minutes. A beat that fails hands its turn to the next, and subjects set aside aren't
+  offered again. Lasting subjects must be something a camera can photograph. On 30 Oct the re-check of every old
   article used up Flash's free allowance by 6:27 AM IST; it resets about 1:30 PM IST.
 - **No approvals (the user, 30 Oct):** news and Aavtikal go up by themselves, sensitive stories
   too. What fails its checks doesn't go up at all; a story a source corrects comes down to the

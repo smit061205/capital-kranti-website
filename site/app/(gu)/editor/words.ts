@@ -20,7 +20,7 @@ export const W = {
     engine: "સમાચાર એન્જિન", running: "ચાલુ છે: દર ૧૫ મિનિટે નવા સમાચાર શોધે છે.", stopped: "બંધ છે: કંઈ નવું મુકાતું નથી.",
     stop: "એન્જિન બંધ કરો", start: "એન્જિન ફરી ચાલુ કરો", lastRuns: "છેલ્લી વખત ચાલ્યું", ok: "બરાબર", failed: "ભૂલ",
     use: "આજનો વપરાશ", stories: "છેલ્લા ૨૪ કલાકમાં મુકાયેલા સમાચાર", ai: "સમાચાર માટે AI વિનંતીઓ (મફત)", uploads: "આ મહિને ફોટા ચડાવ્યા", cost: "ખર્ચ",
-    free: "મફત મૉડલ જ વપરાય છે.", seconds: "સેકન્ડ", storiesUp: "સમાચાર મુકાયા", runningNow: "ચાલે છે", aiAavtikal: "આવતીકાલ માટે AI વિનંતીઓ (મફત)", requests: "AI વિનંતી",
+    free: "મફત મૉડલ જ વપરાય છે.", seconds: "સેકન્ડ", storiesUp: "સમાચાર મુકાયા", runningNow: "ચાલે છે", aiAavtikal: "Gemini વિનંતીઓ: સમાચાર અને આવતીકાલ (મફત)", requests: "AI વિનંતી",
     // the change page
     editTitle: "સમાચાર બદલો", editFeature: "લેખ બદલો", back: "પાછા જાઓ",
     headline: "મથાળું", deck: "પેટા મથાળું", body: "સમાચાર", bodyHelp: "દરેક ફકરા વચ્ચે એક ખાલી લીટી રાખો.", caption: "ફોટાની નીચેનું લખાણ",
@@ -89,7 +89,7 @@ export const W = {
     engine: "News engine", running: "Running: it looks for new news every 15 minutes.", stopped: "Stopped: nothing new goes up.",
     stop: "Stop the engine", start: "Start the engine again", lastRuns: "Last runs", ok: "OK", failed: "Error",
     use: "Today's use", stories: "News put up in the last 24 hours", ai: "AI requests for news (free)", uploads: "Photos uploaded this month", cost: "Cost",
-    free: "Only free models are used.", seconds: "s", storiesUp: "stories put up", runningNow: "Running", aiAavtikal: "AI requests for Aavtikal (free)", requests: "AI requests",
+    free: "Only free models are used.", seconds: "s", storiesUp: "stories put up", runningNow: "Running", aiAavtikal: "Gemini requests: news and Aavtikal (free)", requests: "AI requests",
     editTitle: "Change the story", editFeature: "Change the article", back: "Back",
     headline: "Headline", deck: "Sub-heading", body: "Story", bodyHelp: "Leave one empty line between paragraphs.", caption: "Photo caption",
     save: "Save changes", cancel: "Cancel", missing: "The headline and the story can't be empty.",
