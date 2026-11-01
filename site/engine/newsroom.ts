@@ -4,7 +4,7 @@
 // run.ts brings the cluster's items in and stores what comes out, and
 // try.ts runs the same steps on live items without storing anything.
 import { numbersNotIn, repeats } from "./text.ts";
-import { askGemini, askJson } from "./ai.ts";
+import { askGemini, askJson, geminiRemaining } from "./ai.ts";
 import { ask } from "./fetch.ts";
 import { pageText } from "./feed.ts";
 import { pibRelease } from "./pib.ts";
@@ -194,13 +194,20 @@ export async function check(sql: Sql | null, w: Written, src: SourceText[], date
 }
 
 /** Write, check, and (once) rewrite with the problems named. */
+/** Flash Lite requests left for Aavtikal and the translations before the news goes back to writing with a Gemma */
+const LITE_KEPT = 300;
+
 export async function writeChecked(sql: Sql | null, src: SourceText[], level: Level, date: string, event: string) {
   const [lo, hi] = lengthFor(level, src);
   let note = "";
   let last: { w: Written; c: Checked } | null = null;
   for (let attempt = 0; attempt < 2; attempt++) {
-    const res = await askJson(sql, { system: WRITER(lo, hi), user: `EVENT: ${event}\n\n${sourcesBlock(src)}${note}`, role: "writer", temperature: 0.3, maxTokens: 12000 },
-      (v) => checkWritten(v));
+    const ask = { system: WRITER(lo, hi), user: `EVENT: ${event}\n\n${sourcesBlock(src)}${note}`, role: "writer" as const, temperature: 0.3, maxTokens: 12000 };
+    // Flash Lite writes, a Gemma when it can't (the user, 1 Nov: a Gemma took minutes a story and often failed); never the
+    // last of its day, which Aavtikal shares. A Gemma still does the checking, so the checker is never the writer.
+    const res = sql && (await geminiRemaining(sql, "lite")) > LITE_KEPT
+      ? await askGemini(sql, "lite", ask, checkWritten, { wait: false, timeoutMs: 90_000 }).then((r) => (r.ok ? r : askJson(sql, ask, checkWritten)))
+      : await askJson(sql, ask, checkWritten);
     if (!res.ok) return { ok: false as const, why: res.why, stop: res.stop, retry: res.busy };
     const w = { ...res.value, model: res.model };
     // far shorter than the sources allow (29 Oct: a £10 billion package told in two paragraphs): written again once, before checking

@@ -207,7 +207,7 @@ export async function askJson<T>(sql: Sql | null, a: Ask, check: (v: unknown) =>
   return { ok: false, why: whys.join(" | ") || why, busy };
 }
 
-/** Gemini on Google's free tier, for Aavtikal's long explainers only (the user's choice, 29 Oct), counted
+/** Gemini on Google's free tier, for Aavtikal's long explainers and the news's writing (the user's choice, 29 Oct, 1 Nov), counted
  * apart from Gemma's. Each model has its own daily allowance (AI Studio, 29 Oct: 20 for each Flash, 500
  * for each Flash Lite), so a pool's models are used in order: the first until its allowance is used, then
  * the next. "writer" writes the articles; "lite" translates them (Gemma's 16,000 tokens a minute is too
