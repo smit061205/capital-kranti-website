@@ -11,8 +11,8 @@ const serifHi = Noto_Serif_Devanagari({ subsets: ["devanagari", "latin"], variab
 const ui = Anek_Gujarati({ subsets: ["gujarati", "latin"], variable: "--font-ui", preload: false });
 const serif = Noto_Serif_Gujarati({ subsets: ["gujarati", "latin"], variable: "--font-serif", preload: false });
 // headlines (29 Oct): Hind, the Devanagari of Hind Vadodara
-const headHi = Hind({ subsets: ["devanagari", "latin"], weight: ["600", "700"], variable: "--font-head-hi", preload: false });
-const head = Hind_Vadodara({ subsets: ["gujarati", "latin"], weight: ["600", "700"], variable: "--font-head", preload: false });
+const headHi = Hind({ subsets: ["devanagari", "latin"], weight: ["500", "600", "700"], variable: "--font-head-hi", preload: false });
+const head = Hind_Vadodara({ subsets: ["gujarati", "latin"], weight: ["500", "600", "700"], variable: "--font-head", preload: false });
 
 export default function Layout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (

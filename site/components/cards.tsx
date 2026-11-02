@@ -49,7 +49,12 @@ export const boostOf = (s: Story): Boost => {
   return i >= 11 ? "giga" : i >= 9.5 ? "mega" : i >= 7.5 ? "boost" : "default";
 };
 
-export function Lead({ s, lang, more = [] }: { s: Story; lang: Lang; more?: Story[] }) {
+/** A photo fit for the top of a page: wide and sharp. Anything else (a tall file portrait, a map, a small picture) is left
+ *  out there: type alone looks better than a weak picture (2 Nov: the top story showed a tall map). */
+export const strong = (s: Story) => !!s.photo && s.photo.width >= 900 && s.photo.width / s.photo.height >= 1.2;
+
+export function Lead({ s: story, lang, more = [] }: { s: Story; lang: Lang; more?: Story[] }) {
+  const s = strong(story) ? story : { ...story, photo: null };
   const w = words(s, lang);
   return (
     <article className={`lead b-${boostOf(s)}${s.photo ? "" : " nopic"}`}>
