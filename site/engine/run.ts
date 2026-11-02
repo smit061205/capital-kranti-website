@@ -260,7 +260,7 @@ async function refile() {
  *  printed paper's stories of the last month without Hindi (29 Oct: 70 of them; their English is the hourly run's,
  *  pipeline/run.ts, which makes no Hindi). Run early in the round, before the writing (2 Nov: run last, it began after
  *  the round's time every time and translated nothing, so a story whose translation failed stayed Gujarati on /en and
- *  /hi). The least recently tried first, so a story that keeps failing doesn't hold the others back. A translation
+ *  /hi). The newest first, those tried in the last hour after the rest, so one that keeps failing doesn't hold the others back. A translation
  *  with Gujarati letters in it counts as none (2 Nov: models had given the Gujarati back and it was kept as done). */
 async function translations(until = deadline) {
   const left = await aiLeft(sql);
@@ -273,7 +273,7 @@ async function translations(until = deadline) {
                      where status = 'published' and published_at > now() - interval '30 days') s
       where origin = 'live' and published_at > now() - interval '3 days' and not (en_ok and hi_ok)
          or origin <> 'live' and not hi_ok
-      order by origin = 'live' desc, updated_at asc limit $1`, [can]);
+      order by origin = 'live' desc, updated_at > now() - interval '1 hour', published_at desc limit $1`, [can]);
   let done = 0;
   const one = async (r: (typeof rows)[number]) => {
     const w = { kicker: r.kicker, headline: r.headline, deck: r.deck, body: r.body, caption: r.caption, model: "" };
@@ -286,6 +286,7 @@ async function translations(until = deadline) {
           hi = coalesce($3::jsonb, hi), hi_status = case when $3::jsonb is not null then 'done' else hi_status end, updated_at = now()
         where id = $1`, [r.id, en ? JSON.stringify(en) : null, hi ? JSON.stringify(hi) : null]);
     if (en || hi) done++;
+    log(`  ${r.id}: ${[r.en_ok || r.origin !== "live" ? "" : en ? "English" : "no English", r.hi_ok ? "" : hi ? "Hindi" : "no Hindi"].filter(Boolean).join(", ")}`);
   };
   // three stories at a time, six requests: Flash Lite allows 15 a minute, shared with the writing and the desk
   for (let i = 0; i < rows.length && Date.now() <= until; i += 3) await Promise.all(rows.slice(i, i + 3).map(one));
