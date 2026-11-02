@@ -1,8 +1,7 @@
-// The website's own constants. The address moves to capitalkranti.co.in when
-// the domain points here (ROADMAP §6.0 item 3); until then the free Vercel
-// address, which search engines are asked not to index (it would compete with
-// the real one later).
-export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://capital-kranti.vercel.app").replace(/\/$/, "");
+// The website's own constants. Its address is capitalkranti.co.in (2 Nov; the old
+// Vercel address forwards there, next.config.ts); a Vercel address is never indexed
+// by search engines (a preview's would compete with the real one).
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://capitalkranti.co.in").replace(/\/$/, "");
 export const INDEXABLE = !/\.vercel\.app$/.test(new URL(SITE_URL).hostname);
 export const PAPER = {
   gu: { name: "કેપિટલ ક્રાંતિ", tagline: "સમાજનો વિવેકપૂર્ણ દ્રષ્ટિકોણ", place: "ગાંધીનગર" },

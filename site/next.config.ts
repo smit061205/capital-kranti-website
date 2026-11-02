@@ -12,11 +12,16 @@ const nextConfig: NextConfig = {
     return [{ source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }, { key: "Content-Type", value: "application/javascript; charset=utf-8" }] }];
   },
   // the e-paper left the website (31 Oct): its old addresses go to the past issues
+  // the site's own address (2 Nov): a page opened at the old Vercel address goes to the same page on capitalkranti.co.in
+  // (not the API: the engine's calls and Telegram's messages may still come there)
   async redirects() {
-    return ["", "/en", "/hi"].flatMap((l) => [
-      { source: `${l}/epaper`, destination: `${l}/archive`, permanent: false },
-      { source: `${l}/epaper/:date`, destination: `${l}/archive/:date`, permanent: false },
-    ]);
+    return [
+      ...["", "/en", "/hi"].flatMap((l) => [
+        { source: `${l}/epaper`, destination: `${l}/archive`, permanent: false },
+        { source: `${l}/epaper/:date`, destination: `${l}/archive/:date`, permanent: false },
+      ]),
+      { source: "/:path((?!api/).*)", has: [{ type: "host" as const, value: "capital-kranti.vercel.app" }], destination: "https://capitalkranti.co.in/:path", permanent: true },
+    ];
   },
   experimental: {
     globalNotFound: true,

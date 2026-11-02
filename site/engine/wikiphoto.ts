@@ -13,7 +13,7 @@ import { storePhoto } from "./publish.ts";
 
 type Sql = NeonQueryFunction<false, false>;
 // Wikimedia asks programs to name themselves and a way to reach them
-export const UA = "CapitalKranti-news/1.0 (https://capital-kranti.vercel.app; news photos from Wikimedia Commons)";
+export const UA = "CapitalKranti-news/1.0 (https://capitalkranti.co.in; news photos from Wikimedia Commons)";
 // free licences: Creative Commons (BY, BY-SA, 0), public domain, and the Government Open
 // Data Licence – India (most PIB and ministry photos on Commons)
 export const FREE = /^(cc0|cc[ -]by(-sa)?\b|public domain|pd\b|pd-|godl)/i;

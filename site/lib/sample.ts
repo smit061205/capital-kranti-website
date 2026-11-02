@@ -25,7 +25,7 @@ export function sample() {
       return {
         id: r.id, issueDate: r.at!.slice(0, 10), publishedAt: r.at!, updatedAt: r.at!, tier: (keys.find((k) => tiers.includes(k)) ?? "india") as Tier,
         genres: keys.filter((k) => !tiers.includes(k)) as never[], kicker: r.k, headline: r.h, deck: r.d, body: r.body, caption: r.cap,
-        photo: r.img ? { url: r.img.startsWith("/") ? `https://capital-kranti.vercel.app${r.img}` : r.img, width: r.w ?? 1200, height: r.ht ?? 800 } : null,
+        photo: r.img ? { url: r.img.startsWith("/") ? `https://capitalkranti.co.in${r.img}` : r.img, width: r.w ?? 1200, height: r.ht ?? 800 } : null,
         source: { kind: "pib", name: "PIB", url: "" }, checked: true, page: null, rank: null, en: null, hi: null, corrections: [], origin: "live", sources: [],
         importance: r.rank === 0 ? 9 : r.rank < 8 ? 8 : 6, gallery: [],
       };

@@ -33,4 +33,4 @@ jobs:
       - name: Refresh the website
         run: |
           sleep 240
-          curl -s -X POST https://capital-kranti.vercel.app/api/refresh || true
+          curl -s -X POST https://capitalkranti.co.in/api/refresh || true
