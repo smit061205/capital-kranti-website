@@ -20,6 +20,8 @@ export interface ChromeProps {
   /** the phone's bottom bar (articles have their own reading bar instead) */
   bottomBar: boolean;
   active?: "home" | "latest" | "archive";
+  /** today's date, in the front page's masthead; none on the other pages, whose header stays slim */
+  mast?: string;
 }
 
 const read = (k: string, d: string) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
@@ -83,11 +85,12 @@ export default function Chrome(p: ChromeProps) {
 
   return (
     <>
-      <header className={`top${scrolled ? " scrolled" : ""}`} style={{ viewTransitionName: "site-header" }}>
+      <header className={`top${scrolled ? " scrolled" : ""}${p.mast ? " mast" : ""}`} style={{ viewTransitionName: "site-header" }}>
         <div className="wrap bar">
           <div className="l">
             <button type="button" className="ib menu-plain" aria-label={w.menu} onClick={() => openMenu(false)}><MenuIcon /></button>
             <button type="button" className="ib lbl" onClick={() => openMenu(false)}><MenuIcon /><span>{w.sections}</span></button>
+            {p.mast && <span className="mast-date">{p.mast}</span>}
           </div>
           <Link prefetch={false} className="wm" href={p.links.home}><b>{p.name}</b><i>{p.tagline}</i></Link>
           <div className="r">

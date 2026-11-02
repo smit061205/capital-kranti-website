@@ -77,6 +77,36 @@ export function Lead({ s: story, lang, more = [] }: { s: Story; lang: Lang; more
   );
 }
 
+/** The day's top story on the front page: its words, the photo beside it being a column of its own. */
+export function TopStory({ s, lang, more = [] }: { s: Story; lang: Lang; more?: Story[] }) {
+  const w = words(s, lang);
+  return (
+    <article className={`topone b-${boostOf(s)}`}>
+      <Link prefetch={false} className="h" href={storyHref(s, lang)}>
+        {w.kicker && <span className="kick">{w.kicker}</span>}
+        <h2 className="display">{w.headline}</h2>
+        {w.deck && <p className="dek">{w.deck}</p>}
+        <Meta s={s} lang={lang} />
+      </Link>
+      {more.length > 0 && <MoreOn stories={more} lang={lang} />}
+    </article>
+  );
+}
+
+/** The front page's big photo; under it the story's own headline when it isn't the top story's. */
+export function Pictured({ s, lang, own }: { s: Story; lang: Lang; own: boolean }) {
+  const w = words(s, lang);
+  return (
+    <article className="pictured">
+      <Link prefetch={false} className="h" href={storyHref(s, lang)}>
+        <Photo s={s} lang={lang} eager morph />
+        {w.caption && <p className="cap">{w.caption} ({t(lang, "photo")}: {s.photo?.credit ?? s.source?.name ?? "PIB"})</p>}
+        {own && <><h2 className="h2">{w.headline}</h2>{w.deck && <p className="dek">{w.deck}</p>}<Meta s={s} lang={lang} /></>}
+      </Link>
+    </article>
+  );
+}
+
 export function Std({ s, lang, sec = true, morph = false, photo = true, label }: { s: Story; lang: Lang; sec?: boolean; morph?: boolean; photo?: boolean; label?: string }) {
   const w = words(s, lang);
   if (!photo) s = { ...s, photo: null };

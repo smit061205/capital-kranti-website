@@ -4,8 +4,7 @@ import type { Lang, Story } from "../lib/types.ts";
 import { elsewhere, latestStories, moreOnSubject, mostRead } from "../lib/db.ts";
 import { href, t } from "../lib/i18n.ts";
 import { sectionName } from "../lib/sections.ts";
-import { dateText } from "../lib/format.ts";
-import { Cmp, ElsewhereRow, Head, Join, LatestList, Lead, MostRead, Std, strong } from "../components/cards.tsx";
+import { Cmp, ElsewhereRow, Head, Join, LatestList, MostRead, Pictured, Std, strong, TopStory } from "../components/cards.tsx";
 import Link from "next/link";
 import { pic, SIZES } from "../lib/photo.ts";
 import Frame from "../components/Frame.tsx";
@@ -100,11 +99,12 @@ export default async function Home({ lang }: { lang: Lang }) {
   const lead = fresh.find(strong) ?? fresh[0] ?? today.find((s) => strong(s) && s.page === 1) ?? today.find(strong) ?? today[0];
   // under the lead, its subject's other stories; below the top, what readers open most; Aavtikal's newest
   const [more, read, articles, others] = await Promise.all([lead ? moreOnSubject(lead.id) : [], mostRead(16), features({ limit: 6 }), elsewhere(lang)]);
-  // the stories under the lead: today's paper first, then the newest; whole rows of three
-  // only (28 Oct: four left one card alone in its row and a hole beside the rail)
-  const pool = [...today, ...stories.filter((s) => s.issueDate !== day)].filter((s) => s !== lead).slice(0, 6);
-  const six = pool.slice(0, pool.length < 3 ? pool.length : pool.length - pool.length % 3).sort((a, b) => Number(strong(b)) - Number(strong(a)));
-  const shown = new Set([lead, ...six].filter(Boolean).map((s) => s!.id));
+  // the big photo in the middle of the top: the lead's own, else the newest strong one of the last day and a half
+  const pictured = lead && (strong(lead) ? lead : stories.find((s) => strong(s) && Date.now() - Date.parse(s.publishedAt) < 36 * 3600_000));
+  // the next stories: two under the lead, four across the page below; today's paper first, then the newest
+  const pool = [...today, ...stories.filter((s) => s.issueDate !== day)].filter((s) => s !== lead && s !== pictured).slice(0, 6);
+  const side = pool.slice(0, 2), row = pool.slice(2, 6);
+  const shown = new Set([lead, pictured, ...pool].filter(Boolean).map((s) => s!.id));
   // the latest list beside them: newest first, without the stories already at the top
   const byTime = stories.filter((s) => !shown.has(s.id))
     .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt) || (a.page ?? 9) - (b.page ?? 9) || (a.rank ?? 99) - (b.rank ?? 99));
@@ -123,20 +123,16 @@ export default async function Home({ lang }: { lang: Lang }) {
       <h1 className="vh">{PAPER[lang].name}: {PAPER[lang].tagline}</h1>
       {!lead ? <p className="empty">{t(lang, "empty")}</p> : (
         <>
-          <div className="dateline"><span>{dateText(day!, lang, true)}</span><span className="upd">{t(lang, "updated")}</span></div>
-          <div className="ctr g topg" style={{ marginTop: 16 }}>
-            <div>
-              <Lead s={lead} lang={lang} more={more} />
-              {six.length > 0 && (
-                <div className="g cards c3 six" style={{ marginTop: "var(--s12)" }}>
-                  {/* photos only in a full first row (photo stories come first), so every row's headlines line up */}
-                  {six.map((s, i) => <Std key={s.id} s={s} lang={lang} morph photo={i < 3 && six.slice(0, 3).every(strong)} />)}
-                </div>
-              )}
+          <div className={`g front${pictured ? "" : " noph"}`}>
+            <div className="fa">
+              <TopStory s={lead} lang={lang} more={more} />
+              {side.map((s) => <Std key={s.id} s={s} lang={lang} morph photo={false} />)}
             </div>
+            {pictured && <div className={`fb${pictured === lead ? " same" : ""}`}><Pictured s={pictured} lang={lang} own={pictured !== lead} /></div>}
             {/* the rail is never taller than the stories beside it: the list shows only the headlines that fit */}
-            <aside className="rail vr"><div className="fit"><Head label={t(lang, "latestTitle")} to={href(lang, "/latest")} /><LatestList stories={rail} lang={lang} n={10} /></div></aside>
+            <aside className="rail"><div className="fit"><Head label={t(lang, "latestTitle")} to={href(lang, "/latest")} /><LatestList stories={rail} lang={lang} n={10} /></div></aside>
           </div>
+          {row.length >= 4 && <div className="g cards c4 row4">{row.map((s) => <Std key={s.id} s={s} lang={lang} morph photo={false} />)}</div>}
           <section className="ctr phone-latest"><Head label={t(lang, "latestTitle")} to={href(lang, "/latest")} /><LatestList stories={rail} lang={lang} n={6} /></section>
           <section className="ctr band">
             {most.length >= 3 && <div><Head label={t(lang, "mostRead")} /><MostRead stories={most} lang={lang} /></div>}
