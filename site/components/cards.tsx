@@ -52,8 +52,11 @@ export const boostOf = (s: Story): Boost => {
 /** A photo fit for the top of a page: wide and sharp. Anything else (a tall file portrait, a map, a small picture) is left
  *  out there: type alone looks better than a weak picture (2 Nov: the top story showed a tall map). */
 export const strong = (s: Story) => !!s.photo && s.photo.width >= 900 && s.photo.width / s.photo.height >= 1.2;
-/** A photo good enough for a card, cropped to the card's shape: not a thumbnail-sized one. */
-export const decent = (s: Story) => !!s.photo && s.photo.width >= 600;
+/** A photo good enough for a card, cropped to the card's wide shape: not a thumbnail-sized one, and not a tall portrait,
+ *  which the crop turns into a blurred, oversized face (2 Nov: a cricketer's file portrait on the front page's pair). */
+export const decent = (s: Story) => !!s.photo && s.photo.width >= 600 && s.photo.width / s.photo.height >= 1.2;
+/** the same picture file (a file photo is saved once for each story, under the same name ending) */
+export const samePhoto = (a: Story, b: Story) => !!a.photo && !!b.photo && a.photo.url.replace(/^.*-/, "") === b.photo.url.replace(/^.*-/, "");
 
 export function Lead({ s: story, lang, more = [] }: { s: Story; lang: Lang; more?: Story[] }) {
   const s = strong(story) ? story : { ...story, photo: null };
