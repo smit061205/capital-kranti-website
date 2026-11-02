@@ -99,8 +99,9 @@ export default function Chrome(p: ChromeProps) {
         </div>
       </header>
 
-      {open && <div className="shade" onClick={() => setOpen(false)} />}
-      <aside className="sheet" hidden={!open} aria-label={w.menu}>
+      {/* always on the page, so closing slides and fades as opening does; inert while closed (no focus, no clicks) */}
+      <div className={`shade${open ? " on" : ""}`} onClick={() => setOpen(false)} aria-hidden="true" />
+      <aside className={`sheet${open ? " on" : ""}`} inert={!open} aria-label={w.menu}>
         <div className="x"><b className="sname">{p.name}</b><button type="button" className="ib" aria-label={w.close} onClick={() => setOpen(false)}><CloseIcon /></button></div>
         <form className="search" role="search" action={p.links.search} method="get" onSubmit={() => setOpen(false)}>
           <SearchIcon /><input ref={q} id="q" name="q" type="search" placeholder={w.searchPlaceholder} aria-label={w.searchPlaceholder} autoComplete="off"
