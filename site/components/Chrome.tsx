@@ -90,9 +90,8 @@ export default function Chrome(p: ChromeProps) {
           <div className="l">
             <button type="button" className="ib menu-plain" aria-label={w.menu} onClick={() => openMenu(false)}><MenuIcon /></button>
             <button type="button" className="ib lbl" onClick={() => openMenu(false)}><MenuIcon /><span>{w.sections}</span></button>
-            {p.mast && <span className="mast-date">{p.mast}</span>}
           </div>
-          <Link prefetch={false} className="wm" href={p.links.home}><b>{p.name}</b><i>{p.tagline}</i></Link>
+          <Link prefetch={false} className="wm" href={p.links.home}><b>{p.name}</b>{p.mast ? <i className="mast-date">{p.mast}</i> : <i>{p.tagline}</i>}</Link>
           <div className="r">
             <button type="button" className="ib" aria-label={w.search} onClick={() => openMenu(true)}><SearchIcon /></button>
           </div>

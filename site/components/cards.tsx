@@ -19,7 +19,7 @@ export function words(s: Story, lang: Lang) {
 }
 const storyHref = (s: Story, lang: Lang) => href(lang, `/news/${s.id}`);
 
-function Meta({ s, lang, sec = true }: { s: Story; lang: Lang; sec?: boolean }) {
+export function Meta({ s, lang, sec = true }: { s: Story; lang: Lang; sec?: boolean }) {
   return (
     <div className="meta">
       {sec && <><span className="sec">{sectionName(s.tier, lang)}</span><span aria-hidden="true">·</span></>}
@@ -52,6 +52,8 @@ export const boostOf = (s: Story): Boost => {
 /** A photo fit for the top of a page: wide and sharp. Anything else (a tall file portrait, a map, a small picture) is left
  *  out there: type alone looks better than a weak picture (2 Nov: the top story showed a tall map). */
 export const strong = (s: Story) => !!s.photo && s.photo.width >= 900 && s.photo.width / s.photo.height >= 1.2;
+/** A photo good enough for a card, cropped to the card's shape: not a thumbnail-sized one. */
+export const decent = (s: Story) => !!s.photo && s.photo.width >= 600;
 
 export function Lead({ s: story, lang, more = [] }: { s: Story; lang: Lang; more?: Story[] }) {
   const s = strong(story) ? story : { ...story, photo: null };
