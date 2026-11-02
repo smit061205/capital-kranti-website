@@ -1,4 +1,5 @@
 import { Anek_Devanagari, Anek_Gujarati, Hind, Hind_Vadodara, Noto_Serif_Devanagari, Noto_Serif_Gujarati } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import { PREPAINT } from "@/components/Frame.tsx";
 import "@/app/globals.css";
 
@@ -18,7 +19,10 @@ export default function Layout({ children }: Readonly<{ children: React.ReactNod
   return (
     <html lang="hi" data-scroll-behavior="smooth" className={`${uiHi.variable} ${serifHi.variable} ${ui.variable} ${serif.variable} ${headHi.variable} ${head.variable}`} suppressHydrationWarning>
       <head><script dangerouslySetInnerHTML={{ __html: PREPAINT }} /></head>
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning>
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }
