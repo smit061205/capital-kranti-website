@@ -5,7 +5,7 @@ import type { Lang, Story } from "../lib/types.ts";
 import { elsewhere, latestStories, moreOnSubject, mostRead } from "../lib/db.ts";
 import { href, t } from "../lib/i18n.ts";
 import { sectionName } from "../lib/sections.ts";
-import { decent, ElsewhereRow, Join, Meta, MoreOn, strong, words } from "../components/cards.tsx";
+import { decent, ElsewhereRow, Join, Meta, MoreOn, samePhoto, strong, words } from "../components/cards.tsx";
 import Link from "next/link";
 import { pic, SIZES } from "../lib/photo.ts";
 import { num, timeText } from "../lib/format.ts";
@@ -123,7 +123,9 @@ export default async function Home({ lang }: { lang: Lang }) {
   // the next stories, today's paper first: a pair (with pictures when both have one, so they match), then three across
   const pool = [...today, ...stories.filter((s) => s.issueDate !== day)].filter((s) => s !== lead);
   const pics = pool.filter(decent);
-  const pair = pics.length >= 2 ? pics.slice(0, 2) : pool.slice(0, 2);
+  // two different pictures: never one file photo twice side by side
+  const second = pics.slice(1).find((s) => !samePhoto(s, pics[0]));
+  const pair = second ? [pics[0], second] : pool.slice(0, 2);
   const three = pool.filter((s) => !pair.includes(s)).slice(0, 3);
   const shown = new Set([lead, ...pair, ...three].filter(Boolean).map((s) => s!.id));
   // the latest: newest first, without what's above; most read and the sections leave out what's already shown (2 Nov)

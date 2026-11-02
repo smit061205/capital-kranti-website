@@ -108,6 +108,8 @@ async function write(until = deadline) {
     const level = levelOf(imp);
     if (!level) { await sql.query(`update clusters set state = 'dropped', reason = 'too small for a story' where id = $1`, [c.id]); continue; }
     const twin = await sameEvent(sql, { id: c.id, event: c.event, keys: c.keys ?? [] });
+    // not known whether it's already up: it waits for a later round
+    if (twin === "unsure") { log(`    the free models couldn't say whether it's already up: next run: ${c.event}`); continue; }
     if (twin) {
       // its reports join the story already up (the watch step reads them for changes) instead of a second story
       await sql.query(`update items set cluster_id = $2 where cluster_id = $1`, [c.id, twin.id]);
@@ -209,18 +211,20 @@ async function settleWaiting() {
   if (up.length) await touched(sql);
 }
 
-/** Once (29 Oct): a story that went up twice (Spain's train crash) keeps its first copy; the later one comes down. */
-async function dedupe() {
-  const [done] = await sql.query(`select value from state where key = 'dedupe_once'`);
+/** Once (29 Oct, and again 2 Nov with the wider check in sameEvent): a story that went up twice (Spain's train crash, the
+ *  Asia Cup squad) keeps its first copy; the later one comes down. Early in the round, with a minute and a half of its own
+ *  (run last, it began after the round's time and stopped at once). */
+async function dedupe(until = deadline) {
+  const [done] = await sql.query(`select value from state where key = 'dedupe_2'`);
   if (done) return 0;
   const rows = await sql.query(
     `select c.id, c.event, c.keys, c.first_seen, c.story_id from clusters c join stories s on s.id = c.story_id
       where s.status = 'published' and s.origin = 'live' and c.first_seen > now() - interval '48 hours' order by c.first_seen desc limit 40`);
   let removed = 0;
   for (const r of rows) {
-    if (Date.now() > deadline) return removed;
+    if (Date.now() > until) return removed;
     const twin = await sameEvent(sql, { id: r.id, event: r.event, keys: r.keys ?? [], before: new Date(r.first_seen).toISOString() });
-    if (!twin) continue;
+    if (!twin || twin === "unsure") continue;
     await sql.query(`update stories set status = 'withdrawn', hold_reason = $2, updated_at = now() where id = $1 and status = 'published'`,
       [r.story_id, `the same event as ${twin.story}`]);
     await sql.query(`update items set cluster_id = $2 where cluster_id = $1`, [r.id, twin.id]);
@@ -228,7 +232,7 @@ async function dedupe() {
     removed++;
     log(`    a second copy taken down: ${r.story_id} (the same event as ${twin.story})`);
   }
-  await sql.query(`insert into state (key, value) values ('dedupe_once', '1') on conflict (key) do nothing`);
+  await sql.query(`insert into state (key, value) values ('dedupe_2', '1') on conflict (key) do nothing`);
   if (removed) await touched(sql);
   return removed;
 }
@@ -365,6 +369,8 @@ try {
   log("translations:");
   await step("translations");
   details.translated = await translations(Date.now() + 60_000);
+  await step("duplicates");
+  details.deduped = await dedupe(Date.now() + 90_000);
   // the stories confirmed in earlier rounds written first, then the new items sorted (29 Oct: sorting slowed by the
   // Gemmas shared with Aavtikal's desk took six minutes, writing began after the round's time and no story went up
   // for hours); no story is begun after three minutes, the sorting has two minutes at least (in run 144 the writing
@@ -386,8 +392,6 @@ try {
   log("photos:");
   await step("refiling");
   details.refiled = await refile();
-  await step("duplicates");
-  details.deduped = await dedupe();
   await step("photos");
   details.photos = await photos();
   await step("translations again");

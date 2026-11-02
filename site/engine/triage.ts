@@ -127,21 +127,30 @@ Answer with the number of the earlier event that is the SAME real-world incident
 the same verdict, the same announcement), even when the wording, numbers or angle differ. A different incident
 on the same topic (another crash, another verdict) is NOT the same. Reply with JSON only: {"same": 0} when none is.`;
 
-/** The published or held cluster (last 48 hours) that is the same event as this one, or null. */
-export async function sameEvent(sql: Sql, c: { id: string; event: string; keys: string[]; before?: string }): Promise<{ id: string; story: string } | null> {
-  const mine = keySet(c.keys);
+/** The words of an event line, as keywords */
+const eventWords = (event: string) => keySet(event.toLowerCase().split(/\s+/));
+
+/** The published or held cluster (last 48 hours) that is the same event as this one, or null; "unsure" when the free
+ *  models couldn't answer (the caller waits for a later round rather than risk a second copy). Earlier events are put to
+ *  the model when they share two keywords, or three words of the event line (2 Nov: "India squad announced for Asia
+ *  Cup including Rinku Singh" and "BCCI announces India A squad for Rising Stars Asia Cup" went up as two stories). */
+export async function sameEvent(sql: Sql, c: { id: string; event: string; keys: string[]; before?: string }): Promise<{ id: string; story: string } | "unsure" | null> {
+  const mine = keySet(c.keys.map((k) => k.toLowerCase()));
+  const line = eventWords(c.event);
   const rows = await sql.query(
     `select id, event, keys, story_id from clusters where id <> $1 and story_id is not null and state in ('published', 'held')
        and first_seen > now() - interval '48 hours' and ($2::timestamptz is null or first_seen < $2)`, [c.id, c.before ?? null]);
   const near = rows.map((r) => {
-    let both = 0;
-    for (const k of keySet(r.keys as string[])) if (mine.has(k)) both++;
-    return { id: r.id as string, story: r.story_id as string, event: r.event as string, both };
-  }).filter((r) => r.both >= 2).sort((a, b) => b.both - a.both).slice(0, 6);
+    let both = 0, words = 0;
+    for (const k of keySet((r.keys as string[]).map((k) => k.toLowerCase()))) if (mine.has(k)) both++;
+    for (const k of eventWords(r.event as string)) if (line.has(k)) words++;
+    return { id: r.id as string, story: r.story_id as string, event: r.event as string, both, words };
+  }).filter((r) => r.both >= 2 || r.words >= 3).sort((a, b) => b.both + b.words - a.both - a.words).slice(0, 6);
   if (!near.length) return null;
   const res = await askJson(sql, { system: SAME, user: `NEW: ${c.event}\n\nEARLIER:\n${near.map((r, i) => `${i + 1}. ${r.event}`).join("\n")}`, maxTokens: 60 },
     (v) => { const n = Number((v as { same?: unknown })?.same); return Number.isInteger(n) && n >= 0 && n <= near.length ? n : null; });
-  return res.ok && res.value > 0 ? near[res.value - 1] : null;
+  if (!res.ok) return "unsure";
+  return res.value > 0 ? near[res.value - 1] : null;
 }
 
 /** Triaged, unclustered news items into clusters (new ones, or joining one from the last 2 days). */
