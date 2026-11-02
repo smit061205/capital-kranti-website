@@ -24,7 +24,7 @@ import { gate, gather, importance, levelOf, needsTranslation, translate, writeCh
 import { indiaDate, photoOf, saveLive } from "./publish.ts";
 import { alertBreaking } from "../lib/push.ts";
 import { birthdays, leaders } from "../lib/leaders.ts";
-import { freePhoto } from "./wikiphoto.ts";
+import { fitsStory, freePhoto, leadPhoto } from "./wikiphoto.ts";
 import { cluster, placeTier, sameEvent, triage, type Triage } from "./triage.ts";
 
 const url = process.env.DATABASE_URL;
@@ -191,6 +191,35 @@ async function photos() {
   }
   if (added) await touched(sql);
   return added;
+}
+
+/** The last three days' file photos (Wikimedia Commons) checked against their stories, a few each run, early in the round:
+ *  one that doesn't suit its story comes off (2 Nov: a fruit market in Hodeidah beside a strike on its port; the check
+ *  is made before a photo goes up from now on, wikiphoto.ts). Each story's answer is kept in its checks. */
+async function photoFit(until: number) {
+  const rows = await sql.query(
+    `select id, headline, deck, en->>'headline' as en_head, en->>'deck' as en_deck, en->>'caption' as en_cap from stories
+      where origin = 'live' and status = 'published' and photo->>'credit' like '%Wikimedia Commons%' and checks->>'photo_fit' is null
+        and published_at > now() - interval '3 days' order by importance desc nulls last, published_at desc limit 6`);
+  let off = 0;
+  for (const r of rows) {
+    if (Date.now() > until) break;
+    const subject = String(r.en_cap ?? "").replace(/^File photo:\s*/i, "").trim();
+    if (!subject) { await sql.query(`update stories set checks = coalesce(checks, '{}'::jsonb) || '{"photo_fit": "unknown"}' where id = $1`, [r.id]); continue; }
+    const found = await leadPhoto(subject).catch(() => null);
+    const fits = await fitsStory(sql, { headline: r.en_head || r.headline, deck: r.en_deck || r.deck }, subject, found?.about ?? "");
+    if (fits === null) break; // the free models are busy: next run
+    await sql.query(
+      `update stories set checks = coalesce(checks, '{}'::jsonb) || jsonb_build_object('photo_fit', $2::boolean),
+          photo = case when $2 then photo else null end, caption = case when $2 then caption else '' end,
+          en = case when $2 or en is null then en else jsonb_set(en, '{caption}', '""') end,
+          hi = case when $2 or hi is null then hi else jsonb_set(hi, '{caption}', '""') end,
+          photo_tried = true, updated_at = case when $2 then updated_at else now() end
+        where id = $1`, [r.id, fits]);
+    if (!fits) { off++; log(`    ${r.id}: file photo taken off, it doesn't suit the story (${subject})`); }
+  }
+  if (off) await touched(sql);
+  return off;
 }
 
 /** Once (30 Oct, approvals removed): what was waiting for the editor is settled. Stories held only for being sensitive go up
@@ -374,6 +403,8 @@ try {
   details.translated = await translations(Date.now() + 60_000);
   await step("duplicates");
   details.deduped = await dedupe(Date.now() + 90_000);
+  await step("photo check");
+  details.photosOff = await photoFit(Date.now() + 60_000);
   // the stories confirmed in earlier rounds written first, then the new items sorted (29 Oct: sorting slowed by the
   // Gemmas shared with Aavtikal's desk took six minutes, writing began after the round's time and no story went up
   // for hours); no story is begun after three minutes, the sorting has two minutes at least (in run 144 the writing
