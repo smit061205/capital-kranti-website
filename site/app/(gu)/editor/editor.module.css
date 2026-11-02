@@ -1,7 +1,8 @@
 /* The editor page: one column, big type and big buttons (the editor is not
    technical and uses it every evening); the site's own colour tokens (light, like
    the rest of the site). */
-.page { --yes: #1d7a46; --onyes: #fff; --no: #b3261e; max-width: 860px; margin: 0 auto; padding: 0 16px 80px; font-family: var(--ui); color: var(--ink); font-size: 18px; line-height: 1.5 }
+.page { --navy: var(--strong); /* the site dropped its navy in the calm look (2 Nov), leaving this page's buttons blank; they take the site's dark button colour */
+  --yes: #1d7a46; --onyes: #fff; --no: #b3261e; max-width: 860px; margin: 0 auto; padding: 0 16px 80px; font-family: var(--ui); color: var(--ink); font-size: 18px; line-height: 1.5 }
 .page a { color: var(--navy) }
 .top { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 24px 0 16px; border-bottom: 2px solid var(--rule-strong) }
 .top h1 { margin: 0; font-size: 30px; font-weight: 800; color: var(--strong) }
