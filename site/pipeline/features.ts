@@ -34,7 +34,7 @@ try {
       let photo = null;
       if (a.photo) {
         step = `${a.id}: copying the photo`;
-        const res = await fetch(a.photo.url, { headers: { "User-Agent": "CapitalKrantiSite/1.0 (https://capitalkranti.co.in)" } });
+        const res = await fetch(a.photo.url, { headers: { "User-Agent": "CapitalKrantiSite/1.0 (https://www.capitalkranti.co.in)" } });
         if (!res.ok) throw new Error(`photo answered ${res.status}`);
         const { data, info } = await sharp(Buffer.from(await res.arrayBuffer())).resize({ width: 1600, withoutEnlargement: true })
           .jpeg({ quality: 78, mozjpeg: true }).toBuffer({ resolveWithObject: true });
@@ -63,6 +63,6 @@ await sql.query(`update runs set finished_at = now(), ok = true, details = $2 wh
 if (done.length) {
   // the website renews its kept-ready pages when the content has changed
   await sql.query(`insert into state (key, value) values ('content_changed_at', now()::text) on conflict (key) do update set value = excluded.value`);
-  const refreshed = await fetch("https://capitalkranti.co.in/api/refresh", { method: "POST" }).then((r) => r.json()).catch((e) => ({ error: String(e) }));
+  const refreshed = await fetch("https://www.capitalkranti.co.in/api/refresh", { method: "POST" }).then((r) => r.json()).catch((e) => ({ error: String(e) }));
   console.log(`website refresh: ${JSON.stringify(refreshed)}`);
 }

@@ -13,7 +13,7 @@ import { prepared } from "./write.ts";
 type Sql = NeonQueryFunction<false, false>;
 
 // as engine/wikiphoto.ts has them (not imported: that file brings the engine's AI into the site's pages)
-const UA = "CapitalKranti-news/1.0 (https://capitalkranti.co.in; leaders' birthdays from Wikidata)";
+const UA = "CapitalKranti-news/1.0 (https://www.capitalkranti.co.in; leaders' birthdays from Wikidata)";
 const FREE = /^(cc0|cc[ -]by(-sa)?\b|public domain|pd\b|pd-|godl)/i;
 const plain = (html: string) => html.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, " ").trim();
 

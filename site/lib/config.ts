@@ -2,7 +2,7 @@
 // left alone): its address, the free models its hourly run tags and translates
 // with (tried in order), and the free plans' daily ceilings it keeps under.
 export const WEBSITE = {
-  url: "https://capitalkranti.co.in",
+  url: "https://www.capitalkranti.co.in",
   freeModels: ["google/gemma-4-31b-it:free", "google/gemma-4-26b-a4b-it:free"],
   // Gemma through Google's own API with the paper's free key (GOOGLE_AI_KEY), tried first;
   // the daily ceiling stays under the free tier's (14,400 a day for each Gemma, AI Studio 29 Oct; it was 1,400 from an
