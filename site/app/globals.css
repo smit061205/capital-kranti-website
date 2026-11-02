@@ -49,12 +49,13 @@ svg.i{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7;stro
 /* ---------- frame ---------- */
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
 .samplebar{font-size:var(--t1);color:var(--muted);text-align:center;padding-block:6px;background:var(--surface)}
-.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--rule);transition:box-shadow .25s ease,border-color .25s ease}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);transition:box-shadow .25s ease,border-color .25s ease}
+.top .bar{border-bottom:1px solid var(--rule-strong)}
 .bar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;height:56px;transition:height .25s ease}
 .bar .l,.bar .r{display:flex;align-items:center;gap:4px}.bar .r{justify-content:flex-end}
 .ib{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;color:var(--strong)}
 .ib{transition:background-color .15s ease,transform .15s ease}.ib:hover{background:var(--surface)}.ib:active{transform:scale(.92)}
-.ib.lbl{width:auto;padding:0 14px 0 10px;border-radius:var(--r);display:none;gap:6px;grid-auto-flow:column;font-weight:600}
+.ib.lbl{width:auto;padding:0 14px 0 10px;border-radius:var(--r);display:none;gap:6px;grid-auto-flow:column;font-weight:600;font-size:var(--t2);color:var(--strong);margin-bottom:0}
 /* the header's outer icons line up with the page's edges (their round hover stays outside it) */
 .bar .l > .ib:first-child,.bar .l > .ib.menu-plain{margin-left:-12px}.bar .l > .ib.lbl{margin-left:-10px}.bar .r > .ib{margin-right:-12px}
 .wm{display:flex;align-items:baseline;gap:12px;color:var(--strong);white-space:nowrap}
@@ -72,10 +73,10 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
   .top.mast.scrolled .bar{height:60px} .top.mast.scrolled .wm b{font-size:32px} .top.mast.scrolled .wm i.mast-date{display:none}
 }
 /* the section row's rule runs exactly as wide as the page's content, like every rule below it */
-.secs{display:flex;gap:4px 22px;overflow-x:auto;scrollbar-width:none;white-space:nowrap;border-bottom:1px solid var(--strong);border-top:1px solid var(--rule);font-weight:500;font-size:14px;color:var(--strong)}
+.secs{display:flex;gap:4px 22px;overflow-x:auto;scrollbar-width:none;white-space:nowrap;border-bottom:1px solid var(--rule-strong);font-weight:500;font-size:15px;color:var(--strong)}
 .secs::-webkit-scrollbar{display:none}
 @media (min-width:1024px){ .secs{justify-content:center} }
-.secs a.fl{padding-left:22px;border-left:1px solid var(--rule);font-family:var(--mark-cond);font-weight:800}
+.secs a.fl{padding-left:22px;border-left:1px solid var(--rule-strong);font-family:var(--mark-cond);font-weight:800}
 .secs a.fl::after{left:22px} /* the bar under its words, not under the space before them */
 .secs a{position:relative;padding-block:13px 11px;transition:color .15s ease}
 .secs a::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;border-radius:0;background:var(--brand);transform:scaleX(0);transition:transform .25s cubic-bezier(.2,.7,.2,1)}
