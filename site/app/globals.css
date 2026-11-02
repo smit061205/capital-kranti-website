@@ -26,6 +26,8 @@
   --t1:13px; --t2:15px; --t3:17px; --t4:20px; --t5:24px; --t6:28px; --t7:36px;
   --r:2px; --r-s:2px;
   --d1:.1s; --d2:.2s; --d3:.3s; --d4:.4s; --ease:cubic-bezier(.2,.7,.2,1);
+  /* one motion for the whole site (2 Nov): colour and a press are quick, what moves or opens takes --move, a photo's zoom --slow; all on --ease */
+  --quick:.15s; --move:.3s; --slow:.5s;
 }
 /* the Hindi pages: Devanagari first, Gujarati behind it (a story not yet in Hindi) */
 html[lang="hi"]{--serif:var(--font-serif-hi),var(--font-serif),'Kohinoor Devanagari',Georgia,serif;--ui:var(--font-ui-hi),var(--font-ui),'Kohinoor Devanagari',system-ui,sans-serif}
@@ -49,12 +51,12 @@ svg.i{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7;stro
 /* ---------- frame ---------- */
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
 .samplebar{font-size:var(--t1);color:var(--muted);text-align:center;padding-block:6px;background:var(--surface)}
-.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);transition:box-shadow .25s ease,border-color .25s ease}
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);transition:box-shadow var(--move) var(--ease),border-color var(--move) var(--ease)}
 .top .bar{border-bottom:1px solid var(--rule-strong)}
-.bar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;height:56px;transition:height .25s ease}
+.bar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;height:56px;transition:height var(--move) var(--ease)}
 .bar .l,.bar .r{display:flex;align-items:center;gap:4px}.bar .r{justify-content:flex-end}
 .ib{width:48px;height:48px;border-radius:50%;display:grid;place-items:center;color:var(--strong)}
-.ib{transition:background-color .15s ease,transform .15s ease}.ib:hover{background:var(--surface)}.ib:active{transform:scale(.92)}
+.ib{transition:background-color var(--quick) ease,color var(--quick) ease,transform var(--quick) ease}.ib:hover{background:var(--surface)}.ib:active{transform:scale(.94)}
 .ib.lbl{width:auto;padding:0 14px 0 10px;border-radius:var(--r);display:none;gap:6px;grid-auto-flow:column;font-weight:600;font-size:var(--t2);color:var(--strong);margin-bottom:0}
 /* the header's outer icons line up with the page's edges (their round hover stays outside it) */
 .bar .l > .ib:first-child,.bar .l > .ib.menu-plain{margin-left:-12px}.bar .l > .ib.lbl{margin-left:-10px}.bar .r > .ib{margin-right:-12px}
@@ -67,7 +69,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 @media (min-width:1024px){
   /* the front page's masthead: the date on the left, the name in the middle; it settles when the page moves */
   .bar{height:64px} .wm b{font-size:32px}
-  .top.mast .bar{height:124px} .top.mast .wm b{font-size:68px;transition:font-size .2s ease}
+  .top.mast .bar{height:124px} .top.mast .wm b{font-size:68px;transition:font-size var(--move) var(--ease)}
   .top.mast .wm i.mast-date{display:block}
   .top.mast.scrolled .bar{height:60px} .top.mast.scrolled .wm b{font-size:32px} .top.mast.scrolled .wm i.mast-date{display:none}
 }
@@ -77,8 +79,8 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 @media (min-width:1024px){ .secs{justify-content:center} }
 .secs a.fl{padding-left:22px;border-left:1px solid var(--rule-strong);font-family:var(--mark-cond);font-weight:800}
 .secs a.fl::after{left:22px} /* the bar under its words, not under the space before them */
-.secs a{position:relative;padding-block:13px 11px;transition:color .15s ease}
-.secs a::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;border-radius:0;background:var(--brand);transform:scaleX(0);transition:transform .25s cubic-bezier(.2,.7,.2,1)}
+.secs a{position:relative;padding-block:13px 11px;transition:color var(--quick) ease}
+.secs a::after{content:"";position:absolute;left:0;right:0;bottom:0;height:3px;border-radius:0;background:var(--brand);transform:scaleX(0);transition:transform var(--move) var(--ease)}
 .secs a:hover{color:var(--brand)}.secs a:hover::after{transform:scaleX(.5)}.secs a.on{color:var(--brand)}.secs a.on::after{transform:scaleX(1)}
 @media (min-width:1024px){ .secs{justify-content:center} }
 
@@ -89,7 +91,7 @@ body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset
 
 /* bottom bar (phone) */
 .bnav{position:fixed;left:0;right:0;bottom:0;z-index:25;background:var(--bg);border-top:1px solid var(--rule);display:grid;grid-template-columns:repeat(4,1fr);
-  padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);transition:transform .2s}
+  padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);transition:transform var(--move) var(--ease)}
 .bnav.away{transform:translateY(110%)}
 .bnav a,.bnav button{display:grid;justify-items:center;gap:2px;padding-block:8px 7px;font-size:var(--t1);font-weight:600;color:var(--muted);text-align:center}
 .bnav .on{color:var(--brand)}
@@ -199,8 +201,8 @@ main{padding-block:8px 48px}
 .meta .sec{font-weight:400;color:var(--muted)}
 .ph{width:100%;aspect-ratio:3/2;object-fit:cover;background:var(--surface);filter:var(--photo)}
 .phw{display:block;overflow:hidden;border-radius:var(--r);background:var(--surface)}
-.phw .ph{display:block;transition:transform .6s cubic-bezier(.2,.7,.2,1),filter .3s ease;border-radius:0}
-.display,.h2,.h3,.h4{transition:color .15s ease}
+.phw .ph{display:block;transition:transform var(--slow) var(--ease),filter var(--move) ease;border-radius:0}
+.display,.h2,.h3,.h4{transition:color var(--quick) ease}
 a.h:hover .display,a.h:hover .h2,a.h:hover .h3,a.h:hover .h4{color:var(--soft)}
 a.h{-webkit-tap-highlight-color:transparent}
 a.h:active{opacity:.85}
@@ -239,9 +241,9 @@ a.h:active{opacity:.85}
 .list li + li{border-top:1px solid var(--rule)}
 .list a{display:grid;grid-template-columns:minmax(0,1fr);gap:2px;padding-block:10px}
 .list time{order:2;font-size:var(--t1);font-weight:400;color:var(--muted)}
-.list a{transition:background-color .15s ease}
+.list a{transition:background-color var(--quick) ease}
 .more{display:inline-flex;align-items:center;gap:2px;font-weight:600;font-size:var(--t2);color:var(--strong);padding-block:12px}
-.more svg.i{transition:transform .2s ease}.more:hover svg.i,.head a:hover svg.i{transform:translateX(3px)}.head svg.i{transition:transform .2s ease}
+.more svg.i{transition:transform var(--move) var(--ease)}.more:hover svg.i,.head a:hover svg.i{transform:translateX(3px)}.head svg.i{transition:transform var(--move) var(--ease)}
 
 /* most read: big numbers in the brand colour; more on this: a short list under a story */
 .mostread{list-style:none;margin:0;padding:0;counter-reset:none}
@@ -290,7 +292,7 @@ a.h:active{opacity:.85}
 .join h3{font-family:var(--head);font-weight:600;font-size:var(--t3);color:var(--strong);margin:0}
 .join p{margin:0;font-size:var(--t1);color:var(--soft);line-height:1.55}
 .wa{display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--whatsapp);color:#fff;font-weight:700;font-size:var(--t3);border-radius:var(--r);padding:12px 20px;min-height:48px}
-.wa{transition:filter .15s ease,transform .15s ease}.wa:hover{filter:brightness(1.08)}.wa:active{transform:scale(.97)}.wa svg.i{width:20px;height:20px}
+.wa{transition:filter var(--quick) ease,transform var(--quick) ease}.wa:hover{filter:brightness(1.08)}.wa:active{transform:scale(.97)}.wa svg.i{width:20px;height:20px}
 .join .wa{justify-self:start}
 
 /* ---------- section page ---------- */
@@ -301,7 +303,7 @@ a.h:active{opacity:.85}
 .chips::-webkit-scrollbar{display:none}
 .chips span{border:1px solid var(--rule);border-radius:var(--r);padding:6px 14px;font-size:var(--t2);white-space:nowrap;color:var(--soft)}
 /* a section's other side as links (a region's subjects, a subject's regions), 30 Oct */
-.chips a{border:1px solid var(--rule);border-radius:var(--r);padding:7px 15px;font-size:var(--t2);font-weight:600;white-space:nowrap;color:var(--strong);min-height:36px;display:inline-flex;align-items:center;transition:border-color .15s,background-color .15s}
+.chips a{border:1px solid var(--rule);border-radius:var(--r);padding:7px 15px;font-size:var(--t2);font-weight:600;white-space:nowrap;color:var(--strong);min-height:36px;display:inline-flex;align-items:center;transition:border-color var(--quick) ease,background-color var(--quick) ease,transform var(--quick) ease}
 .chips a:hover{border-color:var(--rule-strong)}
 .chips a.on{background:var(--strong);border-color:var(--strong);color:#fff}
 .sechead h1 a{color:inherit}.sechead h1 a:hover{text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px}
@@ -323,11 +325,11 @@ a.h:active{opacity:.85}
 .fix{border-left:2px solid var(--strong);background:var(--surface);padding:10px 14px;font-size:var(--t2);line-height:1.55;margin:16px 0 0;color:var(--ink)}
 .tools{display:flex;gap:2px;margin:12px 0 20px -8px;align-items:center}
 .tool{display:inline-flex;align-items:center;gap:6px;font-size:var(--t1);font-weight:500;color:var(--soft);padding:0 8px;min-height:36px;border-radius:var(--r)}
-.tool{transition:background-color .15s ease}.tool:hover{background:var(--surface)}
+.tool{transition:background-color var(--quick) ease}.tool:hover{background:var(--surface)}
 .tools .tool.wa{background:none;color:var(--soft);min-height:36px;padding:0 8px;border-radius:var(--r)}.tools .tool.wa:hover{background:var(--surface);filter:none}.tool svg.i{width:18px;height:18px}
 .sizes{display:inline-flex;align-items:center}
 .sizes button{min-width:44px;min-height:44px;font-weight:700;color:var(--soft)}.sizes button:nth-child(1){font-size:var(--t1)}.sizes button:nth-child(2){font-size:var(--t3)}.sizes button:nth-child(3){font-size:var(--t4)}
-.sizes button{transition:background-color .15s ease,color .15s ease}.sizes button:hover{color:var(--strong)}
+.sizes button{transition:background-color var(--quick) ease,color var(--quick) ease}.sizes button:hover{color:var(--strong)}
 .sizes button[aria-pressed="true"]{background:var(--surface);color:var(--strong)}
 .art figure{margin:0 0 24px}
 /* a wide photo steps out of the column on a wide screen; a tall one stays in it, no taller than the screen allows */
@@ -356,22 +358,25 @@ a.h:active{opacity:.85}
 @media (max-width:739px){ .art .tools .wa,.art .tools .listen{display:none} }
 
 /* ---------- menu sheet ---------- */
-.shade{position:fixed;inset:0;background:var(--shade);z-index:40;animation:fade .2s ease both}
+/* both stay on the page and slide or fade out as they came in (2 Nov: they vanished at once on closing) */
+.shade{position:fixed;inset:0;background:var(--shade);z-index:40;opacity:0;visibility:hidden;transition:opacity var(--move) ease,visibility 0s linear var(--move)}
+.shade.on{opacity:1;visibility:visible;transition:opacity var(--move) ease}
 .sheet{position:fixed;top:0;bottom:0;left:0;z-index:41;width:min(360px,88vw);background:var(--bg);overflow:auto;border-right:1px solid var(--rule);
   padding:calc(10px + env(safe-area-inset-top,0px)) 20px calc(24px + env(safe-area-inset-bottom,0px)) calc(20px + env(safe-area-inset-left,0px))}
-.sheet:not([hidden]){animation:slidein .28s cubic-bezier(.2,.7,.2,1) both}
-@keyframes slidein{from{transform:translateX(-104%)}}@keyframes fade{from{opacity:0}}
+.sheet{transform:translateX(-104%);visibility:hidden;transition:transform var(--move) var(--ease),visibility 0s linear var(--move)}
+.sheet.on{transform:none;visibility:visible;transition:transform var(--move) var(--ease)}
+@keyframes fade{from{opacity:0}}
 .sheet .x{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .sheet .x b{font-family:var(--serif);font-weight:800;font-size:22px;color:var(--strong)}
 .search{display:flex;align-items:center;gap:8px;border:1px solid var(--rule-strong);border-radius:var(--r);padding:0 12px;margin-bottom:8px}
 .search input{flex:1;min-width:0;background:none;border:0;color:var(--strong);font:inherit;font-size:var(--t3);padding:12px 0;outline:none}
-.results{margin-bottom:var(--s2);animation:rise var(--d2) var(--ease) both}
+.results{margin-bottom:var(--s2);animation:rise var(--move) var(--ease) both}
 .results a{display:grid;gap:2px;padding-block:10px;border-bottom:1px solid var(--rule)}.results a:hover .h4{color:var(--brand)}
 .results .h4{font-size:var(--t2)}.results small{color:var(--muted);font-size:var(--t1)}
 .sheet h3{font-size:var(--t1);font-weight:700;letter-spacing:.3px;color:var(--muted);margin:20px 0 4px;padding-top:16px;border-top:1px solid var(--rule)}
 .srow{display:flex;justify-content:space-between;align-items:center;width:100%;min-height:48px;font-weight:700;font-size:var(--t3);color:var(--strong)}
-.srow{transition:color .15s ease,padding-left .2s ease}.srow:hover{color:var(--brand);padding-left:4px}
-.srow .chev{transition:transform .2s;color:var(--muted)}.grp.open .chev{transform:rotate(90deg)}
+.srow{transition:color var(--quick) ease,padding-left var(--move) var(--ease)}.srow:hover{color:var(--brand);padding-left:4px}
+.srow .chev{transition:transform var(--move) var(--ease);color:var(--muted)}.grp.open .chev{transform:rotate(90deg)}
 .subs{padding:0 0 8px 12px}.subs a{display:flex;align-items:center;min-height:40px;font-size:var(--t2);color:var(--soft)}.subs a:hover{color:var(--brand)}
 .links a{display:flex;align-items:center;min-height:44px;font-size:var(--t2);color:var(--ink)}.links a:hover{color:var(--brand)}
 .sheet .edlink{display:flex;align-items:center;gap:10px;min-height:48px;margin-top:16px;padding:0 14px;border:1px solid var(--rule);border-radius:var(--r);font-size:var(--t2);font-weight:600;color:var(--soft)}
@@ -390,10 +395,10 @@ footer .wm b{font-size:28px}
 .fcols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px var(--gut);margin-top:20px}
 @media (min-width:740px){ .fcols{grid-template-columns:repeat(4,minmax(0,1fr))} }
 .fcols b{display:block;font-size:var(--t2);color:var(--strong);margin-bottom:6px}
-.fcols a{display:flex;align-items:center;min-height:40px;font-size:var(--t2);color:var(--soft);transition:color .15s ease}.fcols a:hover{color:var(--brand)}
+.fcols a{display:flex;align-items:center;min-height:40px;font-size:var(--t2);color:var(--soft);transition:color var(--quick) ease}.fcols a:hover{color:var(--brand)}
 .legal{font-size:var(--t1);color:var(--muted);margin-top:24px;line-height:1.6}
 
-.toast{animation:pop .3s cubic-bezier(.2,.9,.3,1.2) both;position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--strong);color:var(--bg);padding:10px 18px;border-radius:var(--r);font-weight:600;font-size:var(--t2);z-index:60;max-width:calc(100vw - 32px);text-align:center}
+.toast{animation:pop var(--move) var(--ease) both;position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--strong);color:var(--bg);padding:10px 18px;border-radius:var(--r);font-weight:600;font-size:var(--t2);z-index:60;max-width:calc(100vw - 32px);text-align:center}
 @keyframes rise{from{opacity:0;transform:translateY(10px)}}
 @keyframes pop{from{opacity:0;transform:translate(-50%,8px) scale(.96)}}
 /* links within a page glide; a new page opens at its top at once (Next does that only with data-scroll-behavior="smooth" on <html>,
@@ -427,15 +432,15 @@ html{scroll-behavior:smooth}
 /* ---------- loading and reading (a news site's motion) ---------- */
 /* the bar across the top while a page is on its way */
 .navbar{position:fixed;top:0;left:0;right:0;height:3px;z-index:70;transform-origin:0 50%;background:var(--brand);
-  opacity:0;transition:transform .2s ease,opacity .3s ease .1s;pointer-events:none}
-.navbar.on{opacity:1;transition:transform .2s ease,opacity 0s}
+  opacity:0;transition:transform var(--move) var(--ease),opacity var(--move) ease var(--d1);pointer-events:none}
+.navbar.on{opacity:1;transition:transform var(--move) var(--ease),opacity 0s}
 /* how far through the story */
 .readprog{position:fixed;top:env(safe-area-inset-top,0px);left:0;right:0;height:3px;z-index:31;pointer-events:none}
 .readprog span{display:block;height:100%;transform-origin:0 50%;background:var(--brand);transition:transform .1s linear}
 /* back to the top */
 .totop{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:24;width:40px;height:40px;border-radius:50%;
   display:grid;place-items:center;background:var(--bg);color:var(--strong);border:1px solid var(--rule);
-  opacity:0;transform:translateY(12px) scale(.9);pointer-events:none;transition:opacity .25s ease,transform .25s cubic-bezier(.2,.7,.2,1),background-color .15s ease}
+  opacity:0;transform:translateY(12px) scale(.9);pointer-events:none;transition:opacity var(--move) ease,transform var(--move) var(--ease),background-color var(--quick) ease}
 .totop.on{opacity:1;transform:none;pointer-events:auto}.totop:hover{background:var(--surface)}
 @media (min-width:740px){ .totop{bottom:28px} }
 /* a story from the last hour */
@@ -460,9 +465,9 @@ time.fresh{display:inline-flex}.livedot{display:none}
 
 /* page transitions, kept short (2 Nov: a page change spent 0.4 s on these alone): the page's content crossfades; the header stays put; a photo
    grows from its card into the story (React's ViewTransition, where the browser has it) */
-::view-transition-old(.page-out){animation:80ms ease-in both vt-fade reverse}
-::view-transition-new(.page-in){animation:120ms ease-out both vt-fade}
-::view-transition-group(.morph){animation-duration:200ms;animation-timing-function:cubic-bezier(.2,.7,.2,1)}
+::view-transition-old(.page-out){animation:var(--d1) ease-in both vt-fade reverse}
+::view-transition-new(.page-in){animation:var(--quick) ease-out both vt-fade}
+::view-transition-group(.morph){animation-duration:var(--move);animation-timing-function:var(--ease)}
 ::view-transition-image-pair(.morph){animation-name:vt-blur}
 ::view-transition-group(site-header){animation:none;z-index:50}
 ::view-transition-old(site-header),::view-transition-new(site-header){animation:none}
@@ -481,19 +486,19 @@ time.fresh{display:inline-flex}.livedot{display:none}
 /* the photo opens full screen */
 .zoomable{display:block;width:100%;position:relative;cursor:zoom-in;border-radius:var(--r)}
 .zoomhint{position:absolute;right:var(--s3);bottom:var(--s3);width:36px;height:36px;border-radius:50%;display:grid;place-items:center;
-  background:rgba(17,17,20,.6);color:#fff;opacity:0;transform:scale(.9);transition:opacity var(--d2) ease,transform var(--d2) var(--ease)}
+  background:rgba(17,17,20,.6);color:#fff;opacity:0;transform:scale(.9);transition:opacity var(--quick) ease,transform var(--move) var(--ease)}
 .zoomhint svg.i{width:18px;height:18px;stroke-width:2}
 .zoomable:hover .zoomhint,.zoomable:focus-visible .zoomhint{opacity:1;transform:none}
 @media (hover:none){ .zoomhint{opacity:.9;transform:none} }
 .lightbox{border:0;padding:0;margin:0;inset:0;width:100vw;height:100dvh;max-width:none;max-height:none;background:transparent;color:#fff;
   display:none;place-items:center}
-.lightbox[open]{display:grid;animation:fade var(--d3) ease both}
-.lightbox::backdrop{background:rgba(8,8,10,.96);animation:fade var(--d3) ease both}
-.lightbox figure{margin:0;padding:var(--s12) var(--s4) var(--s6);display:grid;gap:var(--s3);justify-items:center;max-width:100%;max-height:100%;animation:lbzoom var(--d4) var(--ease) both}
+.lightbox[open]{display:grid;animation:fade var(--move) ease both}
+.lightbox::backdrop{background:rgba(8,8,10,.96);animation:fade var(--move) ease both}
+.lightbox figure{margin:0;padding:var(--s12) var(--s4) var(--s6);display:grid;gap:var(--s3);justify-items:center;max-width:100%;max-height:100%;animation:lbzoom var(--move) var(--ease) both}
 .lightbox img{width:min(1400px,100vw - 32px);max-height:calc(100dvh - 150px);height:auto;object-fit:contain;touch-action:pinch-zoom}
 .lightbox figcaption{max-width:60rem;font-size:var(--t2);line-height:1.5;color:rgba(255,255,255,.78);text-align:center}
 .lbclose{position:fixed;top:calc(var(--s3) + env(safe-area-inset-top,0px));right:var(--s3);width:48px;height:48px;border-radius:50%;display:grid;place-items:center;
-  color:#fff;background:rgba(255,255,255,.12);transition:background-color var(--d1) ease}
+  color:#fff;background:rgba(255,255,255,.12);transition:background-color var(--quick) ease}
 .lbclose:hover{background:rgba(255,255,255,.22)}
 @keyframes lbzoom{from{opacity:0;transform:scale(.96)}}
 /* one related story inside a long one */
@@ -537,17 +542,20 @@ time.fresh{display:inline-flex}.livedot{display:none}
 .sheet .search input{padding:12px 0 10px}
 .sheet .quick{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .sheet .quick a{display:flex;align-items:center;justify-content:center;gap:8px;min-height:46px;border:1px solid var(--rule-strong);border-radius:999px;
-  font-size:var(--t2);font-weight:700;color:var(--strong);transition:background .15s ease,color .15s ease}
+  font-size:var(--t2);font-weight:700;color:var(--strong);transition:background-color var(--quick) ease,color var(--quick) ease,transform var(--quick) ease}
 .sheet .quick a:hover{background:var(--strong);color:var(--bg)}
 .sheet .quick svg{width:18px;height:18px}
 .sheet h3{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:30px 0 8px;padding:0;border:0}
 .secl{border-top:1px solid var(--rule-strong)}
 .sheet .srow{font-family:var(--big);font-weight:800;font-size:26px;line-height:1.15;min-height:56px;border-bottom:1px solid var(--rule)}
 .sheet .srow:hover{padding-left:0;color:var(--brand)}
-.sheet .srow .chev{opacity:0;transform:translateX(-6px);transition:opacity .15s ease,transform .2s ease;color:var(--brand)}
+.sheet .srow .chev{opacity:0;transform:translateX(-6px);transition:opacity var(--quick) ease,transform var(--move) var(--ease);color:var(--brand)}
 .sheet .srow:hover .chev,.sheet .srow:focus-visible .chev{opacity:1;transform:none}
 .sheet .seg{border:1px solid var(--rule-strong);border-radius:999px;margin-top:0}
 .sheet .seg button + button,.sheet .seg .seglink + .seglink{border-left:1px solid var(--rule-strong)}
 .sheet .links{border-top:1px solid var(--rule-strong)}
 .sheet .links a{min-height:44px;border-bottom:1px solid var(--rule);color:var(--soft)}
 .sheet .edlink{border:0;border-radius:0;padding:0;margin-top:20px;color:var(--muted);font-size:var(--t1)}
+/* a press: everything the reader taps gives a little, the same way */
+.sheet .quick a:active,.seg button:active,.seg .seglink:active,.chips a:active{transform:scale(.97)}
+.seg button,.seg .seglink{transition:background-color var(--quick) ease,color var(--quick) ease,transform var(--quick) ease}
