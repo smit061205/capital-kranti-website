@@ -61,9 +61,10 @@ export default function Chrome(p: ChromeProps) {
     document.addEventListener("keydown", esc);
     return () => document.removeEventListener("keydown", esc);
   }, [open]);
-  // the header settles (smaller, with a shadow) once the page moves
+  // the header settles (smaller, with a shadow) once the page moves past 80px, and opens again only near the top (2 Nov:
+  // with one line at 8px the header shook: shrinking moved the page back above the line, so it grew, and so on)
   useEffect(() => {
-    const on = () => setScrolled(window.scrollY > 8);
+    const on = () => setScrolled((was) => (was ? window.scrollY > 8 : window.scrollY > 80));
     on();
     window.addEventListener("scroll", on, { passive: true });
     return () => window.removeEventListener("scroll", on);
