@@ -215,15 +215,16 @@ async function settleWaiting() {
  *  Asia Cup squad) keeps its first copy; the later one comes down. Early in the round, with a minute and a half of its own
  *  (run last, it began after the round's time and stopped at once). */
 async function dedupe(until = deadline) {
-  const [done] = await sql.query(`select value from state where key = 'dedupe_3'`);
+  const [done] = await sql.query(`select value from state where key = 'dedupe_4'`);
   if (done) return 0;
   const rows = await sql.query(
     `select c.id, c.event, c.keys, c.first_seen, c.story_id from clusters c join stories s on s.id = c.story_id
       where s.status = 'published' and s.origin = 'live' and c.first_seen > now() - interval '48 hours' order by c.first_seen desc limit 40`);
-  let removed = 0;
+  let removed = 0, unsure = 0;
   for (const r of rows) {
-    if (Date.now() > until) return removed;
+    if (Date.now() > until) { log(`  copies: out of time, ${removed} taken down, the rest next run`); return removed; }
     const twin = await sameEvent(sql, { id: r.id, event: r.event, keys: r.keys ?? [], before: new Date(r.first_seen).toISOString() });
+    if (twin === "unsure") unsure++;
     if (!twin || twin === "unsure") continue;
     await sql.query(`update stories set status = 'withdrawn', hold_reason = $2, updated_at = now() where id = $1 and status = 'published'`,
       [r.story_id, `the same event as ${twin.story}`]);
@@ -232,7 +233,9 @@ async function dedupe(until = deadline) {
     removed++;
     log(`    a second copy taken down: ${r.story_id} (the same event as ${twin.story})`);
   }
-  await sql.query(`insert into state (key, value) values ('dedupe_3', '1') on conflict (key) do nothing`);
+  log(`  copies: ${rows.length} looked at, ${removed} taken down${unsure ? `, ${unsure} not answered (next run)` : ""}`);
+  // done for good only when every one was answered
+  if (!unsure) await sql.query(`insert into state (key, value) values ('dedupe_4', '1') on conflict (key) do nothing`);
   if (removed) await touched(sql);
   return removed;
 }
