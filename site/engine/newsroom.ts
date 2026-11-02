@@ -277,6 +277,8 @@ Keep every fact, name and number exactly; write numbers in figures as the Gujara
 Reply with JSON only: {"kicker":"","headline":"","deck":"","body":"","caption":""}`;
 
 export const needsTranslation = (_tier: Tier) => true;
+/** a Gujarati letter: in an English or Hindi translation, a sign the model didn't translate */
+export const GUJARATI = /[઀-૿]/;
 
 export async function translate(sql: Sql | null, w: Written, lang: "en" | "hi", date: string): Promise<English | null> {
   const source = [w.kicker, w.headline, w.deck, w.body, w.caption].join("\n\n");
@@ -286,7 +288,10 @@ export async function translate(sql: Sql | null, w: Written, lang: "en" | "hi", 
     const take = (v: unknown) => {
       const x = v as Partial<English>;
       if (!x?.headline || typeof x.body !== "string") return null;
-      if (lang === "hi" && !/[ऀ-ॿ]/.test(x.headline + x.body)) return null;
+      // still Gujarati, wholly or in part (2 Nov: a model gave the Gujarati back, it was kept as the English and Hindi,
+      // and the story stayed Gujarati on /en and /hi)
+      if (GUJARATI.test([x.kicker, x.headline, x.deck, x.body].join(" "))) return null;
+      if (lang === "hi" && !(/[ऀ-ॿ]/.test(x.headline) && /[ऀ-ॿ]/.test(x.body))) return null;
       return { kicker: x.kicker ?? "", headline: x.headline, deck: x.deck ?? "", body: x.body, caption: x.caption ?? "" };
     };
     // Gemini Flash Lite first (29 Oct: a Gemma's 16,000 tokens a minute is shared with the writing and checking, and
