@@ -260,22 +260,26 @@ async function refile() {
  *  printed paper's stories of the last month without Hindi (29 Oct: 70 of them; their English is the hourly run's,
  *  pipeline/run.ts, which makes no Hindi). Run early in the round, before the writing (2 Nov: run last, it began after
  *  the round's time every time and translated nothing, so a story whose translation failed stayed Gujarati on /en and
- *  /hi). The least recently tried first, so a story that keeps failing doesn't hold the others back. */
+ *  /hi). The least recently tried first, so a story that keeps failing doesn't hold the others back. A translation
+ *  with Gujarati letters in it counts as none (2 Nov: models had given the Gujarati back and it was kept as done). */
 async function translations(until = deadline) {
   const left = await aiLeft(sql);
   const can = Math.min(6, Math.floor((left - RESERVE) / 2));
   if (can <= 0) return 0;
+  const gu = (c: "en" | "hi") => `concat_ws(' ', ${c}->>'kicker', ${c}->>'headline', ${c}->>'deck', ${c}->>'body') ~ '[઀-૿]'`;
   const rows = await sql.query(
-    `select id, origin, kicker, headline, deck, body, caption, en_status, hi_status from stories
-      where status = 'published' and (origin = 'live' and published_at > now() - interval '3 days' and (en_status <> 'done' or hi_status <> 'done')
-                                      or origin <> 'live' and published_at > now() - interval '30 days' and hi_status <> 'done')
+    `select * from (select id, origin, kicker, headline, deck, body, caption, published_at, updated_at,
+                           en_status = 'done' and not ${gu("en")} as en_ok, hi_status = 'done' and not ${gu("hi")} as hi_ok from stories
+                     where status = 'published' and published_at > now() - interval '30 days') s
+      where origin = 'live' and published_at > now() - interval '3 days' and not (en_ok and hi_ok)
+         or origin <> 'live' and not hi_ok
       order by origin = 'live' desc, updated_at asc limit $1`, [can]);
   let done = 0;
   const one = async (r: (typeof rows)[number]) => {
     const w = { kicker: r.kicker, headline: r.headline, deck: r.deck, body: r.body, caption: r.caption, model: "" };
     const [en, hi] = await Promise.all([
-      r.en_status === "done" || r.origin !== "live" ? null : translate(sql, w, "en", indiaDate()),
-      r.hi_status === "done" ? null : translate(sql, w, "hi", indiaDate()),
+      r.en_ok || r.origin !== "live" ? null : translate(sql, w, "en", indiaDate()),
+      r.hi_ok ? null : translate(sql, w, "hi", indiaDate()),
     ]);
     await sql.query(
       `update stories set en = coalesce($2::jsonb, en), en_status = case when $2::jsonb is not null then 'done' else en_status end,
