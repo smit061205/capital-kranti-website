@@ -1,5 +1,6 @@
 import { Anek_Gujarati, Hind_Vadodara, Noto_Serif_Gujarati } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { PREPAINT } from "@/components/Frame.tsx";
 import "@/app/globals.css";
 
@@ -18,6 +19,7 @@ export default function Layout({ children }: Readonly<{ children: React.ReactNod
       <body suppressHydrationWarning>
         {children}
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
