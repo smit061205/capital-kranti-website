@@ -100,7 +100,7 @@ export default function Chrome(p: ChromeProps) {
 
       {open && <div className="shade" onClick={() => setOpen(false)} />}
       <aside className="sheet" hidden={!open} aria-label={w.menu}>
-        <div className="x"><b>{p.name}</b><button type="button" className="ib" aria-label={w.close} onClick={() => setOpen(false)}><CloseIcon /></button></div>
+        <div className="x"><b className="sname">{p.name}</b><button type="button" className="ib" aria-label={w.close} onClick={() => setOpen(false)}><CloseIcon /></button></div>
         <form className="search" role="search" action={p.links.search} method="get" onSubmit={() => setOpen(false)}>
           <SearchIcon /><input ref={q} id="q" name="q" type="search" placeholder={w.searchPlaceholder} aria-label={w.searchPlaceholder} autoComplete="off"
                                value={query} onChange={(e) => setQuery(e.target.value)} />
@@ -113,25 +113,30 @@ export default function Chrome(p: ChromeProps) {
             {found.length > 0 && <Link prefetch={false} className="more" href={`${p.links.search}?q=${encodeURIComponent(query.trim())}`} onClick={() => setOpen(false)}>{w.search} <Chev /></Link>}
           </div>
         )}
-        <Link prefetch={false} className="srow" href={p.links.home} onClick={() => setOpen(false)}>{w.home}</Link>
-        <Link prefetch={false} className="srow" href={p.links.latest} onClick={() => setOpen(false)}>{w.latestTitle}</Link>
-        {p.sections.map((s) => (
-          <Link prefetch={false} key={s.key} className="srow" href={s.href} onClick={() => setOpen(false)}>{s.name}<span className="chev"><Chev /></span></Link>
-        ))}
-        <h3>{w.services}</h3>
-        <div className="links">
-          <Link prefetch={false} href={p.links.archive} onClick={() => setOpen(false)}>{w.archive}</Link>
-          <Link prefetch={false} href={p.links.saved} onClick={() => setOpen(false)}>{w.savedTitle}</Link>
+        {/* the Magazine look (2 Nov): the home page and the latest news as two buttons, the sections in the big headline type */}
+        <div className="quick">
+          <Link prefetch={false} href={p.links.home} onClick={() => setOpen(false)}><HomeIcon />{w.home}</Link>
+          <Link prefetch={false} href={p.links.latest} onClick={() => setOpen(false)}><Clock />{w.latestTitle}</Link>
         </div>
-        <h3>{w.settings}</h3>
-        <div className="setl">{w.size}</div>
-        {seg(w.size, [["1", <span key="1" style={{ fontSize: 14 }}>અ</span>], ["2", <span key="2" style={{ fontSize: 17 }}>અ</span>], ["3", <span key="3" style={{ fontSize: 20 }}>અ</span>]],
-             size, (v) => { setSize(v); write("ck-size", v); applySize(v); })}
-        <div className="setl">{w.language}</div>
+        <h3>{w.sections}</h3>
+        <nav className="secl" aria-label={w.sections}>
+          {p.sections.map((s) => (
+            <Link prefetch={false} key={s.key} className="srow" href={s.href} onClick={() => setOpen(false)}>{s.name}<span className="chev"><Chev /></span></Link>
+          ))}
+        </nav>
+        <h3>{w.language}</h3>
         <div className="seg" role="group" aria-label={w.language}>
           <LangLink to="gu" className="seglink" href={p.paths.gu} aria-current={p.lang === "gu" ? "true" : undefined} hrefLang="gu">ગુજરાતી</LangLink>
           <LangLink to="hi" className="seglink" href={p.paths.hi} aria-current={p.lang === "hi" ? "true" : undefined} hrefLang="hi">हिंदी</LangLink>
           <LangLink to="en" className="seglink" href={p.paths.en} aria-current={p.lang === "en" ? "true" : undefined} hrefLang="en">English</LangLink>
+        </div>
+        <h3>{w.size}</h3>
+        {seg(w.size, [["1", <span key="1" style={{ fontSize: 14 }}>અ</span>], ["2", <span key="2" style={{ fontSize: 17 }}>અ</span>], ["3", <span key="3" style={{ fontSize: 20 }}>અ</span>]],
+             size, (v) => { setSize(v); write("ck-size", v); applySize(v); })}
+        <h3>{w.services}</h3>
+        <div className="links">
+          <Link prefetch={false} href={p.links.archive} onClick={() => setOpen(false)}>{w.archive}</Link>
+          <Link prefetch={false} href={p.links.saved} onClick={() => setOpen(false)}>{w.savedTitle}</Link>
         </div>
         <h3>{w.about}</h3>
         <div className="links">
