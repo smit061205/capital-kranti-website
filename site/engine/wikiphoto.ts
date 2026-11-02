@@ -24,7 +24,8 @@ interface Subject { title: string; gu: string; en: string; hi: string }
 const ASK = `You pick the photo subject for a news story on an Indian news website.
 Name the ONE subject a reader would recognise in a photo and that the story is mainly about:
 a well-known public figure (head of state or government, minister, party leader, famous sportsperson or artist),
-a city or landmark, or a thing (a rocket, a ship, a train). Not a company or an organisation.
+a landmark, or a thing (a rocket, a ship, a train); a city or country only when the story is about the place itself,
+not about something that happened there (an attack, a disaster, a crime). Not a company or an organisation.
 Never a private person, a victim, someone accused of a crime, a child, or a dead person's body.
 Give the exact title of its English Wikipedia article, and its name in Gujarati, English and Hindi.
 If the story has no such subject, or you are not sure of the article, answer {"title": ""}.
@@ -41,8 +42,8 @@ async function subjectOf(sql: Sql, w: Written): Promise<Subject | null> {
 
 export const plain = (html: string) => html.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, " ").trim();
 
-/** The article's main photo, when it's a free one on Commons: its address (1600 px wide) and its credit. */
-export async function leadPhoto(title: string): Promise<{ url: string; credit: string } | null> {
+/** The article's main photo, when it's a free one on Commons: its address (1600 px wide), its credit and what it shows. */
+export async function leadPhoto(title: string): Promise<{ url: string; credit: string; about: string } | null> {
   const get = async (u: string) => {
     const r = await fetch(u, { headers: { "user-agent": UA }, signal: AbortSignal.timeout(15_000) });
     return r.ok ? r.json() : null;
@@ -68,7 +69,23 @@ export async function leadPhoto(title: string): Promise<{ url: string; credit: s
   const about = bare(`${file} ${plain(meta.ImageDescription?.value ?? "")} ${plain(meta.ObjectName?.value ?? "")}`);
   if (!bare(title).split(/[\s_(),-]+/).some((word) => word.length >= 4 && about.includes(word))) return null;
   const artist = plain(meta.Artist?.value ?? "").slice(0, 80) || "Wikimedia Commons";
-  return { url: ii.thumburl ?? ii.url!, credit: `${artist}, ${licence}, Wikimedia Commons` };
+  return { url: ii.thumburl ?? ii.url!, credit: `${artist}, ${licence}, Wikimedia Commons`,
+           about: `${file.replace(/\.\w+$/, "").replace(/_/g, " ")}. ${plain(meta.ImageDescription?.value ?? "")}`.slice(0, 400) };
+}
+
+const FIT = `You check a file photo for a news story on a news website. You get the story's headline and summary, the
+photo's subject, and the photo's own description from Wikimedia Commons. Answer whether the photo fits the story and
+would not mislead a reader: it shows the person, place or thing the story is about, and its scene suggests nothing the
+story doesn't say (a busy market or a festival beside a story about an attack or a disaster, another event, another
+place of the same name). A plain portrait of a public figure in the story fits. A map, a satellite view or a general
+view of a place fits a story about that place. Reply with JSON only: {"fits": true} or {"fits": false}.`;
+
+/** Whether a file photo suits the story (2 Nov: a fruit market in Hodeidah beside a strike on its port); null when the
+ *  free models couldn't say. */
+export async function fitsStory(sql: Sql, w: { headline: string; deck: string }, subject: string, about: string): Promise<boolean | null> {
+  const res = await askJson(sql, { system: FIT, user: `STORY: ${w.headline}\n${w.deck}\n\nPHOTO SUBJECT: ${subject}\nPHOTO DESCRIPTION: ${about || "(none)"}`, maxTokens: 40 },
+    (v) => (typeof (v as { fits?: unknown })?.fits === "boolean" ? (v as { fits: boolean }).fits : null));
+  return res.ok ? res.value : null;
 }
 
 /** Free-licence photos from a Wikipedia article (Aavtikal's explainers, the user, 29 Oct: several pictures in each),
@@ -133,6 +150,8 @@ export async function freePhoto(sql: Sql, w: Written, storyId: string): Promise<
     if (!who) return null;
     const found = await leadPhoto(who.title);
     if (!found) return null;
+    // only a photo that suits the story; when that can't be told, none
+    if ((await fitsStory(sql, w, who.en || who.title, found.about)) !== true) return null;
     const stored = await storePhoto(sql, found.url, storyId, UA);
     if (!stored) return null;
     return {
