@@ -54,11 +54,11 @@ function Photo({ s, lang, sizes, eager = false }: { s: Story; lang: Lang; sizes:
 }
 
 /** A story card: its picture (when asked for), section, headline, summary and time. */
-function Card({ s, lang, cls, photo, label, dek = true }: { s: Story; lang: Lang; cls: string; photo: boolean; label?: string; dek?: boolean }) {
+function Card({ s, lang, cls, photo, label, dek = true, sizes = SIZES.card }: { s: Story; lang: Lang; cls: string; photo: boolean; label?: string; dek?: boolean; sizes?: string }) {
   const w = words(s, lang);
   return (
     <Link prefetch={false} className={`h mc ${cls}`} href={storyHref(s, lang)}>
-      {photo && s.photo && <Photo s={s} lang={lang} sizes={SIZES.card} />}
+      {photo && s.photo && <Photo s={s} lang={lang} sizes={sizes} />}
       <span className="kick">{label ?? sectionName(s.tier, lang)}</span>
       <h3 className="h3">{w.headline}</h3>
       {dek && w.deck && <p className="dek">{w.deck}</p>}
@@ -154,8 +154,8 @@ export default async function Home({ lang }: { lang: Lang }) {
           </section>
           {pair.length === 2 && (
             <div className={`mpair${pair.every(decent) ? "" : " nop"}`}>
-              <Card s={pair[0]} lang={lang} cls="a" photo={pair.every(decent)} dek={false} />
-              <Card s={pair[1]} lang={lang} cls="b" photo={pair.every(decent)} />
+              <Card s={pair[0]} lang={lang} cls="a" photo={pair.every(decent)} dek={false} sizes={SIZES.lead} />
+              <Card s={pair[1]} lang={lang} cls="b" photo={pair.every(decent)} sizes="(max-width: 800px) 100vw, 45vw" />
             </div>
           )}
           {three.length === 3 && <div className="m3 top3">{three.map((s) => <Card key={s.id} s={s} lang={lang} cls="" photo={false} />)}</div>}
