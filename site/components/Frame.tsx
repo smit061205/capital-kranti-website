@@ -49,11 +49,11 @@ export default async function Frame({ lang, path, section, active, bottomBar = t
       />
       {brk && <BreakingBar id={brk.id} headline={bw || brk.headline} href={L(`/news/${brk.id}`)} until={Date.parse(brk.publishedAt) + BREAKING_HOURS * 3600_000}
         label={t(lang, "brk")} close={t(lang, "close")} />}
-      <nav className="wrap secs" aria-label={t(lang, "sections")}>
+      {bottomBar && <nav className="wrap secs" aria-label={t(lang, "sections")}>
         {SECTIONS.map((k) => <Link prefetch={false} key={k} href={L(`/section/${k}`)} className={section === k ? "on" : undefined}>{sectionName(k, lang)}</Link>)}
         {/* the flagship section (views/Flagship.tsx), set apart at the end */}
         <Link prefetch={false} href={L("/aavtikal")} className="fl">{flw(lang).name}</Link>
-      </nav>
+      </nav>}
       {/* the page's content crossfades into the next one (the header and footer stay put) */}
       <ViewTransition enter="page-in" exit="page-out" default="none">
         <main className="wrap" id="main" tabIndex={-1}>{children}</main>

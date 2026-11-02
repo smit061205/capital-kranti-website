@@ -3,14 +3,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Lang, Story } from "../lib/types.ts";
 import { pic, SIZES } from "../lib/photo.ts";
-import { latestStories, moreOnSubject, mostRead, storiesIn, storyById } from "../lib/db.ts";
+import { moreOnSubject, storiesIn, storyById } from "../lib/db.ts";
 import { href, t } from "../lib/i18n.ts";
 import { sectionName } from "../lib/sections.ts";
 import { dateText, minutes, num, paragraphs, timeText } from "../lib/format.ts";
 import { PAPER, SITE_URL } from "../lib/site.ts";
-import { Cmp, Head, Join, LatestList, MoreOn, MostRead, Std, words } from "../components/cards.tsx";
+import { Cmp, Head, MoreOn, Std, strong, words } from "../components/cards.tsx";
 import CountRead from "../components/CountRead.tsx";
-import { Chev, Flag } from "../components/icons.tsx";
+import { Flag } from "../components/icons.tsx";
 import ArticleTools from "../components/ArticleTools.tsx";
 import ReadProgress from "../components/ReadProgress.tsx";
 import PhotoZoom from "../components/PhotoZoom.tsx";
@@ -35,7 +35,7 @@ export function articleJsonLd(s: Story, lang: Lang) {
 export default async function Article({ id, lang }: { id: string; lang: Lang }) {
   const s = await storyById(id);
   if (!s) notFound();
-  const [related, latest, more, most] = await Promise.all([storiesIn(s.tier, 6), latestStories(12), moreOnSubject(s.id), mostRead(5)]);
+  const [related, more] = await Promise.all([storiesIn(s.tier, 6), moreOnSubject(s.id)]);
   const w = words(s, lang);
   const url = `${SITE_URL}${href(lang, `/news/${s.id}`)}`;
   const changed = s.updatedAt && Date.parse(s.updatedAt) - Date.parse(s.publishedAt) > 5 * 60_000;
@@ -55,31 +55,21 @@ export default async function Article({ id, lang }: { id: string; lang: Lang }) 
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd(s, lang)).replace(/</g, "\\u003c") }} />
       <ReadProgress target=".art" />
       <CountRead id={s.id} />
-      <div className="artg">
         <article className="art" lang={w.translated || lang === "gu" ? lang : "gu"}>
-          <div className="crumbrow">
-            <Link prefetch={false} className="crumbs" href={href(lang, `/section/${s.tier}`)}>{sectionName(s.tier, lang)} <Chev /></Link>
-            {s.genres[0] && <Link prefetch={false} className="crumbs" href={href(lang, `/section/${s.tier}/${s.genres[0]}`)}>{sectionName(s.genres[0], lang)} <Chev /></Link>}
-          </div>
+          <Link prefetch={false} className="crumbs" href={href(lang, `/section/${s.tier}`)}>{sectionName(s.tier, lang)}</Link>
           {lang !== "gu" && !w.translated && <p className="fix" lang={lang}>{t(lang, "noEnglish")}</p>}
           {s.corrections.map((c, i) => (
             <p key={i} className="fix">{t(lang, "correction")}, {dateText(c.at, lang)}: {lang === "en" && c.en ? c.en : c.gu}</p>
           ))}
-          {w.kicker && <span className="kick">{w.kicker}</span>}
           <h1>{w.headline}</h1>
           {w.deck && <p className="stand">{w.deck}</p>}
-          <div className="byblock">
-            <span className="badge" aria-hidden="true">{PAPER[lang].name.slice(0, 1)}</span>
-            <div className="times">
-              <span>{t(lang, "by")} <b>{t(lang, "desk")}</b>, {PAPER[lang].place}</span>
-              <span>{dateText(s.publishedAt, lang)}, {timeText(s.publishedAt, lang)}
-                {changed && <> · {t(lang, "updatedAt")} {timeText(s.updatedAt, lang)}</>}
-                {" · "}{num(minutes(w.body), lang)} {t(lang, "min")}</span>
-            </div>
-          </div>
+          <p className="byl">{t(lang, "by")} <b>{t(lang, "desk")}</b>, {PAPER[lang].place}</p>
+          <p className="byt">{dateText(s.publishedAt, lang)}, {timeText(s.publishedAt, lang)}
+            {changed && <> · {t(lang, "updatedAt")} {timeText(s.updatedAt, lang)}</>}
+            {" · "}{num(minutes(w.body), lang)} {t(lang, "min")}</p>
           <ArticleTools id={s.id} url={url} headline={w.headline} words={toolWords} />
           {s.photo && (
-            <figure>
+            <figure className={strong(s) ? "wide-ph" : "in-ph"}>
               <PhotoZoom src={s.photo.url} width={s.photo.width} height={s.photo.height} alt={w.caption || w.headline}
                          caption={w.caption} label={t(lang, "zoom")} close={t(lang, "close2")}>
                 <ViewTransition name={`photo-${s.id}`} share="morph" default="none">
@@ -117,14 +107,9 @@ export default async function Article({ id, lang }: { id: string; lang: Lang }) 
           </div>
           {after.length > 0 && (
             <section className="ctr"><Head label={t(lang, "related")} to={href(lang, `/section/${s.tier}`)} />
-              <div className="g cards c3 relgrid">{/* photos only when every card has one, so the headlines line up */}
-                {after.map((x) => <Std key={x.id} s={x} lang={lang} photo={after.every((y) => y.photo)} />)}</div></section>
+              <div className="rellist">{after.map((x) => <Std key={x.id} s={x} lang={lang} sec={false} photo={false} />)}</div></section>
           )}
-          <section className="ctr"><Join lang={lang} /></section>
         </article>
-        <aside><div><Head label={t(lang, "latestTitle")} to={href(lang, "/latest")} /><LatestList stories={latest.filter((x) => x.id !== s.id)} lang={lang} n={7} />
-          {most.filter((x) => x.id !== s.id).length >= 3 && <div className="ctr"><Head label={t(lang, "mostRead")} /><MostRead stories={most.filter((x) => x.id !== s.id)} lang={lang} /></div>}</div></aside>
-      </div>
     </Frame>
   );
 }

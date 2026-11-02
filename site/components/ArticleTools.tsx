@@ -39,12 +39,12 @@ export default function ArticleTools({ id, url, headline, words: w }: Props) {
   return (
     <>
       <div className="tools">
-        <a className="tool wa" href={wa} target="_blank" rel="noopener"><WhatsApp />{w.share}</a>
-        <button type="button" className="tool" onClick={copy}><LinkIcon />{w.copy}</button>
+        <a className="tool wa" href={wa} target="_blank" rel="noopener"><WhatsApp />{w.shareShort}</a>
+        <button type="button" className="tool" onClick={copy} aria-label={w.copy} title={w.copy}><LinkIcon /></button>
         <span className="sizes" role="group" aria-label={w.size}>
           {["1", "2", "3"].map((n) => <button key={n} type="button" aria-pressed={size === n} onClick={() => setTo(n)}>અ</button>)}
         </span>
-        <button type="button" className={`tool${saved ? " on" : ""}`} onClick={save}><SaveIcon on={saved} />{saved ? w.saved : w.save}</button>
+        <button type="button" className={`tool${saved ? " on" : ""}`} onClick={save} aria-label={saved ? w.saved : w.save} title={saved ? w.saved : w.save}><SaveIcon on={saved} /></button>
       </div>
       <div className="readbar">
         <a className="wa" href={wa} target="_blank" rel="noopener"><WhatsApp />{w.shareShort}</a>
