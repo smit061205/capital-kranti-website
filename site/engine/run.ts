@@ -211,11 +211,11 @@ async function settleWaiting() {
   if (up.length) await touched(sql);
 }
 
-/** Once (29 Oct, and again 2 Nov with the wider check in sameEvent): a story that went up twice (Spain's train crash, the
+/** Once (29 Oct, and again 2 Nov with the wider check in sameEvent and the reports' headlines): a story that went up twice (Spain's train crash, the
  *  Asia Cup squad) keeps its first copy; the later one comes down. Early in the round, with a minute and a half of its own
  *  (run last, it began after the round's time and stopped at once). */
 async function dedupe(until = deadline) {
-  const [done] = await sql.query(`select value from state where key = 'dedupe_2'`);
+  const [done] = await sql.query(`select value from state where key = 'dedupe_3'`);
   if (done) return 0;
   const rows = await sql.query(
     `select c.id, c.event, c.keys, c.first_seen, c.story_id from clusters c join stories s on s.id = c.story_id
@@ -232,7 +232,7 @@ async function dedupe(until = deadline) {
     removed++;
     log(`    a second copy taken down: ${r.story_id} (the same event as ${twin.story})`);
   }
-  await sql.query(`insert into state (key, value) values ('dedupe_2', '1') on conflict (key) do nothing`);
+  await sql.query(`insert into state (key, value) values ('dedupe_3', '1') on conflict (key) do nothing`);
   if (removed) await touched(sql);
   return removed;
 }

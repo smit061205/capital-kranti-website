@@ -147,7 +147,13 @@ export async function sameEvent(sql: Sql, c: { id: string; event: string; keys: 
     return { id: r.id as string, story: r.story_id as string, event: r.event as string, both, words };
   }).filter((r) => r.both >= 2 || r.words >= 3).sort((a, b) => b.both + b.words - a.both - a.words).slice(0, 6);
   if (!near.length) return null;
-  const res = await askJson(sql, { system: SAME, user: `NEW: ${c.event}\n\nEARLIER:\n${near.map((r, i) => `${i + 1}. ${r.event}`).join("\n")}`, maxTokens: 60 },
+  // each event with the headlines of two of its reports: the one-line event can mislead (2 Nov: "India squad announced
+  // for Asia Cup including Rinku Singh" was the India A squad for the Rising Stars Asia Cup, judged a different event)
+  const heads = await sql.query(
+    `select cluster_id, string_agg(left(title, 140), ' | ') as titles from (select cluster_id, title, row_number() over (partition by cluster_id order by seen_at) as n
+       from items where cluster_id = any($1::text[])) t where n <= 2 group by cluster_id`, [[c.id, ...near.map((r) => r.id)]]);
+  const told = (id: string, event: string) => { const t = heads.find((h) => h.cluster_id === id)?.titles; return t ? `${event} (reports: ${t})` : event; };
+  const res = await askJson(sql, { system: SAME, user: `NEW: ${told(c.id, c.event)}\n\nEARLIER:\n${near.map((r, i) => `${i + 1}. ${told(r.id, r.event)}`).join("\n")}`, maxTokens: 60 },
     (v) => { const n = Number((v as { same?: unknown })?.same); return Number.isInteger(n) && n >= 0 && n <= near.length ? n : null; });
   if (!res.ok) return "unsure";
   return res.value > 0 ? near[res.value - 1] : null;
