@@ -200,7 +200,7 @@ async function photoFit(until: number) {
   const rows = await sql.query(
     `select id, headline, deck, en->>'headline' as en_head, en->>'deck' as en_deck, en->>'caption' as en_cap from stories
       where origin = 'live' and status = 'published' and photo->>'credit' like '%Wikimedia Commons%' and checks->>'photo_fit' is null
-        and published_at > now() - interval '3 days' order by importance desc nulls last, published_at desc limit 6`);
+        and published_at > now() - interval '3 days' order by published_at desc limit 8`);
   let off = 0;
   for (const r of rows) {
     if (Date.now() > until) break;
@@ -208,7 +208,7 @@ async function photoFit(until: number) {
     if (!subject) { await sql.query(`update stories set checks = coalesce(checks, '{}'::jsonb) || '{"photo_fit": "unknown"}' where id = $1`, [r.id]); continue; }
     const found = await leadPhoto(subject).catch(() => null);
     const fits = await fitsStory(sql, { headline: r.en_head || r.headline, deck: r.en_deck || r.deck }, subject, found?.about ?? "");
-    if (fits === null) break; // the free models are busy: next run
+    if (fits === null) { log(`    ${r.id}: photo not checked, the free models are busy (next run)`); break; }
     await sql.query(
       `update stories set checks = coalesce(checks, '{}'::jsonb) || jsonb_build_object('photo_fit', $2::boolean),
           photo = case when $2 then photo else null end, caption = case when $2 then caption else '' end,
@@ -216,7 +216,8 @@ async function photoFit(until: number) {
           hi = case when $2 or hi is null then hi else jsonb_set(hi, '{caption}', '""') end,
           photo_tried = true, updated_at = case when $2 then updated_at else now() end
         where id = $1`, [r.id, fits]);
-    if (!fits) { off++; log(`    ${r.id}: file photo taken off, it doesn't suit the story (${subject})`); }
+    if (!fits) off++;
+    log(`    ${r.id}: file photo ${fits ? "suits the story" : "taken off, it doesn't suit the story"} (${subject})`);
   }
   if (off) await touched(sql);
   return off;
