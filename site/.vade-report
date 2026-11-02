@@ -1,0 +1,50 @@
+## Vercel Web Analytics Implementation
+
+Successfully installed and configured Vercel Web Analytics for the Capital Kranti website.
+
+### What Was Implemented
+
+1. **Package Installation**
+   - Installed `@vercel/analytics` version 2.0.1
+   - Updated package.json and package-lock.json accordingly
+
+2. **Analytics Component Integration**
+   - Added the Analytics component to all three root layout files:
+     - `app/(en)/en/layout.tsx` - English version
+     - `app/(gu)/layout.tsx` - Gujarati version
+     - `app/(hi)/hi/layout.tsx` - Hindi version
+   
+3. **Implementation Details**
+   - Imported `Analytics` from `@vercel/analytics/next` in each layout file
+   - Added `<Analytics />` component at the end of the `<body>` tag
+   - Preserved all existing code structure, fonts, and functionality
+   - Followed the official Vercel documentation for Next.js App Router
+
+### Files Modified
+
+- `site/package.json` - Added @vercel/analytics dependency
+- `site/package-lock.json` - Updated with new package dependencies
+- `site/app/(en)/en/layout.tsx` - Added Analytics to English layout
+- `site/app/(gu)/layout.tsx` - Added Analytics to Gujarati layout
+- `site/app/(hi)/hi/layout.tsx` - Added Analytics to Hindi layout
+
+### Verification Completed
+
+✓ TypeScript type checking passed (`npm run typecheck`)
+✓ Next.js production build successful (`npm run build`)
+✓ All 198 pages compiled without errors
+✓ No breaking changes to existing functionality
+
+### Next Steps
+
+To activate analytics:
+1. Deploy this update to Vercel
+2. Enable Web Analytics in the Vercel dashboard (Analytics → Enable button)
+3. Analytics data will start appearing in the Vercel dashboard after deployment
+
+### Technical Notes
+
+- This is a multi-lingual site with separate root layouts for each language
+- Analytics component was added to all three layouts to ensure tracking across all language versions
+- The implementation follows Next.js App Router best practices as documented in the official Vercel quickstart guide
+- The Analytics component will automatically track page views and web vitals across all routes
