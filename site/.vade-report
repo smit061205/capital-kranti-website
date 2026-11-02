@@ -1,0 +1,44 @@
+# Vercel Speed Insights Installation
+
+Successfully installed and configured Vercel Speed Insights for the Capital Kranti website following the official Vercel documentation.
+
+## Changes Made
+
+### 1. Package Installation
+- Installed `@vercel/speed-insights` version 2.0.0 using npm
+- Updated `package.json` and `package-lock.json` to include the new dependency
+
+### 2. Component Integration
+Added the `<SpeedInsights />` component to all three language-specific root layout files:
+
+**Modified Files:**
+- `app/(en)/en/layout.tsx` - English layout
+- `app/(gu)/layout.tsx` - Gujarati layout  
+- `app/(hi)/hi/layout.tsx` - Hindi layout
+
+**Implementation Details:**
+- Added import statement: `import { SpeedInsights } from "@vercel/speed-insights/next";`
+- Placed the `<SpeedInsights />` component inside the `<body>` tag, after the `{children}` element
+- This follows the official Next.js App Router integration pattern from Vercel's documentation
+
+## Verification
+
+### Type Checking ✓
+- Ran `npm run typecheck` - passed with no errors
+
+### Build ✓
+- Ran `npm run build` - completed successfully
+- All 198 pages generated without issues
+- Build artifacts confirmed working with Turbopack
+
+## Why These Choices
+
+1. **Multiple Layout Files**: This project uses a multi-language structure with separate root layouts for English, Gujarati, and Hindi. Each layout file contains an `<html>` tag, making them independent root layouts that require the SpeedInsights component.
+
+2. **Component Placement**: The `<SpeedInsights />` component was placed at the end of the `<body>` tag (after `{children}`), following Vercel's recommended pattern to avoid blocking page rendering.
+
+3. **Latest Documentation**: Fetched installation instructions directly from https://vercel.com/docs/speed-insights/quickstart to ensure the implementation uses the most current and correct approach.
+
+## Next Steps
+
+Once deployed to Vercel, the Speed Insights tracking script will automatically be available at `/_vercel/speed-insights/*` routes. Performance metrics will appear in the Vercel dashboard under Speed Insights after users visit the site.

@@ -1,5 +1,6 @@
 import { Anek_Gujarati, Hind_Vadodara, Noto_Serif_Gujarati } from "next/font/google";
 import { PREPAINT } from "@/components/Frame.tsx";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "@/app/globals.css";
 
 // The design system's two faces (DESIGN.md §2.2): Anek Gujarati for the interface, Noto Serif Gujarati for reading.
@@ -14,7 +15,10 @@ export default function Layout({ children }: Readonly<{ children: React.ReactNod
   return (
     <html lang="en" data-scroll-behavior="smooth" className={`${ui.variable} ${serif.variable} ${head.variable}`} suppressHydrationWarning>
       <head><script dangerouslySetInnerHTML={{ __html: PREPAINT }} /></head>
-      <body suppressHydrationWarning>{children}</body>
+      <body suppressHydrationWarning>
+        {children}
+        <SpeedInsights />
+      </body>
     </html>
   );
 }
