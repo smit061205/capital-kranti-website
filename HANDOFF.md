@@ -21,6 +21,13 @@ older notes below disagree, this block is right.*
   `npx --prefix site tsc -p site/engine --noEmit`,
   `node --experimental-strip-types --no-warnings site/engine/selftest.ts` (18 checks), and
   `(cd site && env -u CK_SAMPLE npm run -s build)`.
+- **The look (2 Nov, chosen by eye from three side-by-side mock-ups):** "Magazine". Warm paper (`--bg:#f8f4ec`),
+  big headlines in the small "CK Cond" files (Anek 800 at 75% width, `--big`), small ones in plain Anek, story text in
+  Noto Serif. Front page (`site/views/Home.tsx`): one centred headline (a picture across the page only when it is wide
+  and sharp, `strong`), a pair whose pictures share one height, three across, latest, most read, sections led by one
+  story, Aavtikal as a dark band. Every block has a version without pictures. The story page is centred, text 660 px.
+  Rejected on the way: an NYT-style grid with serif Gujarati headlines (read as dated), lighter fonts, no rules at all.
+  The user dropped the word "વિભાગો" from the menu button. Still old: section pages' list layout.
 - **Seeing it locally:** the preview "flagship-dev" (port 3200, `CK_SAMPLE=1`, in
   `NewsPaper_Project/.claude/launch.json`). In sample mode the editor page signs in by itself.
   When the app's browser pane is hidden, pages don't finish loading there: check with headless

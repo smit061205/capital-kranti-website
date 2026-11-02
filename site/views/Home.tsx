@@ -1,65 +1,110 @@
-// The front page (DESIGN.md §3.3): a stack of containers. Containers with no
-// stories yet simply don't show (phase A has only the evening paper's).
+// The front page (2 Nov), laid out as a magazine: one big centred headline with its picture across the page, a pair of
+// stories, a row of three, the latest and the most read, then each section led by one story with the rest beside it.
+// Every block has a version without pictures, so a day of weak photos still looks finished.
 import type { Lang, Story } from "../lib/types.ts";
 import { elsewhere, latestStories, moreOnSubject, mostRead } from "../lib/db.ts";
 import { href, t } from "../lib/i18n.ts";
 import { sectionName } from "../lib/sections.ts";
-import { dateText } from "../lib/format.ts";
-import { Cmp, ElsewhereRow, Head, Join, LatestList, Lead, MostRead, Std } from "../components/cards.tsx";
+import { decent, ElsewhereRow, Join, Meta, MoreOn, strong, words } from "../components/cards.tsx";
+import Link from "next/link";
+import { pic, SIZES } from "../lib/photo.ts";
+import { num, timeText } from "../lib/format.ts";
+import TimeAgo from "../components/TimeAgo.tsx";
 import Frame from "../components/Frame.tsx";
 import { PAPER } from "../lib/site.ts";
-import { beatName, featureWords, features, flw } from "../lib/flagship.ts";
-import AavtikalPromo from "../components/AavtikalPromo.tsx";
+import { beatName, featureWords, features, flw, type Feature } from "../lib/flagship.ts";
+import { Chev } from "../components/icons.tsx";
 
 const inSection = (s: Story, key: string) => s.tier === key || s.genres.includes(key as never);
-const BELOW = ["gujarat", "india", "farm", "economy", "tech", "health", "sport", "education", "entertainment"];
-
-// The sections below the top, after the Post's front page: a section with
-// plenty of news gets a full-width row (its best photo story, then columns of
-// headlines); the stories of the sections with only a few go together into one
-// grid of cards, each with its section's name, cut to whole rows of four so no
-// row is left half empty. A story shows once on the page, in the first section it belongs to.
-// Each section's newest stories, newest first, led by the most important of the last day, one with a photo
-// if it has one (29 Oct: farming was led by a week-old photo story above one of ten hours before).
+const BELOW = ["gujarat", "india", "world", "economy", "farm", "tech", "health", "sport", "education", "entertainment"];
 const newest = (a: Story, b: Story) => b.publishedAt.localeCompare(a.publishedAt);
+const storyHref = (s: Story, lang: Lang) => href(lang, `/news/${s.id}`);
+
+// Each section's newest stories, led by the most important of the last day, one with a photo if it has one
+// (29 Oct: farming was led by a week-old photo story above one of ten hours before).
 function freshFirst(list: Story[]): Story[] {
   const day = list.filter((s) => Date.now() - Date.parse(s.publishedAt) < 24 * 3600_000)
     .sort((a, b) => (b.importance ?? 0) - (a.importance ?? 0) || newest(a, b));
-  const lead = day.find((s) => s.photo) ?? day[0] ?? list.find((s) => s.photo) ?? list[0];
+  const lead = day.find(decent) ?? day[0] ?? list.find(decent) ?? list[0];
   return lead ? [lead, ...list.filter((s) => s !== lead)] : list;
 }
+/** The sections below the top: one with four stories gets a block of its own; the stories of sections with fewer go
+ *  together under "more news", cut to whole rows of three. A story shows once on the page. */
 function sectionBoxes(stories: Story[], shown: Set<string>) {
   const used = new Set(shown);
   const wide: { k: string; list: Story[] }[] = [];
   const few: { k: string; s: Story }[] = [];
-  for (const k of [...BELOW, "world"]) {
-    const list = freshFirst(stories.filter((s) => inSection(s, k) && !used.has(s.id)).sort(newest).slice(0, 7));
+  for (const k of BELOW) {
+    const list = freshFirst(stories.filter((s) => inSection(s, k) && !used.has(s.id)).sort(newest).slice(0, 4));
     if (!list.length) continue;
     list.forEach((s) => used.add(s.id));
-    if (list.length >= 4) wide.push({ k, list });
+    if (list.length === 4) wide.push({ k, list });
     else few.push(...list.map((s) => ({ k, s })));
   }
   few.sort((a, b) => newest(a.s, b.s));
-  return { wide, few: few.length >= 4 ? few.slice(0, Math.min(12, few.length - few.length % 4)) : few };
+  return { wide: wide.slice(0, 6), few: few.length >= 3 ? few.slice(0, Math.min(6, few.length - few.length % 3)) : few };
 }
 
-function WideBox({ k, list, lang }: { k: string; list: Story[]; lang: Lang }) {
+function Photo({ s, lang, sizes, eager = false }: { s: Story; lang: Lang; sizes: string; eager?: boolean }) {
+  const w = words(s, lang);
+  return (
+    <span className="phw"><img className="ph" {...pic(s.photo!, sizes)} width={s.photo!.width} height={s.photo!.height} alt={w.caption || w.headline}
+      loading={eager ? "eager" : "lazy"} fetchPriority={eager ? "high" : undefined} decoding="async" /></span>
+  );
+}
+
+/** A story card: its picture (when asked for), section, headline, summary and time. */
+function Card({ s, lang, cls, photo, label, dek = true }: { s: Story; lang: Lang; cls: string; photo: boolean; label?: string; dek?: boolean }) {
+  const w = words(s, lang);
+  return (
+    <Link prefetch={false} className={`h mc ${cls}`} href={storyHref(s, lang)}>
+      {photo && s.photo && <Photo s={s} lang={lang} sizes={SIZES.card} />}
+      <span className="kick">{label ?? sectionName(s.tier, lang)}</span>
+      <h3 className="h3">{w.headline}</h3>
+      {dek && w.deck && <p className="dek">{w.deck}</p>}
+      <Meta s={s} lang={lang} sec={false} />
+    </Link>
+  );
+}
+
+/** A section's title, centred, linking to the section. */
+function Title({ label, to }: { label: string; to?: string }) {
+  return <h2 className="mt">{to ? <Link prefetch={false} href={to}>{label}</Link> : label}</h2>;
+}
+
+/** A section: its lead story large, its picture beside it (on alternate sides), the other three in a row below. */
+function SectionBlock({ k, list, lang, flip }: { k: string; list: Story[]; lang: Lang; flip: boolean }) {
   const [first, ...rest] = list;
-  // no photo to lead with: the section's stories as cards in whole rows of three
-  if (!first.photo) return (
-    <section className="ctr wide">
-      <Head label={sectionName(k, lang)} to={href(lang, `/section/${k}`)} />
-      <div className="g cards c3">{list.slice(0, list.length >= 6 ? 6 : 3).map((s) => <Std key={s.id} s={s} lang={lang} sec={false} photo={false} />)}</div>
+  const w = words(first, lang);
+  const withPic = decent(first);
+  return (
+    <section className="mblock">
+      <Title label={sectionName(k, lang)} to={href(lang, `/section/${k}`)} />
+      <Link prefetch={false} className={`h feat${withPic ? "" : " nop"}${flip ? " r" : ""}`} href={storyHref(first, lang)}>
+        {withPic && <Photo s={first} lang={lang} sizes={SIZES.lead} />}
+        <div><h3 className="fh">{w.headline}</h3>{w.deck && <p className="dek">{w.deck}</p>}<Meta s={first} lang={lang} sec={false} /></div>
+      </Link>
+      <div className="m3">{rest.map((s) => <Card key={s.id} s={s} lang={lang} cls="" photo={false} label={sectionName(k, lang)} dek={false} />)}</div>
     </section>
   );
-  // two columns of three headlines when there are six, else one column of them all
-  const cols = rest.length >= 6 ? [rest.slice(0, 3), rest.slice(3, 6)] : [rest];
+}
+
+/** Aavtikal's newest, a dark band of its own: one with its picture large, two more headlines. */
+function AavtikalBand({ list, lang }: { list: Feature[]; lang: Lang }) {
+  const [first, ...rest] = list;
+  const fw = featureWords(first, lang);
+  const at = (f: Feature) => href(lang, `/aavtikal/p/${f.id}`);
+  const tongue = (f: Feature) => featureWords(f, lang).translated || lang === "gu" ? lang : "gu";
   return (
-    <section className="ctr wide">
-      <Head label={sectionName(k, lang)} to={href(lang, `/section/${k}`)} />
-      <div className={`wbody${cols.length === 1 ? " two" : ""}`}>
-        <div><Std s={first} lang={lang} sec={false} /></div>
-        {cols.map((c, i) => <div key={i} className="stack">{c.map((s) => <Cmp key={s.id} s={s} lang={lang} />)}</div>)}
+    <section className="mav">
+      <div className="wrap">
+        <Link prefetch={false} className="lab" href={href(lang, "/aavtikal")}>{flw(lang).name}</Link>
+        <Link prefetch={false} className="h" href={at(first)} lang={tongue(first)}>
+          <span className="kick">{beatName(first.beat, lang)}</span>
+          <h2>{fw.headline}</h2>
+          {first.photo && <span className="phw"><img className="ph" {...pic(first.photo, SIZES.full)} width={first.photo.width} height={first.photo.height} alt="" loading="lazy" decoding="async" /></span>}
+        </Link>
+        <ul>{rest.map((f) => <li key={f.id}><Link prefetch={false} href={at(f)} lang={tongue(f)}><span className="kick">{beatName(f.beat, lang)}</span>{featureWords(f, lang).headline}</Link></li>)}</ul>
       </div>
     </section>
   );
@@ -69,70 +114,87 @@ export default async function Home({ lang }: { lang: Lang }) {
   const stories = await latestStories(200);
   const day = stories[0]?.issueDate;
   const today = stories.filter((s) => s.issueDate === day);
-  // the lead: the engine's most important story of the last 12 hours when it's
-  // headline-sized (ROADMAP §0.1), else the newest day's front page. Fresh first, never
-  // an old story (the user, 29 Oct); among the fresh ones, one with a photo (the engine
-  // gives them official or Commons file photos), else the biggest across the page.
+  // the lead: the engine's most important story of the last 12 hours when it's headline-sized (ROADMAP §0.1), else the
+  // newest day's front page; fresh first, never an old story (29 Oct); among the fresh ones, one with a good wide photo
   const fresh = stories.filter((s) => s.origin === "live" && Date.now() - Date.parse(s.publishedAt) < 12 * 3600_000 && (s.importance ?? 0) >= 7.5)
     .sort((a, b) => (b.importance ?? 0) - (a.importance ?? 0) || b.publishedAt.localeCompare(a.publishedAt));
-  const lead = fresh.find((s) => s.photo) ?? fresh[0] ?? today.find((s) => s.photo && s.page === 1) ?? today.find((s) => s.photo) ?? today[0];
-  // under the lead, its subject's other stories; below the top, what readers open most; Aavtikal's newest
-  const [more, most, articles, others] = await Promise.all([lead ? moreOnSubject(lead.id) : [], mostRead(5), features({ limit: 6 }), elsewhere(lang)]);
-  // the stories under the lead: today's paper first, then the newest; whole rows of three
-  // only (28 Oct: four left one card alone in its row and a hole beside the rail)
-  const pool = [...today, ...stories.filter((s) => s.issueDate !== day)].filter((s) => s !== lead).slice(0, 6);
-  const six = pool.slice(0, pool.length < 3 ? pool.length : pool.length - pool.length % 3).sort((a, b) => Number(!!b.photo) - Number(!!a.photo));
-  const shown = new Set([lead, ...six].filter(Boolean).map((s) => s!.id));
-  // the latest list beside them: newest first, without the stories already at the top
-  const byTime = stories.filter((s) => !shown.has(s.id))
-    .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt) || (a.page ?? 9) - (b.page ?? 9) || (a.rank ?? 99) - (b.rank ?? 99));
+  const lead = fresh.find(strong) ?? fresh[0] ?? today.find((s) => strong(s) && s.page === 1) ?? today.find(strong) ?? today[0];
+  const [more, read, articles, others] = await Promise.all([lead ? moreOnSubject(lead.id) : [], mostRead(16), features({ limit: 6 }), elsewhere(lang)]);
+  // the next stories, today's paper first: a pair (with pictures when both have one, so they match), then three across
+  const pool = [...today, ...stories.filter((s) => s.issueDate !== day)].filter((s) => s !== lead);
+  const pics = pool.filter(decent);
+  const pair = pics.length >= 2 ? pics.slice(0, 2) : pool.slice(0, 2);
+  const three = pool.filter((s) => !pair.includes(s)).slice(0, 3);
+  const shown = new Set([lead, ...pair, ...three].filter(Boolean).map((s) => s!.id));
+  // the latest: newest first, without what's above; most read and the sections leave out what's already shown (2 Nov)
+  const latest = stories.filter((s) => !shown.has(s.id)).sort(newest).slice(0, 8);
+  latest.forEach((s) => shown.add(s.id));
+  const most = read.filter((s) => !shown.has(s.id)).slice(0, 5);
+  most.forEach((s) => shown.add(s.id));
   const { wide, few } = sectionBoxes(stories, shown);
-  // Aavtikal's newest article (one with a photo first) for the card in the corner
-  const av = articles.find((f) => f.photo) ?? articles[0];
-  const avw = av && featureWords(av, lang);
-  const fw = flw(lang);
-  // photos only in whole rows, so every row's headlines line up
-  const fewPhotos = Math.floor(few.filter((x) => x.s.photo).length / 4) * 4;
+  const av = [...articles.filter((f) => f.photo), ...articles.filter((f) => !f.photo)].slice(0, 3);
+  const lw = lead && words(lead, lang);
 
   return (
     <Frame lang={lang} path="/" active="home">
       {/* the page's name for screen readers and search engines (the wordmark above is a link) */}
       <h1 className="vh">{PAPER[lang].name}: {PAPER[lang].tagline}</h1>
-      {!lead ? <p className="empty">{t(lang, "empty")}</p> : (
+      {!lead || !lw ? <p className="empty">{t(lang, "empty")}</p> : (
         <>
-          <div className="dateline"><span>{dateText(day!, lang, true)}</span><span className="upd">{t(lang, "updated")}</span></div>
-          <div className="ctr g topg" style={{ marginTop: 16 }}>
-            <div>
-              <Lead s={lead} lang={lang} more={more} />
-              {six.length > 0 && (
-                <div className="g cards c3 six" style={{ marginTop: "var(--gut)", paddingTop: "var(--gut)", borderTop: "1px solid var(--rule)" }}>
-                  {/* photos only in a full first row (photo stories come first), so every row's headlines line up */}
-                  {six.map((s, i) => <Std key={s.id} s={s} lang={lang} morph photo={i < 3 && six.slice(0, 3).every((x) => x.photo)} />)}
-                </div>
-              )}
-            </div>
-            {/* the rail is never taller than the stories beside it: the list shows only the headlines that fit */}
-            <aside className="rail vr"><div className="fit"><Head label={t(lang, "latestTitle")} to={href(lang, "/latest")} /><LatestList stories={byTime} lang={lang} n={16} /></div></aside>
-          </div>
-          <section className="ctr phone-latest"><Head label={t(lang, "latestTitle")} to={href(lang, "/latest")} /><LatestList stories={byTime} lang={lang} n={6} /></section>
-          <section className="ctr band">
-            {most.length >= 3 && <div><Head label={t(lang, "mostRead")} /><MostRead stories={most} lang={lang} /></div>}
-            <Join lang={lang} />
+          <section className="mhero">
+            <Link prefetch={false} className="h" href={storyHref(lead, lang)}>
+              <span className="kick">{lw.kicker || sectionName(lead.tier, lang)}</span>
+              <h2 className="display">{lw.headline}</h2>
+              {lw.deck && <p className="dek">{lw.deck}</p>}
+              <Meta s={lead} lang={lang} />
+              {strong(lead) && <Photo s={lead} lang={lang} sizes={SIZES.full} eager />}
+            </Link>
+            {strong(lead) && lw.caption && <p className="cap">{lw.caption} ({t(lang, "photo")}: {lead.photo?.credit ?? lead.source?.name ?? "PIB"})</p>}
+            {more.length > 0 && <MoreOn stories={more} lang={lang} />}
           </section>
-          {others.length >= 4 && <ElsewhereRow items={others} lang={lang} />}
-          {wide.map((b) => <WideBox key={b.k} k={b.k} list={b.list} lang={lang} />)}
-          {few.length > 0 && (
-            <section className="ctr"><Head label={t(lang, "moreNews")} />
-              <div className={`g cards ${few.length >= 4 ? "c4" : `c${few.length}`} few`}>
-                {few.map(({ k, s }, i) => <Std key={s.id} s={s} lang={lang} sec={false} label={sectionName(k, lang)} photo={i < fewPhotos} />)}
-              </div>
+          {pair.length === 2 && (
+            <div className={`mpair${pair.every(decent) ? "" : " nop"}`}>
+              <Card s={pair[0]} lang={lang} cls="a" photo={pair.every(decent)} dek={false} />
+              <Card s={pair[1]} lang={lang} cls="b" photo={pair.every(decent)} />
+            </div>
+          )}
+          {three.length === 3 && <div className="m3 top3">{three.map((s) => <Card key={s.id} s={s} lang={lang} cls="" photo={false} />)}</div>}
+          {latest.length >= 4 && (
+            <section className="mblock">
+              <Title label={t(lang, "latestTitle")} to={href(lang, "/latest")} />
+              <ul className="mlatest">
+                {latest.map((s) => (
+                  <li key={s.id}><Link prefetch={false} className="h" href={storyHref(s, lang)}>
+                    <TimeAgo iso={s.publishedAt} lang={lang} fallback={timeText(s.publishedAt, lang)} /><h3 className="h4">{words(s, lang).headline}</h3></Link></li>
+                ))}
+              </ul>
+              <Link prefetch={false} className="mmore" href={href(lang, "/latest")}>{t(lang, "allLatest")} <Chev /></Link>
             </section>
           )}
+          {most.length >= 3 && (
+            <section className="mblock">
+              <Title label={t(lang, "mostRead")} />
+              <ol className="mmost">{most.map((s, i) => (
+                <li key={s.id}><Link prefetch={false} className="h" href={storyHref(s, lang)}><b aria-hidden="true">{num(i + 1, lang)}</b><h3 className="h4">{words(s, lang).headline}</h3></Link></li>
+              ))}</ol>
+            </section>
+          )}
+          {wide.slice(0, 2).map((b, i) => <SectionBlock key={b.k} k={b.k} list={b.list} lang={lang} flip={i % 2 === 1} />)}
         </>
       )}
-      <AavtikalPromo name={fw.name} by={fw.promoBy} close={fw.close} home={href(lang, "/aavtikal")} cta={av ? fw.promoRead : fw.promoCta}
-        article={av && avw ? { href: href(lang, `/aavtikal/p/${av.id}`), headline: avw.headline, beat: av.beat, beatName: beatName(av.beat, lang),
-                               lang: avw.translated || lang === "gu" ? lang : "gu" } : null} />
+      {lead && av.length >= 1 && <AavtikalBand list={av} lang={lang} />}
+      {lead && (
+        <>
+          {wide.slice(2).map((b, i) => <SectionBlock key={b.k} k={b.k} list={b.list} lang={lang} flip={i % 2 === 1} />)}
+          {few.length >= 3 && (
+            <section className="mblock"><Title label={t(lang, "moreNews")} />
+              <div className="m3">{few.map(({ k, s }) => <Card key={s.id} s={s} lang={lang} cls="" photo={false} label={sectionName(k, lang)} dek={false} />)}</div>
+            </section>
+          )}
+          <section className="mblock mjoin"><Join lang={lang} /></section>
+          {others.length >= 4 && <ElsewhereRow items={others} lang={lang} />}
+        </>
+      )}
     </Frame>
   );
 }

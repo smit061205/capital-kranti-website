@@ -16,6 +16,23 @@ const SEC: Record<string, Tier | [Tier, string]> = {
 let cache: { stories: Story[]; issues: Issue[] } | null = null;
 export function sample() {
   if (cache) return cache;
+  // a redesign looked at on real news: a snapshot of the live site's public pages, kept outside the repository
+  if (process.env.CK_SAMPLE_FILE) {
+    const raw = JSON.parse(readFileSync(process.env.CK_SAMPLE_FILE, "utf8")) as { id: string; k: string; h: string; d: string; body: string; cap: string; img: string | null; w: number | null; ht: number | null; at: string | null; secs: string[]; crumbs?: string[]; rank: number }[];
+    const tiers = ["gujarat", "india", "world"];
+    const stories = raw.filter((r) => r.at).map((r): Story => {
+      const keys = [...new Set([...(r.crumbs ?? []), ...r.secs])];
+      return {
+        id: r.id, issueDate: r.at!.slice(0, 10), publishedAt: r.at!, updatedAt: r.at!, tier: (keys.find((k) => tiers.includes(k)) ?? "india") as Tier,
+        genres: keys.filter((k) => !tiers.includes(k)) as never[], kicker: r.k, headline: r.h, deck: r.d, body: r.body, caption: r.cap,
+        photo: r.img ? { url: r.img.startsWith("/") ? `https://capital-kranti.vercel.app${r.img}` : r.img, width: r.w ?? 1200, height: r.ht ?? 800 } : null,
+        source: { kind: "pib", name: "PIB", url: "" }, checked: true, page: null, rank: null, en: null, hi: null, corrections: [], origin: "live", sources: [],
+        importance: r.rank === 0 ? 9 : r.rank < 8 ? 8 : 6, gallery: [],
+      };
+    }).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+    cache = { stories, issues: [{ date: stories[0].issueDate, number: 271, pdf: null, publishedAt: stories[0].publishedAt, storyIds: stories.map((s) => s.id), pages: [] }] };
+    return cache;
+  }
   const root = path.join(process.cwd(), "..");
   const raw = JSON.parse(readFileSync(path.join(root, "docs/website/sample/full-img.json"), "utf8")) as
     { id: string; k: string; h: string; d: string; body: string; cap: string; src: string; img?: string }[];

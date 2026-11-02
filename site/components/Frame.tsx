@@ -7,7 +7,7 @@ import { href, t } from "../lib/i18n.ts";
 import { SECTIONS, sectionName } from "../lib/sections.ts";
 import { flw } from "../lib/flagship.ts";
 import { PAPER } from "../lib/site.ts";
-import { num } from "../lib/format.ts";
+import { dateText, num } from "../lib/format.ts";
 import Chrome from "./Chrome.tsx";
 import LangLink from "./LangLink.tsx";
 import NavProgress from "./NavProgress.tsx";
@@ -41,7 +41,7 @@ export default async function Frame({ lang, path, section, active, bottomBar = t
       <a className="skip" href="#main">{t(lang, "skip")}</a>
       <Suspense fallback={null}><NavProgress /></Suspense>
       <Chrome
-        lang={lang} name={PAPER.gu.name} tagline={PAPER[lang].tagline} words={words} bottomBar={bottomBar} active={active}
+        lang={lang} name={PAPER.gu.name} tagline={PAPER[lang].tagline} words={words} bottomBar={bottomBar} active={active} mast={path === "/" ? dateText(new Date().toISOString(), lang, true) : undefined}
         paths={{ gu: href("gu", path), en: href("en", path), hi: href("hi", path) }}
         sections={[...SECTIONS.map((k) => ({ key: k, name: sectionName(k, lang), href: L(`/section/${k}`) })), { key: "aavtikal", name: flw(lang).name, href: L("/aavtikal") }]}
         links={{ home: L("/"), latest: L("/latest"), archive: L("/archive"), search: L("/search"), saved: L("/saved"),
@@ -49,11 +49,11 @@ export default async function Frame({ lang, path, section, active, bottomBar = t
       />
       {brk && <BreakingBar id={brk.id} headline={bw || brk.headline} href={L(`/news/${brk.id}`)} until={Date.parse(brk.publishedAt) + BREAKING_HOURS * 3600_000}
         label={t(lang, "brk")} close={t(lang, "close")} />}
-      <nav className="wrap secs" aria-label={t(lang, "sections")}>
+      {bottomBar && <nav className="wrap secs" aria-label={t(lang, "sections")}>
         {SECTIONS.map((k) => <Link prefetch={false} key={k} href={L(`/section/${k}`)} className={section === k ? "on" : undefined}>{sectionName(k, lang)}</Link>)}
         {/* the flagship section (views/Flagship.tsx), set apart at the end */}
         <Link prefetch={false} href={L("/aavtikal")} className="fl">{flw(lang).name}</Link>
-      </nav>
+      </nav>}
       {/* the page's content crossfades into the next one (the header and footer stay put) */}
       <ViewTransition enter="page-in" exit="page-out" default="none">
         <main className="wrap" id="main" tabIndex={-1}>{children}</main>

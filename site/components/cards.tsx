@@ -19,7 +19,7 @@ export function words(s: Story, lang: Lang) {
 }
 const storyHref = (s: Story, lang: Lang) => href(lang, `/news/${s.id}`);
 
-function Meta({ s, lang, sec = true }: { s: Story; lang: Lang; sec?: boolean }) {
+export function Meta({ s, lang, sec = true }: { s: Story; lang: Lang; sec?: boolean }) {
   return (
     <div className="meta">
       {sec && <><span className="sec">{sectionName(s.tier, lang)}</span><span aria-hidden="true">·</span></>}
@@ -49,7 +49,14 @@ export const boostOf = (s: Story): Boost => {
   return i >= 11 ? "giga" : i >= 9.5 ? "mega" : i >= 7.5 ? "boost" : "default";
 };
 
-export function Lead({ s, lang, more = [] }: { s: Story; lang: Lang; more?: Story[] }) {
+/** A photo fit for the top of a page: wide and sharp. Anything else (a tall file portrait, a map, a small picture) is left
+ *  out there: type alone looks better than a weak picture (2 Nov: the top story showed a tall map). */
+export const strong = (s: Story) => !!s.photo && s.photo.width >= 900 && s.photo.width / s.photo.height >= 1.2;
+/** A photo good enough for a card, cropped to the card's shape: not a thumbnail-sized one. */
+export const decent = (s: Story) => !!s.photo && s.photo.width >= 600;
+
+export function Lead({ s: story, lang, more = [] }: { s: Story; lang: Lang; more?: Story[] }) {
+  const s = strong(story) ? story : { ...story, photo: null };
   const w = words(s, lang);
   return (
     <article className={`lead b-${boostOf(s)}${s.photo ? "" : " nopic"}`}>
@@ -68,6 +75,36 @@ export function Lead({ s, lang, more = [] }: { s: Story; lang: Lang; more?: Stor
           {w.caption && <p className="cap">{w.caption} ({t(lang, "photo")}: {s.photo?.credit ?? s.source?.name ?? "PIB"})</p>}
         </div>
       )}
+    </article>
+  );
+}
+
+/** The day's top story on the front page: its words, the photo beside it being a column of its own. */
+export function TopStory({ s, lang, more = [] }: { s: Story; lang: Lang; more?: Story[] }) {
+  const w = words(s, lang);
+  return (
+    <article className={`topone b-${boostOf(s)}`}>
+      <Link prefetch={false} className="h" href={storyHref(s, lang)}>
+        {w.kicker && <span className="kick">{w.kicker}</span>}
+        <h2 className="display">{w.headline}</h2>
+        {w.deck && <p className="dek">{w.deck}</p>}
+        <Meta s={s} lang={lang} />
+      </Link>
+      {more.length > 0 && <MoreOn stories={more} lang={lang} />}
+    </article>
+  );
+}
+
+/** The front page's big photo; under it the story's own headline when it isn't the top story's. */
+export function Pictured({ s, lang, own }: { s: Story; lang: Lang; own: boolean }) {
+  const w = words(s, lang);
+  return (
+    <article className="pictured">
+      <Link prefetch={false} className="h" href={storyHref(s, lang)}>
+        <Photo s={s} lang={lang} eager morph />
+        {w.caption && <p className="cap">{w.caption} ({t(lang, "photo")}: {s.photo?.credit ?? s.source?.name ?? "PIB"})</p>}
+        {own && <><h2 className="h2">{w.headline}</h2>{w.deck && <p className="dek">{w.deck}</p>}<Meta s={s} lang={lang} /></>}
+      </Link>
     </article>
   );
 }
