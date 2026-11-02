@@ -258,8 +258,10 @@ async function refile() {
 /** The last three days' stories without their English or Hindi (Gujarat's news went without, before 29 Oct; or a
  *  translation failed) get them, the most important first, a few each run as the free allowance goes; then the
  *  printed paper's stories of the last month without Hindi (29 Oct: 70 of them; their English is the hourly run's,
- *  pipeline/run.ts, which makes no Hindi). */
-async function translations() {
+ *  pipeline/run.ts, which makes no Hindi). Run early in the round, before the writing (2 Nov: run last, it began after
+ *  the round's time every time and translated nothing, so a story whose translation failed stayed Gujarati on /en and
+ *  /hi). The least recently tried first, so a story that keeps failing doesn't hold the others back. */
+async function translations(until = deadline) {
   const left = await aiLeft(sql);
   const can = Math.min(6, Math.floor((left - RESERVE) / 2));
   if (can <= 0) return 0;
@@ -267,7 +269,7 @@ async function translations() {
     `select id, origin, kicker, headline, deck, body, caption, en_status, hi_status from stories
       where status = 'published' and (origin = 'live' and published_at > now() - interval '3 days' and (en_status <> 'done' or hi_status <> 'done')
                                       or origin <> 'live' and published_at > now() - interval '30 days' and hi_status <> 'done')
-      order by origin = 'live' desc, importance desc nulls last, published_at desc limit $1`, [can]);
+      order by origin = 'live' desc, updated_at asc limit $1`, [can]);
   let done = 0;
   const one = async (r: (typeof rows)[number]) => {
     const w = { kicker: r.kicker, headline: r.headline, deck: r.deck, body: r.body, caption: r.caption, model: "" };
@@ -282,7 +284,7 @@ async function translations() {
     if (en || hi) done++;
   };
   // three stories at a time, six requests: Flash Lite allows 15 a minute, shared with the writing and the desk
-  for (let i = 0; i < rows.length && Date.now() <= deadline; i += 3) await Promise.all(rows.slice(i, i + 3).map(one));
+  for (let i = 0; i < rows.length && Date.now() <= until; i += 3) await Promise.all(rows.slice(i, i + 3).map(one));
   if (done) await touched(sql);
   return done;
 }
@@ -354,6 +356,10 @@ try {
   log("sources:");
   await step("sources");
   details.collect = await collect(sql, log, started + 4 * 60_000);
+  // the stories already up without their English or Hindi, before anything new is written (no batch begun after a minute)
+  log("translations:");
+  await step("translations");
+  details.translated = await translations(Date.now() + 60_000);
   // the stories confirmed in earlier rounds written first, then the new items sorted (29 Oct: sorting slowed by the
   // Gemmas shared with Aavtikal's desk took six minutes, writing began after the round's time and no story went up
   // for hours); no story is begun after three minutes, the sorting has two minutes at least (in run 144 the writing
@@ -379,8 +385,8 @@ try {
   details.deduped = await dedupe();
   await step("photos");
   details.photos = await photos();
-  await step("translations");
-  details.translated = await translations();
+  await step("translations again");
+  details.translated = (details.translated as number) + await translations();
   await step("watch");
   await watch();
   await step("birthdays");
