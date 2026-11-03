@@ -40,8 +40,9 @@ const log = (s: string) => {
 };
 /** no story begun after this, so the round ends before the next starts (29 Oct: a story begun at 11 minutes ran past the
  *  13-minute limit and a third of the rounds were cut off unfinished; 4 Nov: at 8 minutes, the free models' allowance for
- *  the minutes until the next round went unused, so the writing goes on to 10½, the round's last steps to 12) */
-const deadline = started + 10.5 * 60_000;
+ *  the minutes until the next round went unused, so the writing goes on to 9, the round's last steps to 12; at 10½ a story
+ *  written by a Gemma, minutes each at night, ran past the 13-minute stop) */
+const deadline = started + 9 * 60_000;
 /** the round's last steps (photos, translations) begin nothing after this */
 const finish = started + 12 * 60_000;
 /** free requests kept back each day for the hourly run's English (site/pipeline/run.ts) */
