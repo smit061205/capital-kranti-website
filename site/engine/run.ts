@@ -298,19 +298,22 @@ async function refile() {
  *  pipeline/run.ts, which makes no Hindi). Run early in the round, before the writing (2 Nov: run last, it began after
  *  the round's time every time and translated nothing, so a story whose translation failed stayed Gujarati on /en and
  *  /hi). The newest first, those tried in the last hour after the rest, so one that keeps failing doesn't hold the others back. A translation
- *  with Gujarati letters in it counts as none (2 Nov: models had given the Gujarati back and it was kept as done). */
-async function translations(until = deadline) {
+ *  with Gujarati letters in it counts as none (2 Nov: models had given the Gujarati back and it was kept as done).
+ *  A story whose translation failed before is tried only in the round's last step (`early` false), and not after four
+ *  failures (4 Nov: two that kept failing took five minutes at the start of every round, the writing found its time gone
+ *  and the news stopped for hours). */
+async function translations(until = deadline, early = false) {
   const left = await aiLeft(sql);
   const can = Math.min(6, Math.floor((left - RESERVE) / 2));
   if (can <= 0) return 0;
   const gu = (c: "en" | "hi") => `concat_ws(' ', ${c}->>'kicker', ${c}->>'headline', ${c}->>'deck', ${c}->>'body') ~ '[઀-૿]'`;
   const rows = await sql.query(
-    `select * from (select id, origin, kicker, headline, deck, body, caption, published_at, updated_at,
+    `select * from (select id, origin, kicker, headline, deck, body, caption, published_at, updated_at, translate_fails,
                            en_status = 'done' and not ${gu("en")} as en_ok, hi_status = 'done' and not ${gu("hi")} as hi_ok from stories
                      where status = 'published' and published_at > now() - interval '30 days') s
-      where origin = 'live' and published_at > now() - interval '3 days' and not (en_ok and hi_ok)
-         or origin <> 'live' and not hi_ok
-      order by origin = 'live' desc, updated_at > now() - interval '1 hour', published_at desc limit $1`, [can]);
+      where (origin = 'live' and published_at > now() - interval '3 days' and not (en_ok and hi_ok)
+         or origin <> 'live' and not hi_ok) and translate_fails < $2
+      order by origin = 'live' desc, updated_at > now() - interval '1 hour', published_at desc limit $1`, [can, early ? 1 : 4]);
   let done = 0;
   const one = async (r: (typeof rows)[number]) => {
     const w = { kicker: r.kicker, headline: r.headline, deck: r.deck, body: r.body, caption: r.caption, model: "" };
@@ -318,10 +321,12 @@ async function translations(until = deadline) {
       r.en_ok || r.origin !== "live" ? null : translate(sql, w, "en", indiaDate()),
       r.hi_ok ? null : translate(sql, w, "hi", indiaDate()),
     ]);
+    const failed = (!r.en_ok && r.origin === "live" && !en) || (!r.hi_ok && !hi);
     await sql.query(
       `update stories set en = coalesce($2::jsonb, en), en_status = case when $2::jsonb is not null then 'done' else en_status end,
-          hi = coalesce($3::jsonb, hi), hi_status = case when $3::jsonb is not null then 'done' else hi_status end, updated_at = now()
-        where id = $1`, [r.id, en ? JSON.stringify(en) : null, hi ? JSON.stringify(hi) : null]);
+          hi = coalesce($3::jsonb, hi), hi_status = case when $3::jsonb is not null then 'done' else hi_status end, updated_at = now(),
+          translate_fails = translate_fails + $4
+        where id = $1`, [r.id, en ? JSON.stringify(en) : null, hi ? JSON.stringify(hi) : null, failed ? 1 : 0]);
     if (en || hi) done++;
     log(`  ${r.id}: ${[r.en_ok || r.origin !== "live" ? "" : en ? "English" : "no English", r.hi_ok ? "" : hi ? "Hindi" : "no Hindi"].filter(Boolean).join(", ")}`);
   };
@@ -401,7 +406,7 @@ try {
   // the stories already up without their English or Hindi, before anything new is written (no batch begun after a minute)
   log("translations:");
   await step("translations");
-  details.translated = await translations(Date.now() + 60_000);
+  details.translated = await translations(Date.now() + 60_000, true);
   await step("duplicates");
   details.deduped = await dedupe(Date.now() + 90_000);
   await step("photo check");
