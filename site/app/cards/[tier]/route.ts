@@ -17,7 +17,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ tier: st
   const set = made ?? {
     tier, edition: editionNow() ?? `${t.toISOString().slice(0, 10)}-${t.getUTCHours() < 13 ? "am" : "pm"}`,
     cards: (await storiesIn(tier, 80)).filter((s) => s.photo && s.photo.width >= MIN_WIDTH).slice(0, MAX_STORIES)
-      .map((s): Card => ({ storyId: s.id, headline: s.headline, pick: 0, options: [{ ...s.photo!, representative: !!s.photo!.credit }] })),
+      .map((s): Card => ({ storyId: s.id, headline: s.headline, deck: s.deck, pick: 0, options: [{ ...s.photo!, representative: !!s.photo!.credit }] })),
   };
   if (!set.cards.length) return new Response("no cards for this section yet", { status: 404 });
   return new Response(cardsHtml(set, small), { headers: { "content-type": "text/html; charset=utf-8", "x-robots-tag": "noindex" } });

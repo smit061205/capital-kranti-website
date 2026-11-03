@@ -23,7 +23,8 @@ export const SITE = "https://www.capitalkranti.co.in";
 /** representative: a file photo of the story's subject (Wikimedia Commons), marked "ફાઇલ" on the card */
 export interface CardPhoto { url: string; width: number; height: number; credit?: string; representative?: boolean }
 /** a story's card: the photos found for it, best first, and the one in use */
-export interface Card { storyId: string; headline: string; options: CardPhoto[]; pick: number }
+/** deck: the story's short summary, a small line under the headline (the user, 3 Nov) */
+export interface Card { storyId: string; headline: string; deck?: string; options: CardPhoto[]; pick: number }
 /** making: its pictures are being made (new, or changed by the editor); waiting: for the editor; approved: being posted */
 export type SetState = "making" | "waiting" | "approved" | "posted" | "expired" | "failed";
 export interface InstaSet {
@@ -129,6 +130,7 @@ body{margin:0;background:#e9e4da}
 .tag{display:inline-block;background:#7f3894;color:#fff;font-size:36px;font-weight:700;padding:8px 26px 4px;border-radius:6px;margin-bottom:26px}
 .hl{font-size:80px;font-weight:750;font-stretch:88%;line-height:1.18;text-wrap:balance;text-shadow:0 2px 3px rgba(0,0,0,.8),0 3px 14px rgba(0,0,0,.75),0 6px 34px rgba(0,0,0,.6)}
 .long{font-size:70px}.longer{font-size:62px}
+.dek{margin-top:18px;font-size:34px;font-weight:500;line-height:1.35;color:rgba(255,255,255,.94);display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-shadow:0 1px 3px rgba(0,0,0,.85),0 2px 12px rgba(0,0,0,.7)}
 .foot{margin-top:30px;color:rgba(255,255,255,.88);font-size:28px;display:flex;justify-content:space-between;gap:24px;text-shadow:0 1px 3px rgba(0,0,0,.85),0 2px 12px rgba(0,0,0,.7)}
 .endt{font-size:96px;font-weight:800;font-stretch:85%;line-height:1.1;text-shadow:0 2px 3px rgba(0,0,0,.8),0 3px 14px rgba(0,0,0,.75),0 6px 34px rgba(0,0,0,.6)}
 .endu{margin-top:32px;font-size:54px;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.85),0 2px 12px rgba(0,0,0,.7)}
@@ -154,7 +156,7 @@ export function cardsHtml(set: { tier: Tier; edition: string; cards: Card[] }, s
     const p = photoOfCard(c);
     const credit = p.credit ? `ફોટો: ${p.representative ? "ફાઇલ · " : ""}${p.credit.replace(/, Wikimedia Commons$/, "")}` : "capitalkranti.co.in";
     return `<section data-card="${i + 1}" class="c">${picture(p)}${top(i + 1)}
-      <div class="body">${tag}<div class="hl${size(c.headline)}">${esc(c.headline)}</div>
+      <div class="body">${tag}<div class="hl${size(c.headline)}">${esc(c.headline)}</div>${c.deck ? `<div class="dek">${esc(c.deck)}</div>` : ""}
       <div class="foot"><span>${esc(date)}</span><span>${esc(credit)}</span></div></div></section>`;
   });
   const end = LANDMARKS[set.tier];

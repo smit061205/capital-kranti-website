@@ -106,7 +106,7 @@ async function makeSet(sql: Sql, tier: Tier, edition: string): Promise<InstaSet 
     if (cards.length >= MAX_STORIES) break;
     const options = await photosFor(sql, s);
     log(`  ${s.headline.slice(0, 70)}: ${options.length} photo(s)`);
-    if (options.length) cards.push({ storyId: s.id, headline: s.headline, options, pick: 0 });
+    if (options.length) cards.push({ storyId: s.id, headline: s.headline, deck: s.deck, options, pick: 0 });
   }
   log(`${sectionName(tier, "en")}: ${stories.length} stories in 12 hours, ${cards.length} with a good photo`);
   if (cards.length < MIN_STORIES) return null;
