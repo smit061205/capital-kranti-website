@@ -111,6 +111,52 @@ export const POLICY: Record<string, Record<Lang, Page>> = {
     en: { title: "Contact", paras: [contact("en"), ...offices.en, "Email us about news, a mistake, advertising or anything else. We’ll reply as soon as we can."] },
     hi: { title: "संपर्क", paras: [contact("hi"), ...offices.hi, "समाचार, ग़लती, विज्ञापन या किसी और बात के लिए ईमेल करें। हम जल्द जवाब देंगे।"] },
   },
+  // the readers asked (3 Nov): how to advertise, from the facts in "about us" and the paper's contacts
+  advertise: {
+    gu: { title: "જાહેરાત આપો", paras: [
+      "કેપિટલ ક્રાંતિ ગુજરાત સરકાર અને ભારત સરકાર (ડીએવીપી) દ્વારા જાહેરાતો પ્રકાશિત કરવા માટે માન્ય દૈનિક છે.",
+      "અમારું છાપેલું અખબાર ગાંધીનગર, અમદાવાદ, બનાસકાંઠા, સાબરકાંઠા, પાટણ અને મહેસાણા જિલ્લા સુધી, અને સૌરાષ્ટ્રના મોટા ભાગમાં પહોંચે છે; આ વેબસાઇટ ગુજરાતી, હિંદી અને અંગ્રેજીમાં દિવસભર વંચાય છે.",
+      "અમે આ જાહેરાતો સ્વીકારીએ છીએ: વ્યવસાયની જાહેરાત, સરકારી ટેન્ડર અને જાહેર સૂચના, અને નોકરી, મિલકત, વાહન, લગ્ન વિષયક જેવી વર્ગીકૃત જાહેરાતો. વર્ગીકૃત જાહેરાતો વેબસાઇટના “વર્ગીકૃત જાહેરાતો” પાના પર પણ દેખાય છે.",
+      "દર, માપ અને તારીખ માટે અમારો સંપર્ક કરો:",
+      contact("gu"), offices.gu[1],
+    ] },
+    en: { title: "Advertise with us", paras: [
+      "Capital Kranti is a daily approved for publishing advertisements by the Government of Gujarat and the Government of India (DAVP).",
+      "Our printed paper reaches Gandhinagar, Ahmedabad, Banaskantha, Sabarkantha, Patan and Mehsana districts and much of Saurashtra; this website is read through the day in Gujarati, Hindi and English.",
+      "We take business advertisements, government tenders and public notices, and classified ads such as jobs, property, vehicles and matrimonial. Classified ads also appear on the website's Classified ads page.",
+      "For rates, sizes and dates, get in touch:",
+      contact("en"), offices.en[1],
+    ] },
+    hi: { title: "विज्ञापन दें", paras: [
+      "कैपिटल क्रांति गुजरात सरकार और भारत सरकार (डीएवीपी) द्वारा विज्ञापन प्रकाशित करने के लिए मान्य दैनिक है।",
+      "हमारा छपा अख़बार गांधीनगर, अहमदाबाद, बनासकांठा, साबरकांठा, पाटण और महेसाणा ज़िलों तक और सौराष्ट्र के बड़े हिस्से में पहुँचता है; यह वेबसाइट गुजराती, हिंदी और अंग्रेज़ी में दिनभर पढ़ी जाती है।",
+      "हम ये विज्ञापन लेते हैं: व्यवसाय के विज्ञापन, सरकारी टेंडर और सार्वजनिक सूचनाएँ, और नौकरी, संपत्ति, वाहन, वैवाहिक जैसे वर्गीकृत विज्ञापन। वर्गीकृत विज्ञापन वेबसाइट के “वर्गीकृत विज्ञापन” पेज पर भी दिखते हैं।",
+      "दर, आकार और तारीख़ के लिए हमसे संपर्क करें:",
+      contact("hi"), offices.hi[1],
+    ] },
+  },
+  // the readers asked (3 Nov): the RSS link did nothing on an iPhone, which has no feed reader of its own; this page says
+  // what a feed is and gives its addresses to copy into a reader app
+  rss: {
+    gu: { title: "RSS ફીડ", paras: [
+      "RSS ફીડ વડે કેપિટલ ક્રાંતિના નવા સમાચાર તમારી ફીડ વાંચવાની એપમાં (જેમ કે Feedly, Inoreader કે NetNewsWire) આપોઆપ આવે છે. iPhone કે Android પર એવી એપ ખોલો, “ફીડ ઉમેરો” દબાવો અને નીચેનું સરનામું ચોંટાડો.",
+      "બધા સમાચાર: https://www.capitalkranti.co.in/rss.xml",
+      "હિંદીમાં: https://www.capitalkranti.co.in/hi/rss.xml · અંગ્રેજીમાં: https://www.capitalkranti.co.in/en/rss.xml",
+      "એક જ વિભાગ: વિભાગના સરનામા પછી /rss.xml, જેમ કે https://www.capitalkranti.co.in/section/gujarat/rss.xml",
+    ] },
+    en: { title: "RSS feeds", paras: [
+      "With an RSS feed, Capital Kranti's new stories arrive by themselves in your feed reader app (such as Feedly, Inoreader or NetNewsWire). Open such an app on your iPhone or Android phone, tap “add feed” and paste the address below.",
+      "All news in English: https://www.capitalkranti.co.in/en/rss.xml",
+      "In Gujarati: https://www.capitalkranti.co.in/rss.xml · In Hindi: https://www.capitalkranti.co.in/hi/rss.xml",
+      "One section: the section's address followed by /rss.xml, such as https://www.capitalkranti.co.in/en/section/india/rss.xml",
+    ] },
+    hi: { title: "RSS फ़ीड", paras: [
+      "RSS फ़ीड से कैपिटल क्रांति के नए समाचार आपकी फ़ीड पढ़ने वाली ऐप (जैसे Feedly, Inoreader या NetNewsWire) में अपने-आप आते हैं। iPhone या Android पर ऐसी ऐप खोलें, “फ़ीड जोड़ें” दबाएँ और नीचे का पता चिपकाएँ।",
+      "हिंदी में सभी समाचार: https://www.capitalkranti.co.in/hi/rss.xml",
+      "गुजराती में: https://www.capitalkranti.co.in/rss.xml · अंग्रेज़ी में: https://www.capitalkranti.co.in/en/rss.xml",
+      "एक विभाग: विभाग के पते के बाद /rss.xml, जैसे https://www.capitalkranti.co.in/hi/section/india/rss.xml",
+    ] },
+  },
   terms: {
     gu: { title: "ઉપયોગના નિયમો", paras: [
       "આ વેબસાઇટના સમાચાર અને ફોટા કેપિટલ ક્રાંતિના છે (સરકારી સ્રોતના ફોટા તેમના સ્રોતના). અંગત વાંચન માટે ઉપયોગ કરો; સમાચારની લિંક મોકલવાનું સ્વાગત છે.",

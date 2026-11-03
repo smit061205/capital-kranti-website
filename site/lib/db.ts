@@ -4,6 +4,7 @@
 import { neon, type NeonQueryFunction } from "@neondatabase/serverless";
 import type { Correction, English, Genre, Issue, IssuePage, Lang, Photo, Source, Story, StorySource, Tier } from "./types.ts";
 import { sample, sampleOn } from "./sample.ts";
+import { isPlace, PLACE_WORDS } from "./sections.ts";
 import { schemaReady } from "./schema.ts";
 import { SOURCES } from "../engine/sources.ts";
 
@@ -87,8 +88,22 @@ export async function storyById(id: string): Promise<Story | null> {
   return rows[0] ? storyOf(rows[0]) : null;
 }
 
-/** A section: a tier (gujarat, india, world) or a genre. */
+/** A section: a tier (gujarat, india, world), a place (Gujarat stories naming it in the headline, kicker or sub-heading;
+ *  not only in the opening, where a government release's "Gandhinagar" dateline names it for news from anywhere) or a genre. */
 export async function storiesIn(key: string, limit = 40): Promise<Story[]> {
+  if (isPlace(key)) {
+    const words = PLACE_WORDS[key];
+    const names = (s: Story) => words.some((w) => [s.headline, s.kicker, s.deck].some((x) => x.includes(w)));
+    if (sampleOn()) return sample().stories.filter((s) => s.tier === "gujarat" && names(s)).slice(0, limit);
+    const sql = db();
+    if (!sql) return [];
+    const like = words.map((w) => `%${w}%`);
+    const rows = await sql.query(
+      `select ${COLUMNS} from stories where status = 'published' and tier = 'gujarat'
+         and (headline ilike any($1) or kicker ilike any($1) or deck ilike any($1))
+       order by issue_date desc, published_at desc, rank asc nulls last limit $2`, [like, limit]);
+    return rows.map(storyOf);
+  }
   if (sampleOn()) return sample().stories.filter((s) => s.tier === key || s.genres.includes(key as Genre)).slice(0, limit);
   const sql = db();
   if (!sql) return [];
@@ -176,14 +191,14 @@ export async function issueOn(date: string): Promise<Issue | null> {
   const rows = await sql.query(`select * from issues where date = $1`, [date]);
   return rows[0] ? issueOf(rows[0]) : null;
 }
-export async function issueDates(limit = 400): Promise<{ date: string; number: number; stories: number }[]> {
-  if (sampleOn()) return sample().issues.map((i) => ({ date: i.date, number: i.number, stories: i.storyIds.length }));
+export async function issueDates(limit = 400): Promise<{ date: string; number: number; stories: number; pdf: string | null }[]> {
+  if (sampleOn()) return sample().issues.map((i) => ({ date: i.date, number: i.number, stories: i.storyIds.length, pdf: i.pdf }));
   const sql = db();
   if (!sql) return [];
   const rows = await sql.query(
-    `select i.date, i.number, (select count(*) from stories s where s.issue_date = i.date and s.status = 'published')::int as stories
+    `select i.date, i.number, i.pdf, (select count(*) from stories s where s.issue_date = i.date and s.status = 'published')::int as stories
        from issues i order by i.date desc limit $1`, [limit]);
-  return rows.map((r) => ({ date: day(r.date), number: r.number as number, stories: r.stories as number }));
+  return rows.map((r) => ({ date: day(r.date), number: r.number as number, stories: r.stories as number, pdf: (r.pdf as string | null) ?? null }));
 }
 
 /** Every story's id and last change, for the sitemaps. */
