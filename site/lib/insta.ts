@@ -112,18 +112,16 @@ export function captionFor(tier: Tier, edition: string, cards: Card[]): string {
 }
 
 // ---- the cards' page: the chosen look (3 Nov, design 1), every size the real 1080×1350. A browser saves each card as a
-// picture (engine/insta.ts); /cards/<section> shows it to look at. A wide photo sits at the top and fades into the card's
-// dark; the blurred copy that filled below it was taken out (the user, 3 Nov: it spoilt the photos), and so was the shade
-// behind the words: a shadow on the letters themselves keeps them readable.
+// picture (engine/insta.ts); /cards/<section> shows it to look at. The photo fills the whole card, never stretched (a wide
+// one loses its sides), with the words straight on it: the user (3 Nov) had the blurred copy below a wide photo, the shade
+// behind the words and then the black under a wide photo taken out. A shadow on the letters keeps them readable.
 
 const CSS = `
 body{margin:0;background:#e9e4da}
 .set{display:flex;flex-direction:column;gap:40px;padding:40px;font-family:'Anek Gujarati',sans-serif}
 .small{zoom:.25;flex-direction:row;flex-wrap:wrap;width:4560px}
 .c{position:relative;width:1080px;height:1350px;overflow:hidden;background:#0d0910;color:#fff;flex:none}
-.pic{position:absolute;left:0;top:0;width:1080px;height:auto;display:block}
-.wide .pic{mask-image:linear-gradient(180deg,#000 75%,transparent);-webkit-mask-image:linear-gradient(180deg,#000 75%,transparent)}
-.cover{height:1350px;object-fit:cover}
+.pic{position:absolute;left:0;top:0;width:1080px;height:1350px;object-fit:cover;display:block}
 .top{position:absolute;left:64px;right:64px;top:52px;display:flex;justify-content:space-between;align-items:center;text-shadow:0 1px 10px rgba(0,0,0,.55)}
 .logo{font-size:44px;font-weight:800;font-stretch:80%}
 .n{font-size:34px;font-weight:600;opacity:.85}
@@ -139,13 +137,10 @@ body{margin:0;background:#e9e4da}
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 /** a photo's address a browser anywhere can open: the site's own ones with its address in front */
 const abs = (u: string) => (u.startsWith("/") ? SITE + u : u);
-const wideOf = (p: CardPhoto) => (1080 * p.height) / p.width < 1350;
 // a headline's size by its length, so a long one stays in the card's lower half
 const size = (h: string) => (h.length > 95 ? " longer" : h.length > 70 ? " long" : "");
 
-function picture(p: CardPhoto, cover = false): string {
-  if (cover) return `<img class="pic cover" src="${esc(abs(p.url))}" alt="">`;
-  // a wide photo ends softly into the card's dark below it (no blurred copy of it: the user, 3 Nov)
+function picture(p: CardPhoto): string {
   return `<img class="pic" src="${esc(abs(p.url))}" alt="">`;
 }
 
@@ -158,12 +153,12 @@ export function cardsHtml(set: { tier: Tier; edition: string; cards: Card[] }, s
   const cards = set.cards.map((c, i) => {
     const p = photoOfCard(c);
     const credit = p.credit ? `ફોટો: ${p.representative ? "ફાઇલ · " : ""}${p.credit.replace(/, Wikimedia Commons$/, "")}` : "capitalkranti.co.in";
-    return `<section data-card="${i + 1}" class="c${wideOf(p) ? " wide" : ""}">${picture(p)}${top(i + 1)}
+    return `<section data-card="${i + 1}" class="c">${picture(p)}${top(i + 1)}
       <div class="body">${tag}<div class="hl${size(c.headline)}">${esc(c.headline)}</div>
       <div class="foot"><span>${esc(date)}</span><span>${esc(credit)}</span></div></div></section>`;
   });
   const end = LANDMARKS[set.tier];
-  cards.push(`<section data-card="${total}" class="c">${picture(end, true)}${top(total)}
+  cards.push(`<section data-card="${total}" class="c">${picture(end)}${top(total)}
     <div class="body">${tag}<div class="endt">${esc(end.title)}</div><div class="endu">${esc(end.short)}</div>
     <div class="endn">લિંક પ્રોફાઇલમાં ↑</div><div class="foot"><span></span><span>ફોટો: ${esc(end.credit!)}</span></div></div></section>`);
   return `<!doctype html><html lang="gu"><head><meta charset="utf-8"><meta name="robots" content="noindex">
