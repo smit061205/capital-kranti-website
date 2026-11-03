@@ -136,6 +136,28 @@ body{margin:0;background:#e9e4da}
 .endu{margin-top:32px;font-size:54px;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.85),0 2px 12px rgba(0,0,0,.7)}
 .endn{margin-top:24px;font-size:40px;opacity:.9;text-shadow:0 1px 3px rgba(0,0,0,.85),0 2px 12px rgba(0,0,0,.7)}`;
 
+
+/** The ways of keeping the words readable on any photo, for the user to pick by eye (3 Nov: the bare words were lost on
+ *  light photos); each is added over the look above. /cards shows them side by side. */
+const DARK_ON_LIGHT = `.hl,.dek,.foot,.endt,.endu,.endn{text-shadow:none!important;color:#141118}.dek,.endn{color:#3b3542}.foot{color:#6b6470}`;
+const STRIP = `box-decoration-break:clone;-webkit-box-decoration-break:clone;padding:2px 14px;text-shadow:none`;
+const LINES = `.hl{line-height:1.32}.dek{display:block;-webkit-line-clamp:unset;margin-top:22px;line-height:1.55}.foot{text-shadow:0 1px 3px #000,0 0 12px #000}`;
+export const LOOKS: { name: string; css: string }[] = [
+  { name: "Words only", css: "" },
+  { name: "Soft fade at the bottom", css: `.body{background:linear-gradient(180deg,rgba(0,0,0,0) 0,rgba(0,0,0,.25) 45%,rgba(0,0,0,.6) 100%)}` },
+  { name: "Dark strip behind each line", css: `.hl span,.dek span,.endt span{background:rgba(10,8,14,.72);${STRIP}}${LINES}` },
+  { name: "Purple strip behind each line", css: `.hl span,.endt span{background:rgba(127,56,148,.92);${STRIP}}.dek span{background:rgba(20,10,26,.8);${STRIP}}.tag{background:#fff;color:#7f3894}${LINES}` },
+  { name: "White box, dark letters", css: `.body{left:40px;right:40px;bottom:40px;padding:36px 40px 28px;background:rgba(255,255,255,.93);border-radius:22px}.hl{font-size:66px}.endt{font-size:80px}${DARK_ON_LIGHT}` },
+  { name: "Frosted glass box", css: `.body{left:40px;right:40px;bottom:40px;padding:36px 40px 28px;background:rgba(20,14,26,.38);backdrop-filter:blur(26px) saturate(1.4);-webkit-backdrop-filter:blur(26px) saturate(1.4);border-radius:22px;border:1px solid rgba(255,255,255,.18)}.hl{font-size:66px}.endt{font-size:80px}` },
+  { name: "Blur strip, no dark", css: `.body{backdrop-filter:blur(22px);-webkit-backdrop-filter:blur(22px);mask-image:linear-gradient(180deg,transparent 0,#000 70px);-webkit-mask-image:linear-gradient(180deg,transparent 0,#000 70px);background:rgba(0,0,0,.12)}` },
+  { name: "Outlined letters", css: `.hl,.endt{-webkit-text-stroke:10px rgba(0,0,0,.85);paint-order:stroke fill;text-shadow:0 4px 20px rgba(0,0,0,.6)}.dek,.foot,.endu,.endn{-webkit-text-stroke:6px rgba(0,0,0,.85);paint-order:stroke fill}` },
+  { name: "Darker edges", css: `.c::after{content:"";position:absolute;inset:0;background:radial-gradient(ellipse 90% 70% at 50% 30%,transparent 40%,rgba(0,0,0,.55) 100%),linear-gradient(180deg,transparent 55%,rgba(0,0,0,.35));pointer-events:none}.body,.top{z-index:1}` },
+  { name: "Purple band at the bottom", css: `.body{background:linear-gradient(180deg,rgba(127,56,148,0) 0,rgba(90,30,110,.75) 120px,rgba(70,20,88,.92) 100%)}.tag{background:#fff;color:#7f3894}` },
+  { name: "Newspaper strip", css: `.body{background:#fbf8f2;padding:30px 56px 26px;border-top:8px solid #7f3894}.hl{font-size:64px}.endt{font-size:80px}.tag{margin-bottom:16px}${DARK_ON_LIGHT}` },
+];
+/** the look the cards go up with, until the user picks one */
+export const LOOK = 1;
+
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 /** a photo's address a browser anywhere can open: the site's own ones with its address in front */
 const abs = (u: string) => (u.startsWith("/") ? SITE + u : u);
@@ -147,7 +169,7 @@ function picture(p: CardPhoto): string {
 }
 
 /** The whole set's page: a card per story, then the last card; `small` shows them at a quarter, to look at. */
-export function cardsHtml(set: { tier: Tier; edition: string; cards: Card[] }, small = false): string {
+export function cardsHtml(set: { tier: Tier; edition: string; cards: Card[] }, small = false, look = LOOK): string {
   const total = set.cards.length + 1;
   const date = dateText(set.edition.slice(0, 10), "gu");
   const tag = `<span class="tag">${esc(sectionName(set.tier, "gu"))}</span>`;
@@ -156,14 +178,14 @@ export function cardsHtml(set: { tier: Tier; edition: string; cards: Card[] }, s
     const p = photoOfCard(c);
     const credit = p.credit ? `ફોટો: ${p.representative ? "ફાઇલ · " : ""}${p.credit.replace(/, Wikimedia Commons$/, "")}` : "capitalkranti.co.in";
     return `<section data-card="${i + 1}" class="c">${picture(p)}${top(i + 1)}
-      <div class="body">${tag}<div class="hl${size(c.headline)}">${esc(c.headline)}</div>${c.deck ? `<div class="dek">${esc(c.deck)}</div>` : ""}
+      <div class="body">${tag}<div class="hl${size(c.headline)}"><span>${esc(c.headline)}</span></div>${c.deck ? `<div class="dek"><span>${esc(c.deck)}</span></div>` : ""}
       <div class="foot"><span>${esc(date)}</span><span>${esc(credit)}</span></div></div></section>`;
   });
   const end = LANDMARKS[set.tier];
   cards.push(`<section data-card="${total}" class="c">${picture(end)}${top(total)}
-    <div class="body">${tag}<div class="endt">${esc(end.title)}</div><div class="endu">${esc(end.short)}</div>
+    <div class="body">${tag}<div class="endt"><span>${esc(end.title)}</span></div><div class="endu">${esc(end.short)}</div>
     <div class="endn">લિંક પ્રોફાઇલમાં ↑</div><div class="foot"><span></span><span>ફોટો: ${esc(end.credit!)}</span></div></div></section>`);
   return `<!doctype html><html lang="gu"><head><meta charset="utf-8"><meta name="robots" content="noindex">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Anek+Gujarati:wdth,wght@75..125,100..800&display=block">
-<style>${CSS}</style></head><body><main class="set${small ? " small" : ""}">${cards.join("\n")}</main></body></html>`;
+<style>${CSS}${LOOKS[look]?.css ?? ""}</style></head><body><main class="set${small ? " small" : ""}">${cards.join("\n")}</main></body></html>`;
 }
