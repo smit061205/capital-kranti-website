@@ -38,9 +38,12 @@ const log = (s: string) => {
   lines.push(`${new Date().toLocaleTimeString("en-GB", { timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit" })} ${s}`.slice(0, 300));
   if (lines.length > 80) lines.shift();
 };
-/** no new work after this, so the round ends before the next starts (29 Oct: a story begun at 11 minutes ran past the
- *  13-minute limit and a third of the rounds were cut off unfinished) */
-const deadline = started + 8 * 60_000;
+/** no story begun after this, so the round ends before the next starts (29 Oct: a story begun at 11 minutes ran past the
+ *  13-minute limit and a third of the rounds were cut off unfinished; 4 Nov: at 8 minutes, the free models' allowance for
+ *  the minutes until the next round went unused, so the writing goes on to 10½, the round's last steps to 12) */
+const deadline = started + 10.5 * 60_000;
+/** the round's last steps (photos, translations) begin nothing after this */
+const finish = started + 12 * 60_000;
 /** free requests kept back each day for the hourly run's English (site/pipeline/run.ts) */
 const RESERVE = 120;
 /** at most this many stories written in one run (each takes ~3-5 requests) */
@@ -180,7 +183,7 @@ async function writeOne(c: Record<string, any>): Promise<"stop" | "busy" | void>
   await sql.query(`update stories set photo_tried = true where id = $1`, [id]);
   await sql.query(`update clusters set state = $2, story_id = $3, reason = $4 where id = $1`, [c.id, "published", id, null]);
   await touched(sql);
-  log(`    published: ${w.headline}`);
+  log(`    published${checked.cut ? ` (${checked.cut} unsupported line(s) cut)` : ""}: ${w.headline}`);
   // breaking news: an alert to the phones that asked (lib/push.ts)
   await alertBreaking(sql, { id, importance: imp, publishedAt: new Date().toISOString(), headline: { gu: w.headline, en: en?.headline ?? null, hi: hi?.headline ?? null } }, log)
     .catch((e) => log(`    no alert: ${e instanceof Error ? e.message : e}`));
@@ -201,7 +204,7 @@ async function photos() {
        and published_at > now() - interval '36 hours' order by importance desc nulls last, published_at desc limit 6`);
   let added = 0;
   for (const r of rows) {
-    if (Date.now() > deadline) break;
+    if (Date.now() > finish) break;
     const free = await freePhoto(sql, { kicker: r.kicker, headline: r.headline, deck: r.deck, body: r.body, caption: "", model: "" }, r.id);
     await sql.query(
       `update stories set photo_tried = true, photo = coalesce($2::jsonb, photo), caption = coalesce($3, caption),
@@ -403,7 +406,7 @@ if (paused?.value === "yes") { log("the editor has paused the engine: nothing to
 const [run] = await sql.query(`insert into runs (kind, started_at) values ('engine', now()) returning id`);
 const details: Record<string, unknown> = { models: await freeModels() };
 let ok = true;
-// each step's start kept as it goes, and the round ended by itself at 12 minutes, so a slow step is named and the round still
+// each step's start kept as it goes, and the round ended by itself at 13 minutes, so a slow step is named and the round still
 // finishes (29 Oct: rounds cut off by the keeper's 14-minute limit left nothing saved to say why)
 const steps: Record<string, number> = {};
 const step = (name: string) => {
@@ -413,11 +416,11 @@ const step = (name: string) => {
 const guard = setTimeout(async () => {
   const at = Object.keys(steps).at(-1) ?? "start";
   await sql.query(`update runs set finished_at = now(), ok = false, details = $2 where id = $1`,
-    [run.id, JSON.stringify({ ...details, steps, log: lines, error: `stopped after 12 minutes, still at "${at}"` })]).catch(() => null);
+    [run.id, JSON.stringify({ ...details, steps, log: lines, error: `stopped after 13 minutes, still at "${at}"` })]).catch(() => null);
   await fetch(`${WEBSITE.url}/api/refresh`, { method: "POST", signal: AbortSignal.timeout(30_000) }).catch(() => null);
-  log(`stopped after 12 minutes, still at "${at}"`);
+  log(`stopped after 13 minutes, still at "${at}"`);
   process.exit(1);
-}, 12 * 60_000);
+}, 13 * 60_000);
 try {
   log(`engine run ${run.id}; free models: ${(details.models as string[]).join(", ")}`);
   await settleWaiting();
@@ -465,7 +468,7 @@ try {
   await step("refiling");
   details.refiled = await refile();
   await step("photos");
-  const [photosAdded, again] = await Promise.all([photos(), translations()]);
+  const [photosAdded, again] = await Promise.all([photos(), translations(finish)]);
   details.photos = photosAdded;
   details.translated = (details.translated as number) + again;
   await step("watch");

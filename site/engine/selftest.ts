@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { readJson } from "./ai.ts";
 import { ownItem } from "./collect.ts";
 import { parseFeed, pageText } from "./feed.ts";
-import { copiedShare, gate, importance, levelOf, toGujarati, type ClusterItem } from "./newsroom.ts";
+import { copiedShare, cutUnsupported, gate, importance, lengthFor, levelOf, sentencesOf, toGujarati, type ClusterItem, type SourceText } from "./newsroom.ts";
 import { SOURCES, sourceById } from "./sources.ts";
 import { numbersNotIn } from "./text.ts";
 import { keySet, placeTier, similarity, SAME_EVENT } from "./triage.ts";
@@ -136,5 +136,19 @@ test("only a real, large, landscape picture goes at the top", () => {
   assert.equal(coverTier({ shows: "subject", kind: "photo", cover: 9 }, { ...big, full: 900 }), 0);
   assert.equal(coverTier({ shows: "unrelated", kind: "photo", cover: 9 }, big), 0);
   assert.equal(coverTier({ shows: "subject", kind: "photo", cover: 9, other: true }, big), 0);
+});
+test("a story from a short source is short, and unsupported lines are cut, not the story", () => {
+  const src = (words: number) => [{ text: Array(words).fill("w").join(" ") } as SourceText];
+  assert.deepEqual(lengthFor("normal", src(60)), [80, 112]);
+  assert.equal(lengthFor("normal", src(500))[0], 500);
+  const body = "ડૉ. શાહે આજે નવી યોજના જાહેર કરી. તેમાં ૫૦ ગામ જોડાશે.\n\nઆ યોજના રાજ્યને નવી ઊંચાઈએ લઈ જશે. કામ જાન્યુઆરીમાં શરૂ થશે.";
+  assert.equal(sentencesOf(body).length, 4);
+  assert.ok(sentencesOf(body)[0].text.startsWith("ડૉ. શાહે"));
+  const w = { kicker: "", headline: "h", deck: "d", body, caption: "", model: "" };
+  const cut = cutUnsupported(w, [{ claim: "new heights", supported: false, where: "", sentence: "S3" }, { claim: "50", supported: true, where: "" }], 5);
+  assert.equal(cut?.written.body, "ડૉ. શાહે આજે નવી યોજના જાહેર કરી. તેમાં ૫૦ ગામ જોડાશે.\n\nકામ જાન્યુઆરીમાં શરૂ થશે.");
+  assert.equal(cutUnsupported(w, [{ claim: "x", supported: false, where: "", sentence: "H" }], 5), null);
+  assert.equal(cutUnsupported(w, [{ claim: "x", supported: false, where: "", sentence: "" }], 5), null);
+  assert.equal(cutUnsupported(w, [{ claim: "x", supported: false, where: "", sentence: "S1" }], 50), null);
 });
 console.log(`\n${n} checks passed (${SOURCES.length} sources listed)`);
