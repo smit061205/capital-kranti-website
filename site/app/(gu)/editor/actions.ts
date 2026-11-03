@@ -9,6 +9,7 @@ import { addFeature, addStory, COOKIE, decideFeature, editorOf, restoreStory, sa
 import { help, type Draft, type Help } from "@/lib/aihelp.ts";
 import { GENRES, TIERS } from "@/lib/sections.ts";
 import { dropLeader, findLeader, saveLeader, type FoundLeader, type Leader } from "@/lib/leaders.ts";
+import { addAd, dropAd } from "@/lib/classifieds.ts";
 
 async function signedIn() {
   const who = editorOf((await cookies()).get(COOKIE)?.value);
@@ -116,3 +117,13 @@ export async function saveLeaderAction(x: Leader): Promise<boolean> {
   return ok;
 }
 export async function dropLeaderAction(id: string) { const { sql } = await signedIn(); await dropLeader(sql, id); refresh(); }
+
+/** the classified ads (lib/classifieds.ts): one put up from the form, one taken down */
+export async function addAdAction(back: string, f: FormData) {
+  const { who, sql } = await signedIn();
+  const v = (k: string) => String(f.get(k) ?? "").replace(/\r\n/g, "\n").trim();
+  const ok = sql ? await addAd(sql, { kind: v("kind"), text: v("text"), contact: v("contact"), place: v("place"), days: Number(v("days")) }, who) : false;
+  renew();
+  redirect(`/editor?${back ? `${back}&` : ""}ad=${ok ? 1 : 0}#ads`);
+}
+export async function dropAdAction(id: string) { const { sql } = await signedIn(); if (sql) await dropAd(sql, id); renew(); }

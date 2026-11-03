@@ -67,6 +67,9 @@ export const W = {
     noPortrait: "ફોટો નથી: શુભેચ્છા ફોટામાં નામનો પહેલો અક્ષર આવશે.", removePortrait: "ફોટો કાઢો",
     saveLeader: "સાચવો", leaderSaved: "સચવાયું.", leaderNotSaved: "ન સચવાયું: ગુજરાતી નામ અને જન્મદિવસ જરૂરી છે, ને ઈમેલ સાચું હોવું જોઈએ.",
     removeLeader: "યાદીમાંથી કાઢો", noEmailShort: "ઈમેલ નથી",
+    ads: "વર્ગીકૃત જાહેરાતો", adsShort: "જાહેરાતો", adsNote: "અહીં ઉમેરેલી જાહેરાત સાઇટના “વર્ગીકૃત જાહેરાતો” પાના પર તરત દેખાશે, અને પસંદ કરેલા દિવસો પછી જાતે હટી જશે.",
+    adsNone: "હમણાં કોઈ જાહેરાત નથી.", addAd: "+ જાહેરાત ઉમેરો", adKind: "પ્રકાર", adText: "જાહેરાતનું લખાણ", adContact: "સંપર્ક નંબર", adPlace: "સ્થળ",
+    adDays: "કેટલા દિવસ બતાવવી", adSave: "જાહેરાત મૂકો", removeAd: "જાહેરાત હટાવો", adUntil: "સુધી", adEnded: "પૂરી થઈ", adNotSaved: "જાહેરાત ન મુકાઈ: પ્રકાર અને લખાણ જરૂરી છે.", adSaved: "જાહેરાત મુકાઈ ગઈ.", seeAds: "પાનું જુઓ", dayWord: "દિવસ",
     months: ["જાન્યુઆરી", "ફેબ્રુઆરી", "માર્ચ", "એપ્રિલ", "મે", "જૂન", "જુલાઈ", "ઑગસ્ટ", "સપ્ટેમ્બર", "ઑક્ટોબર", "નવેમ્બર", "ડિસેમ્બર"],
   },
   en: {
@@ -133,6 +136,9 @@ export const W = {
     noPortrait: "No photo: the greeting shows the name's first letter.", removePortrait: "Remove the photo",
     saveLeader: "Save", leaderSaved: "Saved.", leaderNotSaved: "Not saved: the Gujarati name and the birthday are needed, and the email must be right.",
     removeLeader: "Take off the list", noEmailShort: "no email",
+    ads: "Classified ads", adsShort: "Ads", adsNote: "An ad added here shows at once on the site's Classified ads page, and goes by itself after the days you choose.",
+    adsNone: "No ads right now.", addAd: "+ Add an ad", adKind: "Kind", adText: "The ad's words", adContact: "Phone number", adPlace: "Place",
+    adDays: "Show it for", adSave: "Put the ad up", removeAd: "Take the ad down", adUntil: "until", adEnded: "ended", adNotSaved: "The ad wasn't put up: it needs a kind and its words.", adSaved: "The ad is up.", seeAds: "See the page", dayWord: "days",
     months: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
   },
 } as const;

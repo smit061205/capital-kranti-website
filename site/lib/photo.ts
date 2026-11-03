@@ -1,17 +1,20 @@
 // Pictures at the size the reader needs (the user, 30 Oct: the site was slow; a 1920-wide file went to every small card).
-// Wikimedia makes its copies at fixed widths (500, 960 and 1920 work; 640 and 800 are refused), and the site's own photos
-// are made smaller by app/media, once each, then kept by the CDN, with 720 as well (2 Nov: most phones were sent the full file). Anything else stays as it is.
+// The site's own photos are made smaller by app/media, Wikimedia Commons' by app/commons (3 Nov: one took 35 seconds to
+// come from Commons, and its copies weighed two to four times ours), once each, then kept by the CDN. Anything else stays as it is.
 const STEPS = [500, 720, 960, 1920] as const;
+
+/** a Commons photo's place there ("a/ab/File.jpg"), from its address or one of its copies' */
+function commons(url: string): string | null {
+  const m = url.match(/^https:\/\/(?:upload|thumb)\.wikimedia\.org\/wikipedia\/commons\/(?:thumb\/)?([0-9a-f]\/[0-9a-f]{2}\/[^/]+\.(?:jpe?g|png|webp))(?:\/\d+px-[^/]+)?$/i);
+  return m ? m[1] : null;
+}
 
 /** A picture's address at a width, or null when no smaller copy can be asked for. */
 function at(url: string, w: number): string | null {
   const plain = url.replace(/\?.*$/, "");
   if (/^\/media\/.*\.(jpe?g|png)$/.test(plain)) return `${plain}?w=${w}`;
-  if (w === 720) return null;
-  if (!/^https:\/\/(upload|thumb)\.wikimedia\.org\/wikipedia\/commons\//.test(plain) || !/\.(jpe?g|png)$/i.test(plain.replace(/\/\d+px-[^/]+$/, ""))) return null;
-  if (/\/thumb\//.test(plain)) return plain.replace(/\/\d+px-/, `/${w}px-`);
-  const file = plain.split("/").pop();
-  return plain.replace("/wikipedia/commons/", "/wikipedia/commons/thumb/") + `/${w}px-${file}`;
+  const c = commons(plain);
+  return c ? `/commons/${c}?w=${Math.min(w, 1200)}` : null;
 }
 
 /** What an <img> needs to take the smallest copy that looks sharp: `sizes` says how wide it shows. */
@@ -19,10 +22,18 @@ export function pic(p: { url: string; width: number }, sizes: string): { src: st
   const copies: { w: number; url: string }[] = [];
   for (const w of STEPS) {
     const url = w < p.width ? at(p.url, w) : null;
-    if (url) copies.push({ w, url });
+    if (url && !copies.some((c) => c.url === url)) copies.push({ w: Math.min(w, 1200), url });
   }
-  if (!copies.length) return { src: p.url };
-  return { src: copies[Math.min(1, copies.length - 1)].url, srcSet: [...copies.map((c) => `${c.url} ${c.w}w`), `${p.url} ${p.width}w`].join(", "), sizes };
+  // the whole photo: a Commons one at most 1200 wide, from the site too
+  const whole = commons(p.url.replace(/\?.*$/, "")) ? { w: Math.min(p.width, 1200), url: at(p.url, 1200)! } : { w: p.width, url: p.url };
+  if (!copies.length) return { src: whole.url };
+  if (!copies.some((c) => c.url === whole.url)) copies.push(whole);
+  return { src: copies[Math.min(1, copies.length - 1)].url, srcSet: copies.map((c) => `${c.url} ${c.w}w`).join(", "), sizes };
+}
+
+/** The largest copy, for a photo opened full screen: a Commons one from the site too. */
+export function largest(p: { url: string; width: number }): string {
+  return commons(p.url.replace(/\?.*$/, "")) ? at(p.url, 1200)! : p.url;
 }
 
 /** How wide the pictures show. Phones get a little less than their full width: 960 looks sharp there and is a third the size. */

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import type { Genre, Lang, Tier } from "../lib/types.ts";
 import { issueDates, issueOn, latestStories, search, storiesIn, storiesInBoth, storiesOn } from "../lib/db.ts";
 import { href, t } from "../lib/i18n.ts";
-import { GENRES, isSection, sectionName, TIERS } from "../lib/sections.ts";
+import { GENRES, isPlace, isSection, sectionName, TIERS } from "../lib/sections.ts";
 import { dateText, num } from "../lib/format.ts";
 import { Lead, River, Std } from "../components/cards.tsx";
 import Frame from "../components/Frame.tsx";
@@ -19,7 +19,8 @@ export async function Section({ k, sub, lang }: { k: string; sub?: string; lang:
   const list = sub ? await storiesInBoth(tier!, sub as Genre, 60) : await storiesIn(k, 60);
   // the chips: from the whole section's stories (a region-and-subject page shows its region's other subjects)
   const all = sub ? await storiesIn(k, 120) : list;
-  const others: { key: string; href: string; on: boolean }[] = tier
+  // a place's page has no chips: all its stories are Gujarat's
+  const others: { key: string; href: string; on: boolean }[] = isPlace(k) ? [] : tier
     ? GENRES.filter((g) => all.some((s) => s.genres.includes(g))).map((g) => ({ key: g, href: `/section/${tier}/${g}`, on: g === sub }))
     : TIERS.filter((t) => all.some((s) => s.tier === t)).map((t) => ({ key: t, href: `/section/${t}/${k}`, on: false }));
   // the lead is the day's news (the user, 29 Oct: an old story never heads a section): the most important of
@@ -77,12 +78,15 @@ export async function Archive({ lang }: { lang: Lang }) {
   return (
     <Frame lang={lang} path="/archive" active="archive">
       <div className="sechead"><h1>{t(lang, "archive")}</h1></div>
+      {/* the newest printed paper's PDF first (the readers asked, 3 Nov; app/api/publish/pdf) */}
+      {days.find((d) => d.pdf) && (() => { const d = days.find((x) => x.pdf)!; return (
+        <a className="pdfbtn" href={d.pdf!} download={`capital-kranti-${d.date}.pdf`}>{t(lang, "todayPaper")}, {dateText(d.date, lang)}: {t(lang, "pdf")}</a>); })()}
       {days.length ? (
         <div className="river">
           {days.map((d) => (
             <Link prefetch={false} key={d.date} className="h" href={href(lang, `/archive/${d.date}`)}>
               <span className="when">{t(lang, "issue")} {num(d.number, lang)}</span>
-              <div><h3 className="h3">{dateText(d.date, lang, true)}</h3><div className="meta">{num(d.stories, lang)} {t(lang, "storiesCount")}</div></div>
+              <div><h3 className="h3">{dateText(d.date, lang, true)}</h3><div className="meta">{num(d.stories, lang)} {t(lang, "storiesCount")}{d.pdf && ` · ${t(lang, "pdfShort")}`}</div></div>
               <span />
             </Link>
           ))}
@@ -100,6 +104,7 @@ export async function ArchiveDay({ date, lang }: { date: string; lang: Lang }) {
     <Frame lang={lang} path={`/archive/${date}`} active="archive">
       <div className="sechead"><h1>{dateText(date, lang, true)}</h1></div>
       {issue && <p className="note" style={{ margin: 0 }}>{t(lang, "issue")} {num(issue.number, lang)}</p>}
+      {issue?.pdf && <a className="pdfbtn" href={issue.pdf} download={`capital-kranti-${date}.pdf`}>{t(lang, "pdf")}</a>}
       <div className="ctr" style={{ marginTop: 16 }}><River stories={list} lang={lang} sec /></div>
     </Frame>
   );
