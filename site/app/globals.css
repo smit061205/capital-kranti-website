@@ -570,3 +570,10 @@ time.fresh{display:inline-flex}.livedot{display:none}
 /* a past issue's printed paper as a PDF (views/Lists.tsx) */
 .pdfbtn{display:inline-flex;align-items:center;min-height:44px;margin:12px 0 4px;padding:0 20px;border-radius:var(--r);background:var(--strong);color:#fff;font-weight:700;font-size:var(--t2);transition:transform var(--quick) ease}
 .pdfbtn:active{transform:scale(.97)}
+/* the Instagram profile's link page (app/(gu)/insta): each post's stories, numbered as on the cards */
+.insta{margin-top:24px}
+.insta h2 small{font-size:var(--t1);font-weight:500;color:var(--muted);margin-left:6px}
+.insta ol{list-style:none;margin:8px 0 0;padding:0;border-top:1px solid var(--rule)}
+.insta li a{display:grid;grid-template-columns:36px 72px 1fr;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid var(--rule);color:var(--strong);text-decoration:none}
+.insta .n{font-size:24px;font-weight:800;color:var(--brand);text-align:center}
+.insta img{width:72px;height:90px;object-fit:cover;border-radius:6px;background:var(--surface)}

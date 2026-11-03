@@ -20,6 +20,8 @@ const nextConfig: NextConfig = {
         { source: `${l}/epaper`, destination: `${l}/archive`, permanent: false },
         { source: `${l}/epaper/:date`, destination: `${l}/archive/:date`, permanent: false },
       ]),
+      // the short addresses on the Instagram cards' last card (lib/cards.ts), easy to type from a phone
+      ...["gujarat", "india", "world"].map((k) => ({ source: `/${k}`, destination: `/section/${k}`, permanent: false })),
       { source: "/:path((?!api/).*)", has: [{ type: "host" as const, value: "capital-kranti.vercel.app" }], destination: "https://www.capitalkranti.co.in/:path", permanent: true },
     ];
   },
