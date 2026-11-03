@@ -155,7 +155,7 @@ export const LOOKS: { name: string; css: string }[] = [
   { name: "Purple band at the bottom", css: `.body{background:linear-gradient(180deg,rgba(127,56,148,0) 0,rgba(90,30,110,.75) 120px,rgba(70,20,88,.92) 100%)}.tag{background:#fff;color:#7f3894}` },
   { name: "Newspaper strip", css: `.body{background:#fbf8f2;padding:30px 56px 26px;border-top:8px solid #7f3894}.hl{font-size:64px}.endt{font-size:80px}.tag{margin-bottom:16px}${DARK_ON_LIGHT}` },
 ];
-/** the look the cards go up with, until the user picks one */
+/** the look the cards go up with: the soft fade at the bottom, the user's pick on the test page (3 Nov) */
 export const LOOK = 1;
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
