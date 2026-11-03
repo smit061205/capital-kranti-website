@@ -113,7 +113,8 @@ export function captionFor(tier: Tier, edition: string, cards: Card[]): string {
 
 // ---- the cards' page: the chosen look (3 Nov, design 1), every size the real 1080×1350. A browser saves each card as a
 // picture (engine/insta.ts); /cards/<section> shows it to look at. A wide photo sits at the top and fades into the card's
-// dark; the blurred copy that filled below it was taken out (the user, 3 Nov: it spoilt the photos).
+// dark; the blurred copy that filled below it was taken out (the user, 3 Nov: it spoilt the photos), and so was the shade
+// behind the words: a shadow on the letters themselves keeps them readable.
 
 const CSS = `
 body{margin:0;background:#e9e4da}
@@ -126,14 +127,14 @@ body{margin:0;background:#e9e4da}
 .top{position:absolute;left:64px;right:64px;top:52px;display:flex;justify-content:space-between;align-items:center;text-shadow:0 1px 10px rgba(0,0,0,.55)}
 .logo{font-size:44px;font-weight:800;font-stretch:80%}
 .n{font-size:34px;font-weight:600;opacity:.85}
-.body{position:absolute;left:0;right:0;bottom:0;padding:120px 64px 44px;background:linear-gradient(180deg,rgba(13,9,16,0) 0,rgba(13,9,16,.32) 110px,rgba(13,9,16,.48) 100%)}
+.body{position:absolute;left:0;right:0;bottom:0;padding:120px 64px 44px}
 .tag{display:inline-block;background:#7f3894;color:#fff;font-size:36px;font-weight:700;padding:8px 26px 4px;border-radius:6px;margin-bottom:26px}
-.hl{font-size:80px;font-weight:750;font-stretch:88%;line-height:1.18;text-wrap:balance;text-shadow:0 2px 4px rgba(0,0,0,.55),0 4px 22px rgba(0,0,0,.6)}
+.hl{font-size:80px;font-weight:750;font-stretch:88%;line-height:1.18;text-wrap:balance;text-shadow:0 2px 3px rgba(0,0,0,.8),0 3px 14px rgba(0,0,0,.75),0 6px 34px rgba(0,0,0,.6)}
 .long{font-size:70px}.longer{font-size:62px}
-.foot{margin-top:30px;color:rgba(255,255,255,.88);font-size:28px;display:flex;justify-content:space-between;gap:24px;text-shadow:0 1px 6px rgba(0,0,0,.7)}
-.endt{font-size:96px;font-weight:800;font-stretch:85%;line-height:1.1;text-shadow:0 2px 4px rgba(0,0,0,.55),0 4px 22px rgba(0,0,0,.6)}
-.endu{margin-top:32px;font-size:54px;font-weight:700;text-shadow:0 1px 6px rgba(0,0,0,.7)}
-.endn{margin-top:24px;font-size:40px;opacity:.9;text-shadow:0 1px 6px rgba(0,0,0,.7)}`;
+.foot{margin-top:30px;color:rgba(255,255,255,.88);font-size:28px;display:flex;justify-content:space-between;gap:24px;text-shadow:0 1px 3px rgba(0,0,0,.85),0 2px 12px rgba(0,0,0,.7)}
+.endt{font-size:96px;font-weight:800;font-stretch:85%;line-height:1.1;text-shadow:0 2px 3px rgba(0,0,0,.8),0 3px 14px rgba(0,0,0,.75),0 6px 34px rgba(0,0,0,.6)}
+.endu{margin-top:32px;font-size:54px;font-weight:700;text-shadow:0 1px 3px rgba(0,0,0,.85),0 2px 12px rgba(0,0,0,.7)}
+.endn{margin-top:24px;font-size:40px;opacity:.9;text-shadow:0 1px 3px rgba(0,0,0,.85),0 2px 12px rgba(0,0,0,.7)}`;
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]!);
 /** a photo's address a browser anywhere can open: the site's own ones with its address in front */
