@@ -23,7 +23,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ l
     <main className={s.page} lang={lang === "en" ? "en" : undefined}>
       <header className={s.top}>
         <h1>{av ? w.avWriteTitle : w.writeTitle}</h1>
-        <Link href={`/editor${back ? `?${back}` : ""}#${av ? "aavtikal" : "news"}`}>← {w.back}</Link>
+        <Link href={`/editor?tab=${av ? "aavtikal" : "news"}${back ? `&${back}` : ""}`}>← {w.back}</Link>
       </header>
       {av ? <Write lang={lang} back={back} kind="aavtikal" beats={BEATS.map((b) => ({ key: b, name: beatName(b, lang) }))} />
           : <Write lang={lang} back={back} />}

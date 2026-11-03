@@ -340,7 +340,7 @@ async function birthdayNote() {
   const { today } = birthdays(await leaders(sql));
   if (!today.length) return;
   log(`birthdays today: ${today.map((l) => l.nameEn || l.nameGu).join(", ")}`);
-  await tell(`🎂 <b>આજે જન્મદિવસ:</b> ${today.map((l) => `${l.title} ${l.nameGu}`).join(", ")}\nશુભેચ્છા ફોટો અને ઈમેલનો મુસદ્દો સંપાદકના પાના પર તૈયાર છે: ${WEBSITE.url}/editor#leaders`);
+  await tell(`🎂 <b>આજે જન્મદિવસ:</b> ${today.map((l) => `${l.title} ${l.nameGu}`).join(", ")}\nશુભેચ્છા ફોટો અને ઈમેલનો મુસદ્દો સંપાદકના પાના પર તૈયાર છે: ${WEBSITE.url}/editor?tab=leaders`);
 }
 
 /** Step 9: a published story's sources watched for 24 hours. */

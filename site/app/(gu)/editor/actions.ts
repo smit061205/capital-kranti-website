@@ -42,7 +42,7 @@ export async function changeStory(id: string, back: string, f: FormData) {
   if (!w.headline || !w.body) redirect(`/editor/story/${encodeURIComponent(id)}?${back ? `${back}&` : ""}missing=1`);
   const ok = sql ? await saveStory(sql, id, w, who) : false;
   renew();
-  redirect(`/editor?${back ? `${back}&` : ""}saved=${ok ? "1" : "0"}#news`);
+  redirect(`/editor?${back ? `${back}&` : ""}tab=news&saved=${ok ? "1" : "0"}`);
 }
 export async function changeFeature(id: string, back: string, f: FormData) {
   const { sql } = await signedIn();
@@ -50,7 +50,7 @@ export async function changeFeature(id: string, back: string, f: FormData) {
   if (!w.headline || !w.body) redirect(`/editor/feature/${encodeURIComponent(id)}?${back ? `${back}&` : ""}missing=1`);
   const ok = sql ? await saveFeature(sql, id, w) : false;
   renew(true);
-  redirect(`/editor?${back ? `${back}&` : ""}saved=${ok ? "1" : "0"}#aavtikal`);
+  redirect(`/editor?${back ? `${back}&` : ""}tab=aavtikal&saved=${ok ? "1" : "0"}`);
 }
 
 /** only photos the write page put in the photo store (app/api/editor/photo), at most 12 */
@@ -126,7 +126,7 @@ export async function addAdAction(back: string, f: FormData) {
   const v = (k: string) => String(f.get(k) ?? "").replace(/\r\n/g, "\n").trim();
   const ok = sql ? await addAd(sql, { kind: v("kind"), text: v("text"), contact: v("contact"), place: v("place"), days: Number(v("days")) }, who) : false;
   renew();
-  redirect(`/editor?${back ? `${back}&` : ""}ad=${ok ? 1 : 0}#ads`);
+  redirect(`/editor?${back ? `${back}&` : ""}tab=ads&ad=${ok ? 1 : 0}`);
 }
 export async function dropAdAction(id: string) { const { sql } = await signedIn(); if (sql) await dropAd(sql, id); renew(); }
 
