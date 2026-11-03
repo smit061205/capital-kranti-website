@@ -163,6 +163,17 @@ export const SCHEMA = [
      decision text,                                 -- approve | reject
      decided_by text
    )`,
+  // classified ads the editor keeps on the editor page (lib/classifieds.ts; the readers asked, 3 Nov)
+  `create table if not exists classifieds (
+     id text primary key,
+     kind text not null,                            -- job | property | vehicle | notice | matrimony | other
+     text text not null,
+     contact text not null default '',
+     place text not null default '',
+     until date not null,                           -- shown up to and including this day
+     added_at timestamptz not null default now(),
+     added_by text not null default ''
+   )`,
 ];
 
 // the schema's version, kept in the database: a reader checks it with one

@@ -10,5 +10,5 @@ export async function GET(_: Request, { params }: { params: Promise<{ key: strin
   const key = (await params).key;
   if (!isSection(key)) return new Response("not found", { status: 404 });
   return new Response(rss(await storiesIn(key, 50), "gu", `${PAPER.gu.name}: ${sectionName(key, "gu")}`),
-                      { headers: { "content-type": "application/rss+xml; charset=utf-8" } });
+                      { headers: { "content-type": "application/xml; charset=utf-8" } });
 }

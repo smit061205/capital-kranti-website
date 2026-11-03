@@ -32,7 +32,7 @@ export interface FrameProps {
 export default async function Frame({ lang, path, section, active, bottomBar = true, children }: FrameProps) {
   const L = (p: string) => href(lang, p);
   const words = Object.fromEntries((["menu", "sections", "search", "close", "home", "latest", "latestTitle", "archive", "searchPlaceholder",
-    "settings", "size", "language", "services", "about", "savedTitle", "fHow", "fPolicy", "fFix", "fContact", "editorPage"] as const)
+    "settings", "size", "language", "services", "about", "savedTitle", "fHow", "fPolicy", "fFix", "fContact", "editorPage", "classifieds", "advertise"] as const)
     .map((k) => [k, t(lang, k)])) as Parameters<typeof Chrome>[0]["words"];
   const brk = await breakingNow();
   const bw = brk && (lang === "gu" ? brk.headline : lang === "en" ? brk.en?.headline : brk.hi?.headline);
@@ -44,7 +44,7 @@ export default async function Frame({ lang, path, section, active, bottomBar = t
         lang={lang} name={PAPER.gu.name} tagline={PAPER[lang].tagline} words={words} bottomBar={bottomBar} active={active} mast={path === "/" ? dateText(new Date().toISOString(), lang, true) : undefined}
         paths={{ gu: href("gu", path), en: href("en", path), hi: href("hi", path) }}
         sections={[...SECTIONS.map((k) => ({ key: k, name: sectionName(k, lang), href: L(`/section/${k}`) })), { key: "aavtikal", name: flw(lang).name, href: L("/aavtikal") }]}
-        links={{ home: L("/"), latest: L("/latest"), archive: L("/archive"), search: L("/search"), saved: L("/saved"),
+        links={{ home: L("/"), latest: L("/latest"), archive: L("/archive"), search: L("/search"), saved: L("/saved"), classifieds: L("/classifieds"), advertise: L("/advertise"),
                  about: L("/about"), how: L("/how-we-check"), policy: L("/editorial-policy"), corrections: L("/corrections"), contact: L("/contact") }}
       />
       {brk && <BreakingBar id={brk.id} headline={bw || brk.headline} href={L(`/news/${brk.id}`)} until={Date.parse(brk.publishedAt) + BREAKING_HOURS * 3600_000}
@@ -66,9 +66,11 @@ export default async function Frame({ lang, path, section, active, bottomBar = t
           <div className="fcols">
             <div><b>{t(lang, "f1")}</b><Link prefetch={false} href={L("/about")}>{t(lang, "fAbout")}</Link><Link prefetch={false} href={L("/editorial-policy")}>{t(lang, "fPolicy")}</Link>
               <Link prefetch={false} href={L("/how-we-check")}>{t(lang, "fHow")}</Link><Link prefetch={false} href={L("/corrections")}>{t(lang, "fFix")}</Link><Link prefetch={false} href={L("/contact")}>{t(lang, "fContact")}</Link></div>
-            <div><b>{t(lang, "f2")}</b>{SECTIONS.slice(0, 6).map((k) => <Link prefetch={false} key={k} href={L(`/section/${k}`)}>{sectionName(k, lang)}</Link>)}<Link prefetch={false} href={L("/aavtikal")}>{flw(lang).name}</Link></div>
+            <div><b>{t(lang, "f2")}</b>{SECTIONS.map((k) => <Link prefetch={false} key={k} href={L(`/section/${k}`)}>{sectionName(k, lang)}</Link>)}<Link prefetch={false} href={L("/aavtikal")}>{flw(lang).name}</Link></div>
             <div><b>{t(lang, "f3")}</b><Link prefetch={false} href={L("/archive")}>{t(lang, "archive")}</Link>
-              <a href={lang === "gu" ? "/rss.xml" : `/${lang}/rss.xml`}>{t(lang, "fRss")}</a></div>
+              <Link prefetch={false} href={L("/classifieds")}>{t(lang, "classifieds")}</Link>
+              <Link prefetch={false} href={L("/advertise")}>{t(lang, "advertise")}</Link>
+              <Link prefetch={false} href={L("/rss")}>{t(lang, "fRss")}</Link></div>
             <div><b>{t(lang, "f4")}</b><Link prefetch={false} href={L("/terms")}>{t(lang, "fTerms")}</Link><Link prefetch={false} href={L("/privacy")}>{t(lang, "fPrivacy")}</Link>
               {(["gu", "hi", "en"] as const).filter((l) => l !== lang).map((l) => (
                 <LangLink key={l} to={l} href={href(l, path)} hrefLang={l}>{{ gu: "ગુજરાતી", hi: "हिंदी", en: "English" }[l]}</LangLink>))}</div>

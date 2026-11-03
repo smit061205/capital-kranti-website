@@ -9,17 +9,18 @@ import s from "./editor.module.css";
 import { W } from "./words.ts";
 import Birthday from "./Birthday.tsx";
 import LeaderForm from "./LeaderForm.tsx";
-import { dropLeaderAction, pauseEngine, publishFeature, putBackStory, removeFeature, removeStory } from "./actions.ts";
+import { addAdAction, dropAdAction, dropLeaderAction, pauseEngine, publishFeature, putBackStory, removeFeature, removeStory } from "./actions.ts";
 import { db } from "@/lib/db.ts";
 import { COOKIE, desk, editorOf, findFeatures, findStories, PAGE, signInReady, type Found, type Show } from "@/lib/editor.ts";
 import { beatName, isBeat } from "@/lib/flagship.ts";
 import { birthdays, draftEmail, leaders } from "@/lib/leaders.ts";
-import { num, timeText, shortDate } from "@/lib/format.ts";
+import { ads, DAYS, KINDS, KIND_NAMES } from "@/lib/classifieds.ts";
+import { dateText, num, timeText, shortDate, todayIst } from "@/lib/format.ts";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "સંપાદક | કેપિટલ ક્રાંતિ", robots: { index: false, follow: false } };
 
-type Q = { lang?: string; signin?: string; q?: string; show?: string; n?: string; fq?: string; fshow?: string; fn?: string; saved?: string; written?: string; wrote?: string };
+type Q = { lang?: string; signin?: string; q?: string; show?: string; n?: string; fq?: string; fshow?: string; fn?: string; saved?: string; written?: string; wrote?: string; ad?: string };
 
 export default async function Editor({ searchParams }: { searchParams: Promise<Q> }) {
   const q = await searchParams;
@@ -48,7 +49,7 @@ export default async function Editor({ searchParams }: { searchParams: Promise<Q
   const count = (v?: string) => Math.min(500, Math.max(PAGE, Math.round(Number(v) / PAGE) * PAGE || PAGE));
   const n = count(q.n), fn = count(q.fn);
   const sql = db();
-  const [d, news, arts, people] = await Promise.all([desk(sql), findStories(sql, words, show, n), findFeatures(sql, fwords, fshow, fn), leaders(sql)]);
+  const [d, news, arts, people, adList] = await Promise.all([desk(sql), findStories(sql, words, show, n), findFeatures(sql, fwords, fshow, fn), leaders(sql), ads(sql, true)]);
   const bday = birthdays(people);
 
   // a link to this page with some of its asks changed (the rest kept)
@@ -64,6 +65,7 @@ export default async function Editor({ searchParams }: { searchParams: Promise<Q
 
   const time = (iso: string) => (iso ? `${shortDate(iso, "gu")}, ${timeText(iso, "gu")}` : "");
   const nn = (x: number) => (lang === "gu" ? num(x, "gu") : String(x));
+  const today = todayIst();
 
   // one searchable list (Capital Kranti's news or Aavtikal's articles)
   const Finder = ({ at, kind, found, value, which, more }: { at: string; kind: "story" | "feature"; found: { rows: Found[]; more: boolean }; value: string; which: Show; more: string }) => {
@@ -123,6 +125,7 @@ export default async function Editor({ searchParams }: { searchParams: Promise<Q
       </header>
       <nav className={s.jump} aria-label={w.jump}>
         <a href="#leaders">{w.leadersShort}{bday.today.length > 0 && ` (${nn(bday.today.length)})`}</a>
+        <a href="#ads">{w.adsShort}</a>
         <a href="#news" className={s.jCK}>{w.ck}</a>
         <a href="#aavtikal" className={s.jAV}>{w.av}</a>
         <a href="#engine">{w.engine}</a>
@@ -163,6 +166,42 @@ export default async function Editor({ searchParams }: { searchParams: Promise<Q
           </ul>
         ) : <p className={s.empty}>{w.leadersNone}</p>}
         <details className={s.addLeader}><summary className={s.writeBtn}>{w.addLeader}</summary><LeaderForm lang={lang} /></details>
+      </section>
+
+      <section className={s.block} aria-labelledby="ads">
+        <h2 id="ads">{w.ads}</h2>
+        <p className={s.help}>{w.adsNote} <a href="/classifieds" target="_blank" rel="noopener">{w.seeAds}</a></p>
+        {q.ad && <p className={q.ad === "1" ? s.done : s.stopped} role="status">{q.ad === "1" ? w.adSaved : w.adNotSaved}</p>}
+        {adList.length ? (
+          <ul className={s.list}>
+            {adList.map((a) => (
+              <li key={a.id}>
+                <div className={s.what}>
+                  <span className={s.title}>{a.text}</span>
+                  <span className={s.when}>{KIND_NAMES[a.kind][lang]}{a.place && ` · ${a.place}`}{a.contact && ` · ${a.contact}`} · {a.until < today ? w.adEnded : `${dateText(a.until, lang)} ${w.adUntil}`}</span>
+                </div>
+                <div className={s.acts}>
+                  <details className={s.confirm}><summary>{w.removeAd}</summary>
+                    <form action={dropAdAction.bind(null, a.id)}><button className={s.no}>{w.sure}</button></form></details>
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : <p className={s.empty}>{w.adsNone}</p>}
+        <details className={s.addLeader}><summary className={s.writeBtn}>{w.addAd}</summary>
+          <form className={s.form} action={addAdAction.bind(null, back)}>
+            <fieldset className={s.pills}><legend>{w.adKind}</legend>
+              {KINDS.map((k, i) => <label key={k}><input type="radio" name="kind" value={k} defaultChecked={i === 0} /><span>{KIND_NAMES[k][lang]}</span></label>)}
+            </fieldset>
+            <label>{w.adText}<textarea name="text" rows={4} maxLength={1000} required /></label>
+            <label>{w.adContact}<input className={s.select} name="contact" type="tel" maxLength={80} /></label>
+            <label>{w.adPlace}<input className={s.select} name="place" maxLength={60} /></label>
+            <fieldset className={s.pills}><legend>{w.adDays}</legend>
+              {DAYS.map((n, i) => <label key={n}><input type="radio" name="days" value={n} defaultChecked={i === 0} /><span>{nn(n)} {w.dayWord}</span></label>)}
+            </fieldset>
+            <button className={s.big}>{w.adSave}</button>
+          </form>
+        </details>
       </section>
 
       <section className={`${s.block} ${s.ck}`} aria-labelledby="news">

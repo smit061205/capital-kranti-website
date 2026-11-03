@@ -14,9 +14,9 @@ export interface ChromeProps {
   /** this page in each language, for the language switch */
   paths: { gu: string; en: string; hi: string };
   sections: { key: string; name: string; href: string }[];
-  links: { home: string; latest: string; archive: string; search: string; saved: string; about: string; how: string; policy: string; corrections: string; contact: string };
+  links: { home: string; latest: string; archive: string; search: string; saved: string; classifieds: string; advertise: string; about: string; how: string; policy: string; corrections: string; contact: string };
   words: Record<"menu" | "sections" | "search" | "close" | "home" | "latest" | "latestTitle" | "archive" | "searchPlaceholder" | "settings" |
-                 "size" | "language" | "services" | "about" | "savedTitle" | "fHow" | "fPolicy" | "fFix" | "fContact" | "editorPage", string>;
+                 "size" | "language" | "services" | "about" | "savedTitle" | "fHow" | "fPolicy" | "fFix" | "fContact" | "editorPage" | "classifieds" | "advertise", string>;
   /** the phone's bottom bar (articles have their own reading bar instead) */
   bottomBar: boolean;
   active?: "home" | "latest" | "archive";
@@ -139,6 +139,8 @@ export default function Chrome(p: ChromeProps) {
         <div className="links">
           <Link prefetch={false} href={p.links.archive} onClick={() => setOpen(false)}>{w.archive}</Link>
           <Link prefetch={false} href={p.links.saved} onClick={() => setOpen(false)}>{w.savedTitle}</Link>
+          <Link prefetch={false} href={p.links.classifieds} onClick={() => setOpen(false)}>{w.classifieds}</Link>
+          <Link prefetch={false} href={p.links.advertise} onClick={() => setOpen(false)}>{w.advertise}</Link>
         </div>
         <h3>{w.about}</h3>
         <div className="links">
