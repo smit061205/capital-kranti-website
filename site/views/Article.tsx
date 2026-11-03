@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Lang, Story } from "../lib/types.ts";
-import { pic, SIZES } from "../lib/photo.ts";
+import { largest, pic, SIZES } from "../lib/photo.ts";
 import { moreOnSubject, storiesIn, storyById } from "../lib/db.ts";
 import { href, t } from "../lib/i18n.ts";
 import { sectionName } from "../lib/sections.ts";
@@ -70,7 +70,7 @@ export default async function Article({ id, lang }: { id: string; lang: Lang }) 
           <ArticleTools id={s.id} url={url} headline={w.headline} words={toolWords} />
           {s.photo && (
             <figure className={strong(s) ? "wide-ph" : "in-ph"}>
-              <PhotoZoom src={s.photo.url} width={s.photo.width} height={s.photo.height} alt={w.caption || w.headline}
+              <PhotoZoom src={largest(s.photo)} width={s.photo.width} height={s.photo.height} alt={w.caption || w.headline}
                          caption={w.caption} label={t(lang, "zoom")} close={t(lang, "close2")}>
                 <ViewTransition name={`photo-${s.id}`} share="morph" default="none">
                   <span className="phw"><img className="ph" {...pic(s.photo, SIZES.inside)} fetchPriority="high" width={s.photo.width} height={s.photo.height} alt={w.caption || w.headline} /></span>
@@ -85,7 +85,7 @@ export default async function Article({ id, lang }: { id: string; lang: Lang }) 
                 <p>{p}</p>
                 {shotsAfter(i).map((g) => (
                   <figure key={g.url} className="inph">
-                    <PhotoZoom src={g.url} width={g.width} height={g.height} alt={w.headline} caption="" label={t(lang, "zoom")} close={t(lang, "close2")}>
+                    <PhotoZoom src={largest(g)} width={g.width} height={g.height} alt={w.headline} caption="" label={t(lang, "zoom")} close={t(lang, "close2")}>
                       <span className="phw"><img className="ph" {...pic(g, SIZES.inside)} width={g.width} height={g.height} alt={w.headline} loading="lazy" /></span>
                     </PhotoZoom>
                   </figure>
