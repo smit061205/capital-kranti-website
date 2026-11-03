@@ -6,6 +6,9 @@ export const W = {
     off: "પ્રવેશ હજી ચાલુ નથી: Google પ્રવેશની ગોઠવણ બાકી છે.", again: "પ્રવેશ પૂરો ન થયો. ફરી પ્રયત્ન કરો.",
     refused: "આ Google ખાતાને સંપાદકના પાના પર પ્રવેશ નથી.",
     jump: "પાના પર જાઓ",
+    tabToday: "આજે", tabInsta: "ઇન્સ્ટાગ્રામ", needYou: "તમારું ધ્યાન માગે છે", allGood: "બધું બરાબર છે: હમણાં કંઈ કરવાનું નથી.",
+    instaWaiting: "ઇન્સ્ટાગ્રામ સેટ મંજૂરીની રાહમાં", bdayToday: "આજે જન્મદિવસ", engineOff: "સમાચાર એન્જિન બંધ છે: કંઈ નવું મુકાતું નથી", open: "ખોલો",
+    quick: "ઝડપથી", atGlance: "આજે એક નજરે", on2: "ચાલુ", off2: "બંધ", onSiteNews: "સાઇટ પરના સમાચાર", adsAll: "બધી જાહેરાતો",
     
     
     ck: "કેપિટલ ક્રાંતિ", ckNote: "દૈનિક સમાચાર: એન્જિને મૂકેલા અને છાપાના",
@@ -78,6 +81,9 @@ export const W = {
     off: "Sign-in isn't on yet: Google sign-in still needs setting up.", again: "Sign-in didn't finish. Try again.",
     refused: "This Google account can't open the editor's page.",
     jump: "Go to",
+    tabToday: "Today", tabInsta: "Instagram", needYou: "Needs you", allGood: "All is well: nothing to do right now.",
+    instaWaiting: "Instagram set(s) waiting for approval", bdayToday: "Birthday today", engineOff: "The news engine is stopped: nothing new goes up", open: "Open",
+    quick: "Quick", atGlance: "Today at a glance", on2: "On", off2: "Off", onSiteNews: "News on the site", adsAll: "All ads",
     
     
     ck: "Capital Kranti", ckNote: "Daily news: the engine's and the printed paper's",

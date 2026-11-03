@@ -16,7 +16,7 @@ export default async function Change({ kind, id, q }: { kind: "story" | "feature
   const back = lang === "en" ? "lang=en" : "";
   if (!editorOf((await cookies()).get(COOKIE)?.value)) redirect(`/editor${back ? `?${back}` : ""}`);
   const x = kind === "story" ? await storyFor(db(), id) : await featureFor(db(), id);
-  const list = `/editor${back ? `?${back}` : ""}#${kind === "story" ? "news" : "aavtikal"}`;
+  const list = `/editor?tab=${kind === "story" ? "news" : "aavtikal"}${back ? `&${back}` : ""}`;
   const view = kind === "story" ? `/news/${id}` : `/aavtikal/p/${id}`;
 
   return (

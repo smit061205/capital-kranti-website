@@ -202,5 +202,5 @@ if (toMake.length) {
 if (made.length) {
   const left = TIERS.filter((t) => !made.some((s) => s.tier === t)).map((t) => sectionName(t, "gu"));
   await tell(`<b>ઇન્સ્ટાગ્રામ: ${editionName(made[0].edition)}</b>\n${made.map((s) => `${sectionName(s.tier, "gu")}: ${s.cards.length} સમાચાર`).join("\n")}` +
-    `${left.length ? `\n(${left.join(", ")}: સારા ફોટાવાળા પૂરતા સમાચાર નથી)` : ""}\n\nજોઈને મંજૂર કરો: ${SITE}/editor#insta`);
+    `${left.length ? `\n(${left.join(", ")}: સારા ફોટાવાળા પૂરતા સમાચાર નથી)` : ""}\n\nજોઈને મંજૂર કરો: ${SITE}/editor?tab=insta`);
 }

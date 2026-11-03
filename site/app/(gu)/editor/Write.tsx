@@ -127,7 +127,7 @@ export default function Write({ lang, back, kind = "news", beats = [] }:
         : await writeStory({ headline, deck, body, caption, tier, genre: genre || null, photos });
       if ("id" in r) {
         try { localStorage.removeItem(KEEP); } catch { /* gone with the page */ }
-        location.assign(`/editor?${back ? `${back}&` : ""}${av ? "wrote" : "written"}=${encodeURIComponent(r.id)}#${av ? "aavtikal" : "news"}`);
+        location.assign(`/editor?${back ? `${back}&` : ""}tab=${av ? "aavtikal" : "news"}&${av ? "wrote" : "written"}=${encodeURIComponent(r.id)}`);
         return;
       }
       setProblem(r.error === "missing" ? w.missing : av ? w.avFailedPut : w.failedPut);
