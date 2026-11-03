@@ -114,7 +114,14 @@ export interface Written { kicker: string; headline: string; deck: string; body:
  *  level asks, and up to 1,200 words (as much as a free model writes well in one answer). */
 export function lengthFor(level: Level, src: SourceText[]): [number, number] {
   const longest = Math.max(0, ...src.map((s) => s.text.split(/\s+/).filter(Boolean).length));
-  const lo = Math.min(1200, Math.max(WORDS[level][0], longest));
+  // sources shorter than the level's length (a feed's three-line summary): the story as long as they are, not padded out to
+  // the level's (4 Nov: 250 words asked from 60, the writer filled them with lines no source said and the check failed
+  // over half the stories)
+  if (longest < WORDS[level][0]) {
+    const lo = Math.max(WORDS.brief[0] * 0.8, Math.round(longest * 0.9));
+    return [lo, Math.round(lo * 1.4)];
+  }
+  const lo = Math.min(1200, longest);
   return [lo, Math.min(1500, Math.max(WORDS[level][1], Math.round(lo * 1.25)))];
 }
 
@@ -154,14 +161,55 @@ export function copiedShare(story: string, source: string): number {
   return both / a.size;
 }
 
-export interface Claim { claim: string; supported: boolean; where: string }
-export interface Checked { ok: boolean; problems: string[]; claims: Claim[]; model?: string; busy?: boolean }
+export interface Claim { claim: string; supported: boolean; where: string; sentence?: string }
+export interface Checked { ok: boolean; problems: string[]; claims: Claim[]; model?: string; busy?: boolean; cut?: number }
 
 const CHECKER = `You are the fact-checking desk of Capital Kranti, a Gujarati newspaper.
-You get a Gujarati news story and the sources it was written from. List every checkable claim in the story
-(who, what, where, when, how many, quotes) in English, and for each say whether the sources clearly support it.
+You get a Gujarati news story, each sentence marked with its label ([K] kicker, [H] headline, [D] deck, [S1], [S2] ... the
+body, [C] caption), and the sources it was written from. List every checkable claim in the story (who, what, where, when,
+how many, quotes) in English, and for each say whether the sources clearly support it and which sentence makes it.
 A claim is supported only if a source states it (numbers must match exactly). Be strict: anything added, exaggerated, or guessed is NOT supported.
-Reply with JSON only: {"claims":[{"claim":"...","supported":true,"where":"SOURCE 1"}],"all_supported":true}`;
+Reply with JSON only: {"claims":[{"claim":"...","supported":true,"where":"SOURCE 1","sentence":"S3"}],"all_supported":true}`;
+
+/** A story's body as sentences, each with its paragraph: a piece of fewer than three words (an abbreviation's "ડૉ.")
+ *  stays with the next. */
+export function sentencesOf(body: string): { p: number; text: string }[] {
+  const out: { p: number; text: string }[] = [];
+  body.split(/\n\s*\n/).forEach((para, p) => {
+    let carry = "";
+    for (const piece of para.trim().split(/(?<=[.!?।])\s+/)) {
+      const t = carry ? `${carry} ${piece}` : piece;
+      if (t.split(/\s+/).length < 3) { carry = t; continue; }
+      out.push({ p, text: t });
+      carry = "";
+    }
+    if (carry) out.length && out[out.length - 1].p === p ? (out[out.length - 1].text += ` ${carry}`) : out.push({ p, text: carry });
+  });
+  return out;
+}
+
+/** The story with each sentence labelled, for the checker. */
+const labelled = (w: Written) => [
+  w.kicker && `[K] ${w.kicker}`, `[H] ${w.headline}`, w.deck && `[D] ${w.deck}`,
+  sentencesOf(w.body).map((x, i) => `[S${i + 1}] ${x.text}`).join(" "), w.caption && `[C] ${w.caption}`,
+].filter(Boolean).join("\n\n");
+
+/** The story without the sentences the check found unsupported (4 Nov: rewritten whole, a story cost two more requests and
+ *  often failed again; most failures were a line or two of padding). Null when it can't be done by cutting: an unsupported
+ *  claim in the headline or the deck, one the checker didn't place, or too little left. */
+export function cutUnsupported(w: Written, claims: Claim[], least: number): { written: Written; cut: number } | null {
+  const bad = claims.filter((c) => !c.supported);
+  if (!bad.length) return null;
+  const at = bad.map((c) => String(c.sentence ?? "").trim().toUpperCase().replace(/^\[|\]$/g, ""));
+  if (at.some((x) => !/^(S\d+|K|C)$/.test(x))) return null;
+  const sents = sentencesOf(w.body);
+  const drop = new Set(at.filter((x) => x.startsWith("S")).map((x) => Number(x.slice(1)) - 1));
+  if ([...drop].some((i) => i < 0 || i >= sents.length)) return null;
+  const kept = sents.filter((_, i) => !drop.has(i));
+  const body = [...new Set(kept.map((x) => x.p))].map((p) => kept.filter((x) => x.p === p).map((x) => x.text).join(" ")).join("\n\n");
+  if (body.split(/\s+/).filter(Boolean).length < least) return null;
+  return { written: { ...w, body, kicker: at.includes("K") ? "" : w.kicker, caption: at.includes("C") ? "" : w.caption }, cut: drop.size };
+}
 
 /** Steps 5 and 7: the story's numbers by code, then every claim by a different free model. */
 export async function check(sql: Sql | null, w: Written, src: SourceText[], date: string): Promise<Checked> {
@@ -182,11 +230,11 @@ export async function check(sql: Sql | null, w: Written, src: SourceText[], date
   }
   // the code's own checks failed: the story goes back now, without a model's minutes on a version that can't go up
   if (problems.length) return { ok: false, problems, claims: [] };
-  const res = await askJson(sql, { system: CHECKER, user: `STORY:\n${text}\n\n===\n\n${sourcesBlock(src)}`, role: "checker", avoid: w.model, maxTokens: 6000 },
+  const res = await askJson(sql, { system: CHECKER, user: `STORY:\n${labelled(w)}\n\n===\n\n${sourcesBlock(src)}`, role: "checker", avoid: w.model, maxTokens: 6000 },
     (v) => {
       const x = v as { claims?: Claim[] };
       if (!Array.isArray(x?.claims) || !x.claims.length) return null;
-      return x.claims.map((c) => ({ claim: String(c.claim ?? ""), supported: c.supported === true, where: String(c.where ?? "") }));
+      return x.claims.map((c) => ({ claim: String(c.claim ?? ""), supported: c.supported === true, where: String(c.where ?? ""), sentence: String(c.sentence ?? "") }));
     });
   if (!res.ok) return { ok: false, problems: [...problems, `the second check didn't answer (${res.why})`], claims: [], busy: res.busy || /busy/.test(res.why) };
   const unsupported = res.value.filter((c) => !c.supported);
@@ -265,6 +313,10 @@ export async function writeChecked(sql: Sql | null, src: SourceText[], level: Le
     if (c.busy) return { ok: false as const, why: c.problems.join("; "), retry: true };
     last = { w, c };
     if (c.ok) return { ok: true as const, written: w, checked: c };
+    // only a few lines the sources don't hold (the code's own checks passed): those lines come out and the rest goes up
+    const trimmed = c.problems.every((p) => p.startsWith("not in the sources:")) ? cutUnsupported(w, c.claims, Math.max(WORDS.brief[0] * 0.6, lo * 0.5)) : null;
+    if (trimmed) return { ok: true as const, written: trimmed.written,
+      checked: { ...c, ok: true, problems: [], claims: c.claims.filter((x) => x.supported), cut: trimmed.cut } };
     note = `\n\nYOUR LAST VERSION HAD THESE PROBLEMS -- fix every one, using only what the sources say:\n- ${c.problems.join("\n- ")}`;
   }
   return { ok: false as const, why: last!.c.problems.join("; "), written: last!.w, checked: last!.c };

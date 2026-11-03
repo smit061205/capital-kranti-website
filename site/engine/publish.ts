@@ -62,7 +62,7 @@ export interface LiveStory {
 export async function saveLive(sql: Sql, s: LiveStory) {
   const primary = s.src[0];
   const sources = s.src.map((x) => ({ name: x.source.name, url: x.url, trust: x.source.trust, group: x.source.group }));
-  const checks = { problems: s.checked.problems, claims: s.checked.claims, checker: s.checked.model ?? null, writer: s.written.model };
+  const checks = { problems: s.checked.problems, claims: s.checked.claims, checker: s.checked.model ?? null, writer: s.written.model, cut: s.checked.cut ?? 0 };
   await sql.query(
     `insert into stories (id, origin, issue_date, published_at, updated_at, tier, genres, tag_status, kicker, headline, deck, body, caption,
                           photo, source, checked, en, en_status, hi, hi_status, status, importance, sources, checks, hold_reason)
