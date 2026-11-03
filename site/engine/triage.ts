@@ -85,22 +85,31 @@ export async function triageBatch(sql: Sql | null, batch: TriageInput[]) {
   return res;
 }
 
+/** batches sorted at once (4 Nov: one at a time, a round's sorting took minutes of waiting on one model's answer) */
+const SIDE_BY_SIDE = 2;
+
 /** Every untriaged item, newest first, as far as the run's share of the allowance goes. */
 export async function triage(sql: Sql, log: (s: string) => void, maxBatches: number, deadline: number) {
   let done = 0, batches = 0;
   while (batches < maxBatches && Date.now() < deadline) {
-    const rows = await sql.query(`select id, source, lang, title, summary from items where triage is null order by seen_at desc limit ${BATCH}`);
-    if (!rows.length) break;
-    const input: TriageInput[] = rows.map((r, k) => ({ i: k + 1, source: sourceById.get(r.source as string)?.name ?? (r.source as string),
-      lang: r.lang as string, title: r.title as string, summary: r.summary as string, factcheck: sourceById.get(r.source as string)?.trust === "factcheck" }));
-    const res = await triageBatch(sql, input);
-    batches++;
-    if (!res.ok) { log(`  triage: ${res.why}`); if (res.stop) return { done, stop: true }; continue; }
-    for (const [k, r] of rows.entries()) {
-      const t = res.value.get(k + 1) ?? { skipped: "no answer" };
-      await sql.query(`update items set triage = $2 where id = $1`, [r.id, JSON.stringify(t)]);
-    }
-    done += res.value.size;
+    const take = Math.min(SIDE_BY_SIDE, maxBatches - batches);
+    const all = await sql.query(`select id, source, lang, title, summary from items where triage is null order by seen_at desc limit ${BATCH * take}`);
+    if (!all.length) break;
+    const groups = Array.from({ length: Math.ceil(all.length / BATCH) }, (_, g) => all.slice(g * BATCH, (g + 1) * BATCH));
+    const results = await Promise.all(groups.map(async (rows) => {
+      const input: TriageInput[] = rows.map((r, k) => ({ i: k + 1, source: sourceById.get(r.source as string)?.name ?? (r.source as string),
+        lang: r.lang as string, title: r.title as string, summary: r.summary as string, factcheck: sourceById.get(r.source as string)?.trust === "factcheck" }));
+      const res = await triageBatch(sql, input);
+      if (!res.ok) { log(`  triage: ${res.why}`); return res; }
+      for (const [k, r] of rows.entries()) {
+        const t = res.value.get(k + 1) ?? { skipped: "no answer" };
+        await sql.query(`update items set triage = $2 where id = $1`, [r.id, JSON.stringify(t)]);
+      }
+      done += res.value.size;
+      return res;
+    }));
+    batches += groups.length;
+    if (results.some((r) => !r.ok && r.stop)) return { done, stop: true };
   }
   log(`  triaged ${done} item(s) in ${batches} request(s)`);
   return { done, stop: false };
@@ -129,6 +138,17 @@ on the same topic (another crash, another verdict) is NOT the same. Reply with J
 
 /** The words of an event line, as keywords */
 const eventWords = (event: string) => keySet(event.toLowerCase().split(/\s+/));
+
+/** Two events close enough in words to be one told two ways (sameEvent's rule for asking a model): two shared keywords,
+ *  or three words of their event lines */
+export function nearEvent(a: { event: string; keys: string[] }, b: { event: string; keys: string[] }) {
+  const ka = keySet(a.keys.map((k) => k.toLowerCase()));
+  let both = 0, words = 0;
+  for (const k of keySet(b.keys.map((k) => k.toLowerCase()))) if (ka.has(k)) both++;
+  const la = eventWords(a.event);
+  for (const k of eventWords(b.event)) if (la.has(k)) words++;
+  return both >= 2 || words >= 3;
+}
 
 /** The published or held cluster (last 48 hours) that is the same event as this one, or null; "unsure" when the free
  *  models couldn't answer (the caller waits for a later round rather than risk a second copy). Earlier events are put to

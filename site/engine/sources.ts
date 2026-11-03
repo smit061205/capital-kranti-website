@@ -136,12 +136,19 @@ export const SOURCES: SourceDef[] = [
   n("abp-asmita", "એબીપી અસ્મિતા", "https://gujarati.abplive.com/home/feed", "gu", "gujarat", ["gujarati.abplive.com"], "abp"),
   n("iamgujarat", "આઈ એમ ગુજરાત", "https://www.iamgujarat.com/rssfeedsdefault.cms", "gu", "gujarat", ["www.iamgujarat.com"], "times-group"),
   n("deshgujarat", "DeshGujarat", "https://www.deshgujarat.com/feed/", "en", "gujarat", ["www.deshgujarat.com"], "deshgujarat"),
+  // more of them (4 Nov: the user asked for the news widened; each checked from here, none refusing programs)
+  n("sandesh-india", "સંદેશ (દેશ)", "https://sandesh.com/rss/india.xml", "gu", "india", ["sandesh.com", "www.sandesh.com"], "sandesh"),
+  n("sandesh-world", "સંદેશ (વિદેશ)", "https://sandesh.com/rss/world.xml", "gu", "world", ["sandesh.com", "www.sandesh.com"], "sandesh"),
+  n("ie-gujarati", "ઇન્ડિયન એક્સપ્રેસ ગુજરાતી", "https://gujarati.indianexpress.com/feed/", "gu", "gujarat", ["gujarati.indianexpress.com"], "indian-express"),
 
   // ---- Hindi outlets ----
   n("dainik-bhaskar", "दैनिक भास्कर", "https://www.bhaskar.com/rss-v1--category-1061.xml", "hi", "india", ["www.bhaskar.com"], "db-corp"),
   n("bbc-hi", "BBC हिंदी", "https://feeds.bbci.co.uk/hindi/rss.xml", "hi", "india", ["www.bbc.com", "www.bbc.co.uk"], "bbc"),
   n("amar-ujala", "अमर उजाला", "https://www.amarujala.com/rss/breaking-news.xml", "hi", "india", ["www.amarujala.com"], "amar-ujala"),
   n("jagran", "दैनिक जागरण", "https://www.jagran.com/rss/news/national.xml", "hi", "india", ["www.jagran.com"], "jagran"),
+  n("aajtak", "आज तक", "https://www.aajtak.in/rssfeeds/?id=home", "hi", "india", ["www.aajtak.in"], "india-today-group"),
+  n("ndtv-hi", "एनडीटीवी इंडिया", "https://feeds.feedburner.com/ndtvkhabar-latest", "hi", "india", ["ndtv.in", "khabar.ndtv.com", "feeds.feedburner.com"], "ndtv"),
+  n("abp-hi", "एबीपी न्यूज़", "https://www.abplive.com/home/feed", "hi", "india", ["www.abplive.com"], "abp"),
 
   // ---- Indian English outlets ----
   n("the-hindu", "The Hindu", "https://www.thehindu.com/news/national/feeder/default.rss", "en", "india", ["www.thehindu.com"], "the-hindu"),
@@ -157,6 +164,24 @@ export const SOURCES: SourceDef[] = [
   n("business-standard", "Business Standard", "https://www.business-standard.com/rss/latest.rss", "en", "india", ["www.business-standard.com"], "business-standard"),
   n("pti", "Press Trust of India", "https://www.ptinews.com/rss/national.xml", "en", "india", ["www.ptinews.com"], "pti"),
   n("espncricinfo", "ESPNcricinfo", "https://www.espncricinfo.com/rss/content/story/feeds/0.xml", "en", "world", ["www.espncricinfo.com"], "espn"),
+  n("toi-surat", "The Times of India (Surat)", "https://timesofindia.indiatimes.com/rssfeeds/3942660.cms", "en", "gujarat", ["timesofindia.indiatimes.com"], "times-group"),
+  n("toi-vadodara", "The Times of India (Vadodara)", "https://timesofindia.indiatimes.com/rssfeeds/3942695.cms", "en", "gujarat", ["timesofindia.indiatimes.com"], "times-group"),
+  n("toi-rajkot", "The Times of India (Rajkot)", "https://timesofindia.indiatimes.com/rssfeeds/3942663.cms", "en", "gujarat", ["timesofindia.indiatimes.com"], "times-group"),
+  n("india-today", "India Today", "https://www.indiatoday.in/rss/1206578", "en", "india", ["www.indiatoday.in"], "india-today-group"),
+  n("ndtv-india", "NDTV (India)", "https://feeds.feedburner.com/ndtvnews-india-news", "en", "india", ["www.ndtv.com", "feeds.feedburner.com"], "ndtv"),
+  n("ndtv-world", "NDTV (world)", "https://feeds.feedburner.com/ndtvnews-world-news", "en", "world", ["www.ndtv.com", "feeds.feedburner.com"], "ndtv"),
+  n("news18", "News18", "https://www.news18.com/commonfeeds/v1/eng/rss/india.xml", "en", "india", ["www.news18.com"], "network18"),
+  n("firstpost", "Firstpost", "https://www.firstpost.com/commonfeeds/v1/mfp/rss/india.xml", "en", "india", ["www.firstpost.com"], "network18"),
+  n("scroll", "Scroll", "https://feeds.feedburner.com/ScrollinArticles.rss", "en", "india", ["scroll.in", "feeds.feedburner.com"], "scroll"),
+  n("ie-business", "The Indian Express (business)", "https://indianexpress.com/section/business/feed/", "en", "india", ["indianexpress.com"], "indian-express"),
+  n("ie-sports", "The Indian Express (sports)", "https://indianexpress.com/section/sports/feed/", "en", "india", ["indianexpress.com"], "indian-express"),
+  n("ie-world", "The Indian Express (world)", "https://indianexpress.com/section/world/feed/", "en", "world", ["indianexpress.com"], "indian-express"),
+  n("the-hindu-business", "The Hindu (business)", "https://www.thehindu.com/business/feeder/default.rss", "en", "india", ["www.thehindu.com"], "the-hindu"),
+  n("the-hindu-sport", "The Hindu (sport)", "https://www.thehindu.com/sport/feeder/default.rss", "en", "india", ["www.thehindu.com"], "the-hindu"),
+  n("the-hindu-science", "The Hindu (science)", "https://www.thehindu.com/sci-tech/feeder/default.rss", "en", "india", ["www.thehindu.com"], "the-hindu"),
+  n("businessline", "BusinessLine", "https://www.thehindubusinessline.com/news/feeder/default.rss", "en", "india", ["www.thehindubusinessline.com"], "the-hindu"),
+  n("sportstar", "Sportstar", "https://sportstar.thehindu.com/feeder/default.rss", "en", "india", ["sportstar.thehindu.com"], "the-hindu"),
+  n("ht-world", "Hindustan Times (world)", "https://www.hindustantimes.com/feeds/rss/world-news/rssfeed.xml", "en", "world", ["www.hindustantimes.com"], "ht-media"),
 
   // ---- world outlets ----
   n("bbc-world", "BBC News", "https://feeds.bbci.co.uk/news/world/rss.xml", "en", "world", ["www.bbc.com", "www.bbc.co.uk"], "bbc"),
@@ -171,6 +196,21 @@ export const SOURCES: SourceDef[] = [
   n("nhk", "NHK World", "https://www3.nhk.or.jp/nhkworld/en/news/rss.xml", "en", "world", ["www3.nhk.or.jp"], "nhk"),
   n("cna", "CNA (Singapore)", "https://www.channelnewsasia.com/api/v1/rss-outbound-feed?_format=xml", "en", "world", ["www.channelnewsasia.com"], "mediacorp"),
   n("scmp", "South China Morning Post", "https://www.scmp.com/rss/91/feed", "en", "world", ["www.scmp.com"], "scmp"),
+  n("bbc-business", "BBC News (business)", "https://feeds.bbci.co.uk/news/business/rss.xml", "en", "world", ["www.bbc.com", "www.bbc.co.uk"], "bbc"),
+  n("bbc-tech", "BBC News (technology)", "https://feeds.bbci.co.uk/news/technology/rss.xml", "en", "world", ["www.bbc.com", "www.bbc.co.uk"], "bbc"),
+  n("bbc-science", "BBC News (science)", "https://feeds.bbci.co.uk/news/science_and_environment/rss.xml", "en", "world", ["www.bbc.com", "www.bbc.co.uk"], "bbc"),
+  n("guardian-business", "The Guardian (business)", "https://www.theguardian.com/business/rss", "en", "world", ["www.theguardian.com"], "guardian"),
+  n("nyt", "The New York Times", "https://rss.nytimes.com/services/xml/rss/nyt/World.xml", "en", "world", ["www.nytimes.com"], "nyt"),
+  n("cbs", "CBS News", "https://www.cbsnews.com/latest/rss/world", "en", "world", ["www.cbsnews.com"], "cbs"),
+  n("sky", "Sky News", "https://feeds.skynews.com/feeds/rss/world.xml", "en", "world", ["news.sky.com"], "sky"),
+  n("euronews", "Euronews", "https://www.euronews.com/rss?level=theme&name=news", "en", "world", ["www.euronews.com"], "euronews"),
+  n("politico-eu", "Politico Europe", "https://www.politico.eu/feed/", "en", "world", ["www.politico.eu"], "politico"),
+  n("rfi", "RFI", "https://www.rfi.fr/en/rss", "en", "world", ["www.rfi.fr"], "france-medias-monde"),
+  n("japan-times", "The Japan Times", "https://www.japantimes.co.jp/feed/", "en", "world", ["www.japantimes.co.jp"], "japan-times"),
+  n("yonhap", "Yonhap", "https://en.yna.co.kr/RSS/news.xml", "en", "world", ["en.yna.co.kr"], "yonhap"),
+  n("straits-times", "The Straits Times", "https://www.straitstimes.com/news/world/rss.xml", "en", "world", ["www.straitstimes.com"], "sph"),
+  n("the-national", "The National (UAE)", "https://www.thenationalnews.com/arc/outboundfeeds/rss/?outputType=xml", "en", "world", ["www.thenationalnews.com"], "the-national"),
+  n("gulf-news", "Gulf News", "https://gulfnews.com/feed", "en", "world", ["gulfnews.com"], "gulf-news"),
 
   // (left out, 25 Oct: feeds not updated in weeks -- Live Hindustan, the US CDC, Kenya's
 //  president, Zee 24 Kalak)

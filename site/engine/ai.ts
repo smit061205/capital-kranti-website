@@ -159,9 +159,10 @@ export async function askJson<T>(sql: Sql | null, a: Ask, check: (v: unknown) =>
       if (await aiLeft(sql) <= 0) return { ok: false, why: "the day's free AI requests are used up", stop: true };
       continue;
     }
-    const wait = last + GAP_MS - Date.now();
-    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
-    last = Date.now();
+    // each request its own slot, also when several ask at once (4 Nov: the round's steps and stories side by side)
+    const at = Math.max(Date.now(), last + GAP_MS);
+    last = at;
+    if (at > Date.now()) await new Promise((r) => setTimeout(r, at - Date.now()));
     usedThisRun++;
     if (sql) await count(sql, counter(model));
     let res = isGoogle(model)

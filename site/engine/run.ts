@@ -25,7 +25,7 @@ import { indiaDate, photoOf, saveLive } from "./publish.ts";
 import { alertBreaking } from "../lib/push.ts";
 import { birthdays, leaders } from "../lib/leaders.ts";
 import { fitsStory, freePhoto, leadPhoto } from "./wikiphoto.ts";
-import { cluster, placeTier, sameEvent, triage, type Triage } from "./triage.ts";
+import { cluster, nearEvent, placeTier, sameEvent, triage, type Triage } from "./triage.ts";
 
 const url = process.env.DATABASE_URL;
 if (!url) { console.error("DATABASE_URL is not set (a repository secret)"); process.exit(1); }
@@ -44,7 +44,9 @@ const deadline = started + 8 * 60_000;
 /** free requests kept back each day for the hourly run's English (site/pipeline/run.ts) */
 const RESERVE = 120;
 /** at most this many stories written in one run (each takes ~3-5 requests) */
-const PER_RUN = 8;
+const PER_RUN = 12;
+/** stories written side by side */
+const WRITERS = 3;
 
 const CORRECTION = /\b(corrigendum|correction|corrected|withdrawn|retracted|clarification|erratum)\b|સુધારો|સ્પષ્ટતા|शुद्धिपत्र|संशोधन|स्पष्टीकरण/i;
 
@@ -88,8 +90,11 @@ async function advance() {
 
 /** stories written this round, across its two writing passes */
 let wrote = 0;
-/** Steps 4 and 5: the most important confirmed events, written, checked, translated, saved; no story is begun
- *  after `until` (the first pass stops at three minutes, so the new items are still sorted that round). */
+/** the events being written right now, so two writers don't take one event told two ways at once */
+const writing: { event: string; keys: string[] }[] = [];
+
+/** Steps 4 and 5: the most important confirmed events, written, checked, translated, saved, WRITERS at a time (4 Nov: one
+ *  at a time, a round wrote two or three stories while hundreds waited); no story is begun after `until`. */
 async function write(until = deadline) {
   const left = await aiLeft(sql);
   const can = Math.min(PER_RUN, Math.floor((left - RESERVE) / 5));
@@ -97,70 +102,88 @@ async function write(until = deadline) {
   // today's news first: a day-old event goes after anything newer, however big it scored
   const ready = await sql.query(`select * from clusters where state = 'confirmed'
     order by write_tries, first_seen > now() - interval '12 hours' desc, score desc, first_seen asc limit 400`);
-  for (const c of ready) {
-    if (wrote >= can || Date.now() > until) break;
-    const items = await itemsOf(c.id);
-    const g = gate(items, []);
-    // gone stale while it waited: settled here, or it keeps its place at the top of the list and nothing newer is reached
-    // (31 Oct: 29 Oct's biggest events held all 40 places and the site went almost quiet)
-    if (g.state !== "confirmed") { await sql.query(`update clusters set state = $2, reason = $3 where id = $1`, [c.id, g.state, g.why]); continue; }
-    const imp = importance(Math.max(...items.map((i) => i.triage.score)), c.tier, g.groups.length, g.official);
-    const level = levelOf(imp);
-    if (!level) { await sql.query(`update clusters set state = 'dropped', reason = 'too small for a story' where id = $1`, [c.id]); continue; }
-    const twin = await sameEvent(sql, { id: c.id, event: c.event, keys: c.keys ?? [] });
-    // not known whether it's already up: it waits for a later round
-    if (twin === "unsure") { log(`    the free models couldn't say whether it's already up: next run: ${c.event}`); continue; }
-    if (twin) {
-      // its reports join the story already up (the watch step reads them for changes) instead of a second story
-      await sql.query(`update items set cluster_id = $2 where cluster_id = $1`, [c.id, twin.id]);
-      await sql.query(`update clusters set state = 'dropped', reason = $2 where id = $1`, [c.id, `same event as ${twin.story}`]);
-      log(`    same event as ${twin.story}: ${c.event}`);
-      continue;
+  let next = 0, stopped = false;
+  const writer = async () => {
+    while (!stopped && wrote < can && Date.now() <= until && next < ready.length) {
+      const c = ready[next++];
+      const mine = { event: c.event as string, keys: (c.keys ?? []) as string[] };
+      // another writer has its twin: it waits for the next pass, when the twin is up and sameEvent finds it
+      if (writing.some((x) => nearEvent(x, mine))) continue;
+      writing.push(mine);
+      try {
+        const r = await writeOne(c);
+        if (r === "stop") stopped = true;
+        if (r === "busy") return;
+      } finally { writing.splice(writing.indexOf(mine), 1); }
     }
-    const src = await gather(items);
-    if (!src.length) { await sql.query(`update clusters set state = 'dropped', reason = 'no source text to write from' where id = $1`, [c.id]); continue; }
-    log(`  writing ${c.id} (${level}, ${imp}): ${c.event}`);
-    const res = await writeChecked(sql, src, level, indiaDate(), c.event);
-    wrote++;
-    // not written, or written and still failing its checks: it doesn't go up, and it's tried again up to three times
-    if (!res.ok) {
-      log(`    not written${"retry" in res && res.retry ? " (the free models are busy: next run)" : ""}: ${res.why}`);
-      if (res.stop || ("retry" in res && res.retry)) break;
-      // 29 Oct: a gold-price story the models kept getting wrong took four minutes of every round
-      await sql.query(`update clusters set write_tries = write_tries + 1,
-         state = case when write_tries >= 2 then 'dropped' else state end,
-         reason = case when write_tries >= 2 then 'not written in 3 tries' else reason end where id = $1`, [c.id]);
-      continue;
-    }
-    let w = res.written;
-    const checked = res.checked;
-    const id = `live-${c.id.slice(1)}`;
-    // past the round's time: the story goes up now and its English and Hindi come with a later round (translations())
-    const translated = needsTranslation(c.tier) && Date.now() < deadline;
-    // both at once: neither needs the other's answer
-    let [en, hi] = translated ? await Promise.all([translate(sql, w, "en", indiaDate()), translate(sql, w, "hi", indiaDate())]) : [null, null];
-    let photo = await photoOf(sql, src, id);
-    // no official photo: a file photo of the story's subject from Wikimedia Commons (not for sensitive news)
-    if (!photo && !c.sensitive) {
-      const free = await freePhoto(sql, w, id);
-      if (free) {
-        photo = free.photo;
-        w = { ...w, caption: free.caption.gu };
-        if (en) en = { ...en, caption: free.caption.en };
-        if (hi) hi = { ...hi, caption: free.caption.hi };
-        log(`    file photo: ${free.caption.en} (${free.photo.credit})`);
-      }
-    }
-    await saveLive(sql, { id, tier: c.tier, genres: c.genres, written: w, checked, src, importance: imp, status: "published",
-                          holdReason: null, en, hi, translated, photo });
-    await sql.query(`update stories set photo_tried = true where id = $1`, [id]);
-    await sql.query(`update clusters set state = $2, story_id = $3, reason = $4 where id = $1`, [c.id, "published", id, null]);
-    await touched(sql);
-    log(`    published: ${w.headline}`);
-    // breaking news: an alert to the phones that asked (lib/push.ts)
-    await alertBreaking(sql, { id, importance: imp, publishedAt: new Date().toISOString(), headline: { gu: w.headline, en: en?.headline ?? null, hi: hi?.headline ?? null } }, log)
-      .catch((e) => log(`    no alert: ${e instanceof Error ? e.message : e}`));
+  };
+  await Promise.all(Array.from({ length: WRITERS }, writer));
+}
+
+/** One confirmed event: settled, joined to its twin, or written and put up. */
+async function writeOne(c: Record<string, any>): Promise<"stop" | "busy" | void> {
+  const items = await itemsOf(c.id);
+  const g = gate(items, []);
+  // gone stale while it waited: settled here, or it keeps its place at the top of the list and nothing newer is reached
+  // (31 Oct: 29 Oct's biggest events held all 40 places and the site went almost quiet)
+  if (g.state !== "confirmed") { await sql.query(`update clusters set state = $2, reason = $3 where id = $1`, [c.id, g.state, g.why]); return; }
+  const imp = importance(Math.max(...items.map((i) => i.triage.score)), c.tier, g.groups.length, g.official);
+  const level = levelOf(imp);
+  if (!level) { await sql.query(`update clusters set state = 'dropped', reason = 'too small for a story' where id = $1`, [c.id]); return; }
+  const twin = await sameEvent(sql, { id: c.id, event: c.event, keys: c.keys ?? [] });
+  // not known whether it's already up: it waits for a later round
+  if (twin === "unsure") { log(`    the free models couldn't say whether it's already up: next run: ${c.event}`); return; }
+  if (twin) {
+    // its reports join the story already up (the watch step reads them for changes) instead of a second story
+    await sql.query(`update items set cluster_id = $2 where cluster_id = $1`, [c.id, twin.id]);
+    await sql.query(`update clusters set state = 'dropped', reason = $2 where id = $1`, [c.id, `same event as ${twin.story}`]);
+    log(`    same event as ${twin.story}: ${c.event}`);
+    return;
   }
+  const src = await gather(items);
+  if (!src.length) { await sql.query(`update clusters set state = 'dropped', reason = 'no source text to write from' where id = $1`, [c.id]); return; }
+  log(`  writing ${c.id} (${level}, ${imp}): ${c.event}`);
+  const res = await writeChecked(sql, src, level, indiaDate(), c.event);
+  wrote++;
+  // not written, or written and still failing its checks: it doesn't go up, and it's tried again up to three times
+  if (!res.ok) {
+    log(`    not written${"retry" in res && res.retry ? " (the free models are busy: next run)" : ""}: ${res.why}`);
+    if (res.stop) return "stop";
+    if ("retry" in res && res.retry) return "busy";
+    // 29 Oct: a gold-price story the models kept getting wrong took four minutes of every round
+    await sql.query(`update clusters set write_tries = write_tries + 1,
+       state = case when write_tries >= 2 then 'dropped' else state end,
+       reason = case when write_tries >= 2 then 'not written in 3 tries' else reason end where id = $1`, [c.id]);
+    return;
+  }
+  let w = res.written;
+  const checked = res.checked;
+  const id = `live-${c.id.slice(1)}`;
+  // past the round's time: the story goes up now and its English and Hindi come with a later round (translations())
+  const translated = needsTranslation(c.tier) && Date.now() < deadline;
+  // both at once: neither needs the other's answer
+  let [en, hi] = translated ? await Promise.all([translate(sql, w, "en", indiaDate()), translate(sql, w, "hi", indiaDate())]) : [null, null];
+  let photo = await photoOf(sql, src, id);
+  // no official photo: a file photo of the story's subject from Wikimedia Commons (not for sensitive news)
+  if (!photo && !c.sensitive) {
+    const free = await freePhoto(sql, w, id);
+    if (free) {
+      photo = free.photo;
+      w = { ...w, caption: free.caption.gu };
+      if (en) en = { ...en, caption: free.caption.en };
+      if (hi) hi = { ...hi, caption: free.caption.hi };
+      log(`    file photo: ${free.caption.en} (${free.photo.credit})`);
+    }
+  }
+  await saveLive(sql, { id, tier: c.tier, genres: c.genres, written: w, checked, src, importance: imp, status: "published",
+                        holdReason: null, en, hi, translated, photo });
+  await sql.query(`update stories set photo_tried = true where id = $1`, [id]);
+  await sql.query(`update clusters set state = $2, story_id = $3, reason = $4 where id = $1`, [c.id, "published", id, null]);
+  await touched(sql);
+  log(`    published: ${w.headline}`);
+  // breaking news: an alert to the phones that asked (lib/push.ts)
+  await alertBreaking(sql, { id, importance: imp, publishedAt: new Date().toISOString(), headline: { gu: w.headline, en: en?.headline ?? null, hi: hi?.headline ?? null } }, log)
+    .catch((e) => log(`    no alert: ${e instanceof Error ? e.message : e}`));
 }
 
 /** Step 8: the last day and a half's stories that went up without a photo get a file photo,
@@ -403,29 +426,38 @@ try {
   log("sources:");
   await step("sources");
   details.collect = await collect(sql, log, started + 4 * 60_000);
-  // the stories already up without their English or Hindi, before anything new is written (no batch begun after a minute)
-  log("translations:");
-  await step("translations");
-  details.translated = await translations(Date.now() + 60_000, true);
-  await step("duplicates");
-  details.deduped = await dedupe(Date.now() + 90_000);
-  await step("photo check");
-  details.photosOff = await photoFit(Date.now() + 60_000);
-  // the stories confirmed in earlier rounds written first, then the new items sorted (29 Oct: sorting slowed by the
-  // Gemmas shared with Aavtikal's desk took six minutes, writing began after the round's time and no story went up
-  // for hours); no story is begun after three minutes, the sorting has two minutes at least (in run 144 the writing
-  // took seven and sorted nothing), and what it confirms is written after the checks if time is left
-  log("writing:");
-  await step("writing");
-  await write(started + 3 * 60_000);
-  log("triage:");
-  await step("triage");
-  const left = await aiLeft(sql);
-  details.triage = await triage(sql, log, Math.max(0, Math.min(6, Math.floor((left - RESERVE) / 10))), Math.min(deadline - 60_000, Math.max(started + 5 * 60_000, Date.now() + 2 * 60_000)));
-  await cluster(sql, log);
-  log("checks:");
-  await step("checks");
-  await advance();
+  // the round's work side by side (4 Nov: one step after another, the sorting and the checks left the writing two or three
+  // minutes and a round put up two or three stories): the stories already up without their English or Hindi (no batch
+  // begun after a minute), the copies and the file photos, the writing of what earlier rounds confirmed, and the sorting
+  // of the new items and their checks. Each has its own time; the free models take the requests in turn (ai.ts).
+  await Promise.all([
+    (async () => {
+      log("translations:");
+      await step("translations");
+      details.translated = await translations(Date.now() + 60_000, true);
+      await step("duplicates");
+      details.deduped = await dedupe(Date.now() + 90_000);
+    })(),
+    (async () => {
+      await step("photo check");
+      details.photosOff = await photoFit(Date.now() + 60_000);
+    })(),
+    (async () => {
+      log("writing:");
+      await step("writing");
+      await write(started + 5 * 60_000);
+    })(),
+    (async () => {
+      log("triage:");
+      await step("triage");
+      const left = await aiLeft(sql);
+      details.triage = await triage(sql, log, Math.max(0, Math.min(8, Math.floor((left - RESERVE) / 10))), Math.min(deadline - 60_000, started + 5 * 60_000));
+      await cluster(sql, log);
+      log("checks:");
+      await step("checks");
+      await advance();
+    })(),
+  ]);
   log("writing what was confirmed:");
   await step("writing again");
   await write();
@@ -433,9 +465,9 @@ try {
   await step("refiling");
   details.refiled = await refile();
   await step("photos");
-  details.photos = await photos();
-  await step("translations again");
-  details.translated = (details.translated as number) + await translations();
+  const [photosAdded, again] = await Promise.all([photos(), translations()]);
+  details.photos = photosAdded;
+  details.translated = (details.translated as number) + again;
   await step("watch");
   await watch();
   await step("birthdays");
