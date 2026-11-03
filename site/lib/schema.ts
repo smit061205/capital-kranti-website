@@ -174,6 +174,21 @@ export const SCHEMA = [
      added_at timestamptz not null default now(),
      added_by text not null default ''
    )`,
+  // the Instagram sets, made twice a day and approved by the editor (lib/insta.ts, engine/insta.ts; the user, 3 Nov)
+  `create table if not exists insta_sets (
+     id text primary key,
+     edition text not null,                         -- 2026-11-03-am | 2026-11-03-pm
+     tier text not null,
+     state text not null,                           -- making | waiting | approved | posted | expired | failed
+     cards jsonb not null,
+     caption text not null,
+     image text,                                    -- the cards as one tall picture in the photo store
+     made_at timestamptz not null default now(),
+     posted_at timestamptz,
+     post_url text,
+     note text not null default ''
+   )`,
+  `create index if not exists insta_sets_edition on insta_sets (edition)`,
 ];
 
 // the schema's version, kept in the database: a reader checks it with one

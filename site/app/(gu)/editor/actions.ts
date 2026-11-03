@@ -10,6 +10,8 @@ import { help, type Draft, type Help } from "@/lib/aihelp.ts";
 import { GENRES, TIERS } from "@/lib/sections.ts";
 import { dropLeader, findLeader, saveLeader, type FoundLeader, type Leader } from "@/lib/leaders.ts";
 import { addAd, dropAd } from "@/lib/classifieds.ts";
+import { captionFor, getSet, MIN_KEPT, saveSet } from "@/lib/insta.ts";
+import { instagramOn, postSet } from "@/lib/instagram.ts";
 
 async function signedIn() {
   const who = editorOf((await cookies()).get(COOKIE)?.value);
@@ -127,3 +129,62 @@ export async function addAdAction(back: string, f: FormData) {
   redirect(`/editor?${back ? `${back}&` : ""}ad=${ok ? 1 : 0}#ads`);
 }
 export async function dropAdAction(id: string) { const { sql } = await signedIn(); if (sql) await dropAd(sql, id); renew(); }
+
+// Instagram's sets (Insta.tsx, lib/insta.ts)
+async function instaSet(id: string) {
+  const { sql } = await signedIn();
+  const set = sql ? await getSet(sql, id) : null;
+  return { sql: sql!, set };
+}
+/** a card taken out, or given its next photo: the pictures are made again by the engine's next round */
+export async function dropInstaCard(id: string, i: number) {
+  const { sql, set } = await instaSet(id);
+  if (!set || set.state !== "waiting" || set.cards.length <= MIN_KEPT || !set.cards[i]) return refresh();
+  set.cards.splice(i, 1);
+  set.caption = captionFor(set.tier, set.edition, set.cards);
+  set.state = "making";
+  await saveSet(sql, set);
+  refresh();
+}
+export async function nextInstaPhoto(id: string, i: number) {
+  const { sql, set } = await instaSet(id);
+  const c = set?.cards[i];
+  if (!set || set.state !== "waiting" || !c || c.options.length < 2) return refresh();
+  c.pick = (c.pick + 1) % c.options.length;
+  set.caption = captionFor(set.tier, set.edition, set.cards);
+  set.state = "making";
+  await saveSet(sql, set);
+  refresh();
+}
+export async function captionInsta(id: string, f: FormData) {
+  const { sql, set } = await instaSet(id);
+  const caption = String(f.get("caption") ?? "").replace(/\r\n/g, "\n").trim().slice(0, 2200);
+  if (set && caption && set.state !== "posted") { set.caption = caption; await saveSet(sql, set); }
+  refresh();
+}
+/** approved: put up at once when the account is connected, else kept approved for "Post now" */
+export async function approveInsta(id: string) {
+  const { sql, set } = await instaSet(id);
+  if (!set || !set.image || !["waiting", "approved", "failed"].includes(set.state)) return refresh();
+  set.state = "approved";
+  set.note = "";
+  await saveSet(sql, set);
+  if (instagramOn()) {
+    try {
+      set.postUrl = await postSet(set);
+      set.state = "posted";
+      set.postedAt = new Date().toISOString();
+      revalidatePath("/insta");
+    } catch (e) {
+      set.state = "failed";
+      set.note = `ઇન્સ્ટાગ્રામે ના પાડી: ${e instanceof Error ? e.message : e}`.slice(0, 300);
+    }
+    await saveSet(sql, set);
+  }
+  refresh();
+}
+export async function skipInsta(id: string) {
+  const { sql, set } = await instaSet(id);
+  if (set && set.state !== "posted") { set.state = "expired"; await saveSet(sql, set); }
+  refresh();
+}

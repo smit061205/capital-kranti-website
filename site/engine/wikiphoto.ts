@@ -31,7 +31,7 @@ Give the exact title of its English Wikipedia article, and its name in Gujarati,
 If the story has no such subject, or you are not sure of the article, answer {"title": ""}.
 Reply with JSON only: {"title": "", "gu": "", "en": "", "hi": ""}`;
 
-async function subjectOf(sql: Sql, w: Written): Promise<Subject | null> {
+export async function subjectOf(sql: Sql, w: Written): Promise<Subject | null> {
   const res = await askJson(sql, { system: ASK, user: `${w.headline}\n${w.deck}\n\n${w.body.slice(0, 1500)}`, maxTokens: 300 }, (v) => {
     const x = v as Partial<Subject>;
     if (typeof x?.title !== "string") return null;

@@ -9,12 +9,15 @@ import s from "./editor.module.css";
 import { W } from "./words.ts";
 import Birthday from "./Birthday.tsx";
 import LeaderForm from "./LeaderForm.tsx";
+import Insta from "./Insta.tsx";
 import { addAdAction, dropAdAction, dropLeaderAction, pauseEngine, publishFeature, putBackStory, removeFeature, removeStory } from "./actions.ts";
 import { db } from "@/lib/db.ts";
 import { COOKIE, desk, editorOf, findFeatures, findStories, PAGE, signInReady, type Found, type Show } from "@/lib/editor.ts";
 import { beatName, isBeat } from "@/lib/flagship.ts";
 import { birthdays, draftEmail, leaders } from "@/lib/leaders.ts";
 import { ads, DAYS, KINDS, KIND_NAMES } from "@/lib/classifieds.ts";
+import { recentSets } from "@/lib/insta.ts";
+import { instagramOn } from "@/lib/instagram.ts";
 import { dateText, num, timeText, shortDate, todayIst } from "@/lib/format.ts";
 
 export const dynamic = "force-dynamic";
@@ -49,7 +52,8 @@ export default async function Editor({ searchParams }: { searchParams: Promise<Q
   const count = (v?: string) => Math.min(500, Math.max(PAGE, Math.round(Number(v) / PAGE) * PAGE || PAGE));
   const n = count(q.n), fn = count(q.fn);
   const sql = db();
-  const [d, news, arts, people, adList] = await Promise.all([desk(sql), findStories(sql, words, show, n), findFeatures(sql, fwords, fshow, fn), leaders(sql), ads(sql, true)]);
+  const [d, news, arts, people, adList, instaSets] = await Promise.all([desk(sql), findStories(sql, words, show, n), findFeatures(sql, fwords, fshow, fn), leaders(sql), ads(sql, true),
+    sql ? recentSets(sql, 20) : Promise.resolve([])]);
   const bday = birthdays(people);
 
   // a link to this page with some of its asks changed (the rest kept)
@@ -125,6 +129,7 @@ export default async function Editor({ searchParams }: { searchParams: Promise<Q
       </header>
       <nav className={s.jump} aria-label={w.jump}>
         <a href="#leaders">{w.leadersShort}{bday.today.length > 0 && ` (${nn(bday.today.length)})`}</a>
+        <a href="#insta">{lang === "gu" ? "ઇન્સ્ટાગ્રામ" : "Instagram"}</a>
         <a href="#ads">{w.adsShort}</a>
         <a href="#news" className={s.jCK}>{w.ck}</a>
         <a href="#aavtikal" className={s.jAV}>{w.av}</a>
@@ -167,6 +172,8 @@ export default async function Editor({ searchParams }: { searchParams: Promise<Q
         ) : <p className={s.empty}>{w.leadersNone}</p>}
         <details className={s.addLeader}><summary className={s.writeBtn}>{w.addLeader}</summary><LeaderForm lang={lang} /></details>
       </section>
+
+      <Insta lang={lang} sets={instaSets} on={instagramOn()} />
 
       <section className={s.block} aria-labelledby="ads">
         <h2 id="ads">{w.ads}</h2>
