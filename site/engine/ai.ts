@@ -15,20 +15,27 @@ import { count } from "../lib/write.ts";
 type Sql = NeonQueryFunction<false, false>;
 const KEY = process.env.OPENROUTER_API_KEY ?? "";
 const GOOGLE_KEY = process.env.GOOGLE_AI_KEY ?? "";
+/** Groq's free plan (the user's key, 4 Nov), for the short English jobs: sorting the new items, "is this the same event?",
+ *  the photo questions. They took the Gemmas' 16,000 tokens a minute from the writing and checking. */
+const GROQ_KEY = process.env.GROQ_API_KEY ?? "";
+const GROQ = "https://api.groq.com/openai/v1";
 const GOOGLE = "https://generativelanguage.googleapis.com/v1beta";
 const isGoogle = (m: string) => m.startsWith("google:");
+const isGroq = (m: string) => m.startsWith("groq:");
+/** the route a model is reached by: each has its own requests a minute */
+const route = (m: string) => (isGoogle(m) ? "google" : isGroq(m) ? "groq" : "openrouter");
 /** extra length for Gemma's thinking, on top of the answer's own */
 const GOOGLE_THINKING_ROOM = 8192;
 /** how much each Gemma may think, as aiprobe.ts found it accepts (none = its default) */
 const thinkingOf = (model: string) => WEBSITE.googleThinking[model.slice(7)] ?? null;
 /** which daily allowance a model's requests count against */
-const counter = (m: string) => (isGoogle(m) ? "ai_google" : "ai_free");
-const ceiling = (m: string) => (isGoogle(m) ? WEBSITE.dailyGoogleRequests : WEBSITE.dailyFreeRequests);
-/** the free routes allow 20-30 requests a minute */
+const counter = (m: string) => (isGoogle(m) ? "ai_google" : isGroq(m) ? "ai_groq" : "ai_free");
+const ceiling = (m: string) => (isGoogle(m) ? WEBSITE.dailyGoogleRequests : isGroq(m) ? WEBSITE.dailyGroqRequests : WEBSITE.dailyFreeRequests);
+/** the free routes allow 20-30 requests a minute, each its own */
 const GAP_MS = 2500;
 
 let models: string[] | null = null;
-let last = 0;
+const last: Record<string, number> = {};
 let usedThisRun = 0;
 export const aiUsed = () => usedThisRun;
 /** Free models are shared by everyone: one its provider says is busy ("temporarily
@@ -66,10 +73,16 @@ async function callGoogle(model: string, a: { system: string; user: string; temp
   }
 }
 
-/** One request, once: no retrying here (the caller moves to the next model). */
+/** One request, once: no retrying here (the caller moves to the next model). OpenRouter's, or Groq's (the same shape). */
 async function call(model: string, body: Record<string, unknown>, seconds: number): Promise<Response> {
   try {
-    const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const res = isGroq(model)
+      ? await fetch(`${GROQ}/chat/completions`, {
+          method: "POST", signal: AbortSignal.timeout(seconds * 1000),
+          headers: { authorization: `Bearer ${GROQ_KEY}`, "content-type": "application/json" },
+          body: JSON.stringify({ model: model.slice(5), ...body }),
+        })
+      : await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST", signal: AbortSignal.timeout(seconds * 1000),
       headers: { authorization: `Bearer ${KEY}`, "content-type": "application/json", "http-referer": WEBSITE.url, "x-title": "Capital Kranti website" },
       body: JSON.stringify({ model, ...body }),
@@ -93,6 +106,21 @@ async function googleModels(): Promise<string[]> {
   } catch {
     return WEBSITE.googleModels.map((id) => `google:${id}`);
   }
+}
+
+/** Groq's models for this key, the site's named ones in their order (a model Groq has retired is passed over). */
+let groq: string[] | null = null;
+export async function groqModels(): Promise<string[]> {
+  if (groq) return groq;
+  if (!GROQ_KEY) return (groq = []);
+  try {
+    const res = await fetch(`${GROQ}/models`, { headers: { authorization: `Bearer ${GROQ_KEY}` }, signal: AbortSignal.timeout(20_000) });
+    const ids = new Set((((await res.json()) as { data?: { id: string }[] }).data ?? []).map((m) => m.id));
+    groq = WEBSITE.groqModels.filter((id) => ids.has(id)).map((id) => `groq:${id}`);
+  } catch {
+    groq = WEBSITE.groqModels.map((id) => `groq:${id}`);
+  }
+  return groq;
 }
 
 /** The free models to use, best first: Google's (the paper's own quota), then
@@ -130,6 +158,8 @@ export interface Ask {
   avoid?: string;
   /** ask only this model (aiprobe.ts) */
   only?: string;
+  /** a short English job: Groq's models first, the Gemmas after */
+  small?: boolean;
   temperature?: number;
   maxTokens?: number;
 }
@@ -137,10 +167,13 @@ export type AiResult<T> = { ok: true; value: T; model: string } | { ok: false; w
 
 /** One JSON answer from the free models, tried in order until one gives valid JSON that `check` accepts. */
 export async function askJson<T>(sql: Sql | null, a: Ask, check: (v: unknown) => T | null): Promise<AiResult<T>> {
-  if (!KEY && !GOOGLE_KEY) return { ok: false, why: "no GOOGLE_AI_KEY or OPENROUTER_API_KEY", stop: true };
+  if (!KEY && !GOOGLE_KEY && !GROQ_KEY) return { ok: false, why: "no GOOGLE_AI_KEY or OPENROUTER_API_KEY", stop: true };
   const list = await freeModels();
-  // the checker starts from the second model of the best route, so it differs from the writer
-  const order = a.only ? [a.only] : a.role === "checker" && list.length > 1 ? [list[1], list[0], ...list.slice(2)] : list;
+  const fast = await groqModels();
+  // the checker starts from the second model of the best route, so it differs from the writer; Groq's last, when every
+  // Gemma is busy (never for the writing or the translations: their Gujarati and Hindi stay the Gemmas' and Gemini's)
+  const order = a.only ? [a.only] : a.small ? [...fast, ...list]
+    : a.role === "checker" ? [...(list.length > 1 ? [list[1], list[0], ...list.slice(2)] : list), ...fast] : list;
   const whys: string[] = [];
   let why = "no free model answered";
   // every Gemma busy: wait for the first to rest (up to 90 s), else give up for this run
@@ -160,8 +193,8 @@ export async function askJson<T>(sql: Sql | null, a: Ask, check: (v: unknown) =>
       continue;
     }
     // each request its own slot, also when several ask at once (4 Nov: the round's steps and stories side by side)
-    const at = Math.max(Date.now(), last + GAP_MS);
-    last = at;
+    const at = Math.max(Date.now(), (last[route(model)] ?? 0) + GAP_MS);
+    last[route(model)] = at;
     if (at > Date.now()) await new Promise((r) => setTimeout(r, at - Date.now()));
     usedThisRun++;
     if (sql) await count(sql, counter(model));
@@ -169,10 +202,11 @@ export async function askJson<T>(sql: Sql | null, a: Ask, check: (v: unknown) =>
       ? await callGoogle(model, { system: a.system, user: a.user, temperature: a.temperature ?? 0.2, maxTokens: a.maxTokens ?? 3000 }, 200)
       : await call(model, {
       temperature: a.temperature ?? 0.2, max_tokens: a.maxTokens ?? 3000, response_format: { type: "json_object" },
-      // thinking models spend their tokens thinking first: keep it short so the answer fits
-      reasoning: { effort: "low", exclude: true },
+      // thinking models spend their tokens thinking first: keep it short so the answer fits (Groq names it its own way,
+      // and only for the models that think)
+      ...(isGroq(model) ? (/gpt-oss/.test(model) ? { reasoning_effort: "low" } : {}) : { reasoning: { effort: "low", exclude: true } }),
       messages: [{ role: "system", content: a.system }, { role: "user", content: a.user }],
-    }, 120);
+    }, isGroq(model) ? 60 : 120);
     // Google's "Internal error" (500) means try again: once, after a few seconds (26 Oct: most were passing)
     if (isGoogle(model) && res.status === 500) {
       await new Promise((r) => setTimeout(r, 4000));
@@ -184,7 +218,7 @@ export async function askJson<T>(sql: Sql | null, a: Ask, check: (v: unknown) =>
       why = `${model}: ${res.status} ${(await res.text()).slice(0, 160)}`;
       whys.push(why);
       // a day's allowance used up (OpenRouter's account, or a Google model's per-day quota): that model rests till tomorrow
-      if (res.status === 429 && /per-?day|free-models-per-day|PerDay/i.test(why)) { resting.set(model, Date.now() + 24 * 3600_000); continue; }
+      if (res.status === 429 && /per[- ]?day|free-models-per-day|PerDay|\(RPD\)/i.test(why)) { resting.set(model, Date.now() + 24 * 3600_000); continue; }
       // busy, gone, or too slow: set aside for a while, ask the next
       // ("rate-limited upstream" asks to retry shortly: a minute; anything else longer)
       if ([404, 408, 429, 500, 502, 503, 504].includes(res.status)) resting.set(model, Date.now() + (res.status === 429 || res.status === 500 ? 60_000 : REST_MS));

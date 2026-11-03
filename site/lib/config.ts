@@ -13,6 +13,10 @@ export const WEBSITE = {
   googleThinking: { "gemma-4-26b-a4b-it": { thinkingLevel: "minimal" } } as Record<string, Record<string, unknown>>,
   dailyGoogleRequests: 12000,
   dailyFreeRequests: 900,
+  // Groq's free plan (the user's key, GROQ_API_KEY; 4 Nov) for the short English jobs, tried in order: each model has its
+  // own requests a minute and a day, and one that says its day is used up rests till tomorrow (ai.ts)
+  groqModels: ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "meta-llama/llama-4-scout-17b-16e-instruct", "openai/gpt-oss-20b", "llama-3.1-8b-instant"],
+  dailyGroqRequests: 8000,
   dailyUploads: 50,
   // Aavtikal's desk (engine/desk.ts; the user, 29 Oct): deep explainers for AI, Tech and Science (never Politics),
   // written by Gemini Flash on Google's free tier, 15 a day (the user, 30 Oct; 10 before); more on the days named
