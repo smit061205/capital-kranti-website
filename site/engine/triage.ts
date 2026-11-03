@@ -80,7 +80,7 @@ function checkBatch(n: number) {
 /** One batch through a free model (no database). */
 export async function triageBatch(sql: Sql | null, batch: TriageInput[]) {
   const user = batch.map((b) => `${b.i}. [${b.source}${b.factcheck ? ", factcheck" : ""}, ${b.lang}] ${b.title}${b.summary ? ` -- ${b.summary.slice(0, 220)}` : ""}`).join("\n");
-  const res = await askJson(sql, { system: SYSTEM, user, maxTokens: 8000 }, checkBatch(batch.length));
+  const res = await askJson(sql, { system: SYSTEM, user, maxTokens: 8000, small: true }, checkBatch(batch.length));
   if (res.ok) for (const [i, tr] of res.value) tr.tier = placeTier(tr.tier, `${batch[i - 1].title} ${batch[i - 1].summary}`);
   return res;
 }
@@ -173,7 +173,7 @@ export async function sameEvent(sql: Sql, c: { id: string; event: string; keys: 
     `select cluster_id, string_agg(left(title, 140), ' | ') as titles from (select cluster_id, title, row_number() over (partition by cluster_id order by seen_at) as n
        from items where cluster_id = any($1::text[])) t where n <= 2 group by cluster_id`, [[c.id, ...near.map((r) => r.id)]]);
   const told = (id: string, event: string) => { const t = heads.find((h) => h.cluster_id === id)?.titles; return t ? `${event} (reports: ${t})` : event; };
-  const res = await askJson(sql, { system: SAME, user: `NEW: ${told(c.id, c.event)}\n\nEARLIER:\n${near.map((r, i) => `${i + 1}. ${told(r.id, r.event)}`).join("\n")}`, maxTokens: 60 },
+  const res = await askJson(sql, { system: SAME, user: `NEW: ${told(c.id, c.event)}\n\nEARLIER:\n${near.map((r, i) => `${i + 1}. ${told(r.id, r.event)}`).join("\n")}`, maxTokens: 60, small: true },
     (v) => { const n = Number((v as { same?: unknown })?.same); return Number.isInteger(n) && n >= 0 && n <= near.length ? n : null; });
   if (!res.ok) return "unsure";
   return res.value > 0 ? near[res.value - 1] : null;

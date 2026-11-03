@@ -18,7 +18,7 @@ import { WEBSITE } from "../lib/config.ts";
 import { ensureSchema } from "../lib/schema.ts";
 import { pollUpdates, tell } from "../lib/telegram.ts";
 import { touched } from "../lib/write.ts";
-import { aiLeft, aiUsed, freeModels } from "./ai.ts";
+import { aiLeft, aiUsed, freeModels, groqModels } from "./ai.ts";
 import { collect } from "./collect.ts";
 import { gate, gather, importance, levelOf, needsTranslation, translate, writeChecked, type ClusterItem, type Debunk } from "./newsroom.ts";
 import { indiaDate, photoOf, saveLive } from "./publish.ts";
@@ -422,7 +422,7 @@ const guard = setTimeout(async () => {
   process.exit(1);
 }, 13 * 60_000);
 try {
-  log(`engine run ${run.id}; free models: ${(details.models as string[]).join(", ")}`);
+  log(`engine run ${run.id}; free models: ${(details.models as string[]).join(", ")}${(await groqModels()).length ? `; for the short jobs: ${(await groqModels()).join(", ")}` : ""}`);
   await settleWaiting();
   await step("presses");
   details.presses = await pollUpdates(sql);

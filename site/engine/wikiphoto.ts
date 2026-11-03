@@ -32,7 +32,7 @@ If the story has no such subject, or you are not sure of the article, answer {"t
 Reply with JSON only: {"title": "", "gu": "", "en": "", "hi": ""}`;
 
 export async function subjectOf(sql: Sql, w: Written): Promise<Subject | null> {
-  const res = await askJson(sql, { system: ASK, user: `${w.headline}\n${w.deck}\n\n${w.body.slice(0, 1500)}`, maxTokens: 300 }, (v) => {
+  const res = await askJson(sql, { system: ASK, user: `${w.headline}\n${w.deck}\n\n${w.body.slice(0, 1500)}`, maxTokens: 300, small: true }, (v) => {
     const x = v as Partial<Subject>;
     if (typeof x?.title !== "string") return null;
     return { title: x.title.trim(), gu: (x.gu ?? "").trim(), en: (x.en ?? "").trim(), hi: (x.hi ?? "").trim() };
@@ -83,7 +83,7 @@ view of a place fits a story about that place. Reply with JSON only: {"fits": tr
 /** Whether a file photo suits the story (2 Nov: a fruit market in Hodeidah beside a strike on its port); null when the
  *  free models couldn't say. */
 export async function fitsStory(sql: Sql, w: { headline: string; deck: string }, subject: string, about: string): Promise<boolean | null> {
-  const res = await askJson(sql, { system: FIT, user: `STORY: ${w.headline}\n${w.deck}\n\nPHOTO SUBJECT: ${subject}\nPHOTO DESCRIPTION: ${about || "(none)"}`, maxTokens: 40 },
+  const res = await askJson(sql, { system: FIT, user: `STORY: ${w.headline}\n${w.deck}\n\nPHOTO SUBJECT: ${subject}\nPHOTO DESCRIPTION: ${about || "(none)"}`, maxTokens: 40, small: true },
     (v) => (typeof (v as { fits?: unknown })?.fits === "boolean" ? (v as { fits: boolean }).fits : null));
   return res.ok ? res.value : null;
 }

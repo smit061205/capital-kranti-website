@@ -793,7 +793,7 @@ async function redoOne(sql: Sql, log: (s: string) => void): Promise<"none" | "re
   if (!(await geminiLeft(sql, "writer"))) return "stop";
   const topic = String(r.topic ?? (r.en as { headline?: string } | null)?.headline ?? r.headline).slice(0, 200);
   log(`again: ${r.id} (${topic})`);
-  const wiki = await askJson(sql, { system: WIKI, user: `${topic}\n${r.headline}`, maxTokens: 200 },
+  const wiki = await askJson(sql, { system: WIKI, user: `${topic}\n${r.headline}`, maxTokens: 200, small: true },
     (v) => { const t = (v as { titles?: unknown[] })?.titles; return Array.isArray(t) ? t.map(String).filter(Boolean).slice(0, 4) : null; });
   const leads: Lead[] = ((r.sources ?? []) as { name?: string; url?: string; trust?: string }[]).filter((s) => s.url && !/wikipedia\.org/.test(s.url))
     .slice(0, 4).map((s, i) => ({ n: i + 1, title: topic, url: s.url!, summary: "", from: s.name ?? hostOf(s.url!), official: s.trust === "official", at: "" }));
@@ -849,7 +849,7 @@ async function lookAgain(sql: Sql, log: (s: string) => void): Promise<"none" | "
   if (!r) return "none";
   const topic = String(r.topic ?? (r.en as Words3 | null)?.headline ?? r.headline).slice(0, 200);
   log(`pictures again: ${r.id}`);
-  const wiki = await askJson(sql, { system: WIKI, user: `${topic}\n${r.headline}`, maxTokens: 200 },
+  const wiki = await askJson(sql, { system: WIKI, user: `${topic}\n${r.headline}`, maxTokens: 200, small: true },
     (v) => { const t = (v as { titles?: unknown[] })?.titles; return Array.isArray(t) ? t.map(String).filter(Boolean).slice(0, 4) : null; });
   const leads: Lead[] = ((r.sources ?? []) as { name?: string; url?: string; trust?: string }[]).filter((s) => s.url && !/wikipedia\.org/.test(s.url))
     .slice(0, 4).map((s, i) => ({ n: i + 1, title: topic, url: s.url!, summary: "", from: s.name ?? hostOf(s.url!), official: s.trust === "official", at: "" }));
