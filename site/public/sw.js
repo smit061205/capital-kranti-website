@@ -5,7 +5,7 @@
 // Photos: kept once fetched, the last 120.
 const V = "ck-v1";
 const PAGES = `${V}-pages`, FILES = `${V}-files`, PHOTOS = `${V}-photos`;
-const MAX_PAGES = 40, MAX_PHOTOS = 120;
+const MAX_PAGES = 40, MAX_PHOTOS = 120, WAIT = 4000;
 
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => {
@@ -65,14 +65,13 @@ self.addEventListener("fetch", (e) => {
   if (url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
 
   if (req.mode === "navigate") {
+    const net = fetch(req).then((res) => { e.waitUntil(keep(PAGES, req, res.clone(), MAX_PAGES)); return res; });
+    e.waitUntil(net.catch(() => {}));
     e.respondWith((async () => {
-      try {
-        const res = await fetch(req);
-        e.waitUntil(keep(PAGES, req, res.clone(), MAX_PAGES));
-        return res;
-      } catch {
-        return (await caches.match(req, { cacheName: PAGES })) || offlinePage();
-      }
+      const copy = await caches.match(req, { cacheName: PAGES });
+      if (!copy) return net.catch(offlinePage);
+      const late = new Promise((r) => setTimeout(r, WAIT, null));
+      return (await Promise.race([net.catch(() => null), late])) || copy;
     })());
     return;
   }
