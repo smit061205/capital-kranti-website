@@ -18,12 +18,12 @@ async function call(method: "GET" | "POST", path: string, params: Record<string,
 }
 
 const ready = async (id: string) => {
-  // a container is made from the pictures in a few seconds; up to a minute
+  // a container is made from the pictures in a few seconds; up to 40 seconds
   for (let i = 0; i < 20; i++) {
     const s = (await call("GET", id, { fields: "status_code" })).status_code as string;
     if (s === "FINISHED") return;
     if (s === "ERROR" || s === "EXPIRED") throw new Error(`Instagram couldn't use the pictures (${s})`);
-    await new Promise((r) => setTimeout(r, 3000));
+    await new Promise((r) => setTimeout(r, 2000));
   }
   throw new Error("Instagram took too long with the pictures");
 };
@@ -33,12 +33,11 @@ export async function postSet(set: InstaSet): Promise<string> {
   if (!instagramOn()) throw new Error("Instagram isn't connected yet");
   if (!set.image) throw new Error("the set has no pictures");
   const user = process.env.INSTAGRAM_USER_ID!;
-  const children: string[] = [];
-  for (let n = 1; n <= set.cards.length + 1; n++) {
-    const c = await call("POST", `${user}/media`, { image_url: `${SITE}${set.image}?card=${n}`, is_carousel_item: "true" });
-    children.push(c.id as string);
-  }
-  for (const id of children) await ready(id);
+  // all the cards at once, not one after another: the editor's button has a minute (4 Nov: one by one, a set of six
+  // ran past it and stayed "approved, not up yet")
+  const children = await Promise.all(Array.from({ length: set.cards.length + 1 }, async (_, i) =>
+    (await call("POST", `${user}/media`, { image_url: `${SITE}${set.image}?card=${i + 1}`, is_carousel_item: "true" })).id as string));
+  await Promise.all(children.map(ready));
   const carousel = await call("POST", `${user}/media`, { media_type: "CAROUSEL", children: children.join(","), caption: set.caption });
   await ready(carousel.id as string);
   const posted = await call("POST", `${user}/media_publish`, { creation_id: carousel.id as string });

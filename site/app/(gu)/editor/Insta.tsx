@@ -21,7 +21,7 @@ const WORDS = {
     nowBtn: "સેટ બનાવો", asked: (t: string) => `${t} વાગ્યે માગ્યો.`,
     queued: "રાહમાં: અડધી મિનિટમાં શરૂ થશે, પછી ૫ થી ૧૦ મિનિટ લાગે છે.",
     since: (m: string) => `શરૂ થયાને ${m} મિનિટ`, ago: (m: string) => `${m} મિનિટ પહેલાં માગ્યો`, live: "આ પાનું જાતે તાજું થતું રહે છે.", lastAsk: (t: string) => `${t} વાગ્યે માગેલો સેટ:`,
-    none: "આ વખતનો કોઈ સેટ નથી.", making: "ચિત્રો બની રહ્યાં છે: થોડી મિનિટમાં અહીં દેખાશે.", waiting: "મંજૂરીની રાહ", approved: "મંજૂર: મુકાવાનું બાકી",
+    none: "આ વખતનો કોઈ સેટ નથી.", making: "ચિત્રો બની રહ્યાં છે: થોડી મિનિટમાં અહીં દેખાશે.", waiting: "મંજૂરીની રાહ", approved: "મંજૂર: મુકાવાનું બાકી", going: "ઇન્સ્ટાગ્રામ પર મુકાઈ રહ્યો છે…",
     posted: "મુકાયો", failed: "મુકાયો નહીં", expired: "સમય ગયો",
     drop: "આ કાર્ડ હટાવો", next: "બીજો ફોટો", earlier: "← આગળ", later: "પાછળ →", caption: "ઇન્સ્ટાગ્રામ પરના શબ્દો", saveCaption: "શબ્દો સાચવો",
     approve: "મંજૂર કરો અને મૂકો", again: "હવે મૂકો", skip: "આ સેટ ન મૂકો", sure: "હા, ન મૂકો", see: "ઇન્સ્ટાગ્રામ પર જુઓ", last: "છેલ્લે મુકાયેલા",
@@ -40,7 +40,7 @@ const WORDS = {
     nowBtn: "Make the set", asked: (t: string) => `Asked for at ${t}.`,
     queued: "Waiting: it starts within half a minute, then takes 5 to 10 minutes.",
     since: (m: string) => `Started ${m} min ago`, ago: (m: string) => `asked ${m} min ago`, live: "This page renews itself.", lastAsk: (t: string) => `The set asked for at ${t}:`,
-    none: "No set this time.", making: "The pictures are being made: they show here in a few minutes.", waiting: "Waiting for you", approved: "Approved: not up yet",
+    none: "No set this time.", making: "The pictures are being made: they show here in a few minutes.", waiting: "Waiting for you", approved: "Approved: not up yet", going: "Going up on Instagram…",
     posted: "Posted", failed: "Not posted", expired: "Time passed",
     drop: "Take this card out", next: "Another photo", earlier: "← Earlier", later: "Later →", caption: "The words on Instagram", saveCaption: "Save the words",
     approve: "Approve and post", again: "Post now", skip: "Don't post this set", sure: "Yes, don't post", see: "See it on Instagram", last: "Posted lately",
@@ -66,7 +66,9 @@ export default function Insta({ lang, sets, settings, ask, news, progress, who }
   // the engine's progress, if it renewed it in the last five minutes (a run cut short leaves it behind)
   const working = progress && Date.now() - new Date(progress.at).getTime() < 5 * 60_000 ? progress : null;
   const mins = (iso: string) => nn(Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000)));
-  const busy = !!ask || !!working || current.some((x) => x.state === "making");
+  // going up on Instagram now: approved, and started (postedAt) within the button's minute and a half
+  const going = (x: InstaSet) => x.state === "approved" && !!x.postedAt && Date.now() - new Date(x.postedAt).getTime() < 90_000;
+  const busy = !!ask || !!working || current.some((x) => x.state === "making" || going(x));
   const bar = working && (
     <div className={s.progress}>
       <progress max={working.total} value={working.done} />
@@ -108,7 +110,7 @@ export default function Insta({ lang, sets, settings, ask, news, progress, who }
 
       {current.length ? current.map((set) => (
         <article key={set.id} className={s.card}>
-          <p className={s.tag}>{sectionName(set.tier, "gu")} · {editionName(set.edition)} · {w[set.state as "waiting"]}</p>
+          <p className={s.tag}>{sectionName(set.tier, "gu")} · {editionName(set.edition)} · {going(set) ? w.going : w[set.state as "waiting"]}</p>
           {set.note && <p className={s.why}>{set.note}</p>}
           {set.state === "making" || !set.image ? (
             <>
@@ -144,7 +146,7 @@ export default function Insta({ lang, sets, settings, ask, news, progress, who }
             </details>
           )}
           <div className={s.buttons}>
-            {set.image && set.state !== "making" && <form action={approveInsta.bind(null, set.id)}><button className={s.yes}>{set.state === "waiting" ? w.approve : w.again}</button></form>}
+            {set.image && set.state !== "making" && !going(set) && <form action={approveInsta.bind(null, set.id)}><button className={s.yes}>{set.state === "waiting" ? w.approve : w.again}</button></form>}
             <details className={s.confirm}><summary>{w.skip}</summary>
               <form action={skipInsta.bind(null, set.id)}><button className={s.no}>{w.sure}</button></form></details>
           </div>

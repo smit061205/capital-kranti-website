@@ -193,8 +193,11 @@ export async function captionInsta(id: string, f: FormData) {
 export async function approveInsta(id: string) {
   const { sql, set } = await instaSet(id);
   if (!set || !set.image || !["waiting", "approved", "failed"].includes(set.state)) return refresh();
+  // pressed again while it's going up: not put up twice (postedAt, while approved, is when it started going up)
+  if (set.state === "approved" && set.postedAt && Date.now() - new Date(set.postedAt).getTime() < 90_000) return refresh();
   set.state = "approved";
   set.note = "";
+  set.postedAt = instagramOn() ? new Date().toISOString() : null;
   await saveSet(sql, set);
   if (instagramOn()) {
     try {
@@ -204,6 +207,7 @@ export async function approveInsta(id: string) {
       revalidatePath("/insta");
     } catch (e) {
       set.state = "failed";
+      set.postedAt = null;
       set.note = `ઇન્સ્ટાગ્રામે ના પાડી: ${e instanceof Error ? e.message : e}`.slice(0, 300);
     }
     await saveSet(sql, set);
