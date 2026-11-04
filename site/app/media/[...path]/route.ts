@@ -7,6 +7,16 @@
 import { get } from "@vercel/blob";
 import sharp from "sharp";
 
+/** The original file, for making a copy of it: from the site's own address, which the CDN keeps for a year, so each
+ *  original is read from the store once, not once for every size and every card made from it (4 Nov: the store's 10,000
+ *  free reads a month were on course to run out in two weeks); from the store itself if that fails. */
+async function original(name: string, req: Request): Promise<ArrayBuffer | null> {
+  const r = await fetch(new URL(`/media/${name}`, req.url), { cache: "no-store" }).catch(() => null);
+  if (r?.ok) return r.arrayBuffer();
+  const got = await get(name, { access: "private" }).catch(() => null);
+  return got ? new Response(got.stream).arrayBuffer() : null;
+}
+
 const TYPES: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", pdf: "application/pdf" };
 
 export async function GET(req: Request, { params }: { params: Promise<{ path: string[] }> }) {
@@ -14,13 +24,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ path: st
   // the daily paper's photos, the e-paper and the live news photos (engine/publish.ts) by day; Aavtikal's photos (pipeline/features.ts) in their own folder
   const m = name.match(/^(?:(?:photos|epaper|live|instagram)\/\d{4}-\d{2}-\d{2}|aavtikal)\/[a-z0-9-]+\.(jpg|jpeg|png|pdf)$/);
   if (!m) return new Response("not found", { status: 404 });
-  const got = await get(name, { access: "private" }).catch(() => null);
-  if (!got) return new Response("not found", { status: 404 });
   const q = new URL(req.url).searchParams;
   const w = Number(q.get("w"));
   const card = Number(q.get("card"));
   if (name.startsWith("instagram/") && card >= 1 && card <= 12) {
-    const tall = sharp(await new Response(got.stream).arrayBuffer());
+    const file = await original(name, req);
+    if (!file) return new Response("not found", { status: 404 });
+    const tall = sharp(file);
     const { height = 0 } = await tall.metadata();
     if (card * 1350 > height) return new Response("not found", { status: 404 });
     const one = tall.extract({ left: 0, top: (card - 1) * 1350, width: 1080, height: 1350 });
@@ -28,9 +38,13 @@ export async function GET(req: Request, { params }: { params: Promise<{ path: st
     return new Response(new Uint8Array(out), { headers: { "content-type": w === 360 ? "image/webp" : "image/jpeg", "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable" } });
   }
   if ((w === 500 || w === 720 || w === 960) && m[1] !== "pdf") {
-    const small = await sharp(await new Response(got.stream).arrayBuffer()).resize({ width: w, withoutEnlargement: true }).webp({ quality: 76 }).toBuffer();
+    const file = await original(name, req);
+    if (!file) return new Response("not found", { status: 404 });
+    const small = await sharp(file).resize({ width: w, withoutEnlargement: true }).webp({ quality: 76 }).toBuffer();
     return new Response(new Uint8Array(small), { headers: { "content-type": "image/webp", "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable" } });
   }
+  const got = await get(name, { access: "private" }).catch(() => null);
+  if (!got) return new Response("not found", { status: 404 });
   return new Response(got.stream, {
     headers: {
       "content-type": TYPES[m[1]],

@@ -24,7 +24,7 @@ export interface Debunk { claim: string; keys: string[]; url: string; source: st
 // ---- §3.1: the checks before writing ----
 
 /** Older than this, an item isn't today's news (old news going round again). */
-const STALE_H = 48;
+export const STALE_H = 48;
 
 export type Gate =
   | { state: "confirmed"; groups: string[]; official: boolean; why: string }
