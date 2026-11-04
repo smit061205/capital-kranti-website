@@ -192,6 +192,8 @@ export const SCHEMA = [
   // every process so i can see what is happening")
   `create table if not exists insta_log (id bigserial primary key, at timestamptz not null default now(), who text not null, line text not null)`,
   `create index if not exists insta_log_at on insta_log (at desc)`,
+  // the set's post on the paper's Facebook Page too (lib/facebook.ts; the user, 4 Nov)
+  `alter table insta_sets add column if not exists fb_url text`,
   `create index if not exists insta_sets_edition on insta_sets (edition)`,
   // how many times a story's English or Hindi failed (engine/run.ts translations(): 4 Nov, two that kept failing took
   // five minutes of every round and no news was written)

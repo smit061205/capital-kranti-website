@@ -8,8 +8,8 @@ import { num } from "@/lib/format.ts";
 import s from "./editor.module.css";
 
 const WORDS = {
-  gu: { none: "હજી કંઈ નોંધાયું નથી.", help: "નવું ઉપર. દર થોડી સેકન્ડે જાતે તાજું થાય છે.", engine: "એન્જિન", instagram: "ઇન્સ્ટાગ્રામ", broken: "લોગ વંચાતો નથી:" },
-  en: { none: "Nothing yet.", help: "Newest first. It renews itself every few seconds.", engine: "Engine", instagram: "Instagram", broken: "The log can't be read:" },
+  gu: { none: "હજી કંઈ નોંધાયું નથી.", help: "નવું ઉપર. દર થોડી સેકન્ડે જાતે તાજું થાય છે.", engine: "એન્જિન", instagram: "ઇન્સ્ટાગ્રામ", facebook: "ફેસબુક", broken: "લોગ વંચાતો નથી:" },
+  en: { none: "Nothing yet.", help: "Newest first. It renews itself every few seconds.", engine: "Engine", instagram: "Instagram", facebook: "Facebook", broken: "The log can't be read:" },
 };
 
 export default function InstaLog({ lang, first }: { lang: "gu" | "en"; first: InstaLogLine[] }) {
@@ -44,7 +44,7 @@ export default function InstaLog({ lang, first }: { lang: "gu" | "en"; first: In
         <ol className={s.log}>{logs.map((l, i) => (
           <li key={`${l.at}-${i}`}>
             <time dateTime={l.at}>{clock(l.at)}</time>
-            <b>{l.who === "engine" ? w.engine : l.who === "instagram" ? w.instagram : l.who}</b>
+            <b>{l.who === "engine" || l.who === "instagram" || l.who === "facebook" ? w[l.who] : l.who}</b>
             <span>{l.line}</span>
           </li>
         ))}</ol>
