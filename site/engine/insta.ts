@@ -6,6 +6,7 @@
 // its section is made, or after 12 hours, and the pictures of old ones leave the photo store after four days.
 //   node --experimental-strip-types --no-warnings site/engine/insta.ts           (what is due)
 //   node --experimental-strip-types --no-warnings site/engine/insta.ts --now     (an edition now, whatever the hour: to try)
+//   node --experimental-strip-types --no-warnings site/engine/insta.ts --asked   (only if the editor asked for a set)
 import { createHash, randomBytes } from "node:crypto";
 import type { NeonQueryFunction } from "@neondatabase/serverless";
 import { del, put } from "@vercel/blob";
@@ -182,6 +183,8 @@ if (!process.env.BLOB_READ_WRITE_TOKEN) { console.log("no BLOB_READ_WRITE_TOKEN:
 
 const settings = await instaSettings(sql);
 const ask = await instaAsk(sql);
+// --asked: only a set the editor asked for (the round's first step); nothing else when there's none
+if (process.argv.includes("--asked") && !ask) process.exit(0);
 const recent = await recentSets(sql, 40);
 
 // the pictures of sets more than four days old leave the store (Instagram keeps its own copies)
