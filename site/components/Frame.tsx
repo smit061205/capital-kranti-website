@@ -61,8 +61,8 @@ export default async function Frame({ lang, path, section, active, bottomBar = t
       </ViewTransition>
       <ToTop label={t(lang, "toTop")} />
       <ServiceWorker />
-      {/* not on a story, where the reading bar has the bottom of the screen */}
-      {bottomBar && <InstallPrompt words={Object.fromEntries((["installTitle", "installText", "installBtn", "installIos", "later"] as const).map((k) => [k, t(lang, k)])) as Parameters<typeof InstallPrompt>[0]["words"]} />}
+      {/* on every page, stories too: most readers arrive straight on a story from Google or WhatsApp */}
+      <InstallPrompt words={Object.fromEntries((["installTitle", "installText", "installBtn", "installIos", "installSteps", "later"] as const).map((k) => [k, t(lang, k)])) as Parameters<typeof InstallPrompt>[0]["words"]} />
       <div className="foot"><div className="wrap">
         <footer>
           <Link prefetch={false} className="wm" href={L("/")}><b>{PAPER.gu.name}</b></Link>
