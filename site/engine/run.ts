@@ -233,7 +233,7 @@ async function writeOne(c: Record<string, any>): Promise<"stop" | "busy" | void>
 
 /** Step 8: the last day and a half's stories that went up without a photo get a file photo,
  *  the most important first, each looked for once (engine/wikiphoto.ts). */
-async function photos() {
+async function photos(until = finish) {
   // once: the stories looked for before the lookup read Wikipedia's resized-copy addresses
   // and India's open licence (29 Oct) are looked for again
   // and again on 4 Nov, when file photos of things and places and symbolic photos came in (wikiphoto.ts freePhoto)
@@ -248,7 +248,7 @@ async function photos() {
        and s.published_at > now() - interval '36 hours' order by s.importance desc nulls last, s.published_at desc limit 8`);
   let added = 0;
   for (const r of rows) {
-    if (Date.now() > finish) break;
+    if (Date.now() > until) break;
     let why: string | null = null;
     const free = await freePhoto(sql, { kicker: r.kicker, headline: r.headline, deck: r.deck, body: r.body, caption: "", model: "" }, r.id, (x) => { why = x; });
     await sql.query(
@@ -536,6 +536,9 @@ try {
     (async () => {
       await step("photo check");
       details.photosOff = await photoFit(Date.now() + 60_000);
+      // stories without a photo looked at again early too, beside the writing (4 Nov: at the round's end the time was
+      // always gone, and a hundred stories waited); it asks the quick models, not the writers'
+      details.photosEarly = await photos(started + 7 * 60_000);
     })(),
     (async () => {
       log("writing:");
