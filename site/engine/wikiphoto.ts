@@ -121,6 +121,8 @@ function freeOnes(pages: CommonsPage[], max: number): CommonsPicture[] {
     const licence = plain(meta.LicenseShortName?.value ?? "");
     if (!ii?.thumburl || !ii.thumbwidth || !ii.thumbheight || (ii.width ?? 0) < 500 || !FREE.test(licence)) continue;
     if (!/\.(jpe?g|png)$/i.test(pg.title) || /logo|icon|flag|symbol|seal|emblem|signature|coat of arms|wordmark|map of|locator/i.test(pg.title)) continue;
+    // and by what it shows (4 Nov: "National Livestock Mission logo" under a plain file name went up as a story's photo)
+    if (/\b(logo|logotype|icon|emblem|seal|insignia|coat of arms|wordmark|banner|poster|infographic|screenshot)\b/i.test(plain(meta.ImageDescription?.value ?? ""))) continue;
     if (ii.thumbheight > ii.thumbwidth * 1.6 || ii.thumbwidth > ii.thumbheight * 3.5) continue;
     const alt = plain(meta.ImageDescription?.value ?? "").slice(0, 160) || pg.title.replace(/^File:|\.\w+$/g, "");
     const artist = plain(meta.Artist?.value ?? "").slice(0, 80) || "Wikimedia Commons";
@@ -161,10 +163,11 @@ export async function commonsSearch(query: string, max = 4, width = 1200): Promi
 const PLAN = `You find a photo for a news story on an Indian news website, when the story has no photo of its own.
 Answer two ways, each with a short search (2-5 English words) and what the photo shows, as a caption in Gujarati,
 English and Hindi (a few words):
-1. "file": a real photo on Wikimedia Commons of the organisation, place or thing the story is about: a company's
-   aircraft, building or product, a government body's headquarters, the city or district for a story about the place
-   itself, a dam, a train, a ship. null for an accident, a crime, a death, a disaster, a victim, a private person, or
-   when no such photo would be accurate.
+1. "file": a real photo on Wikimedia Commons of the ONE organisation, place or thing NAMED in the story: that company's
+   own aircraft, building or product, that government body's headquarters, the named city or district for a story about
+   the place itself, the named dam, train or ship. The search must contain that name. A photo of the kind of thing (any
+   pharmaceutical plant, any ethanol plant, any farmer) is not a file photo: that is "symbolic". null for an accident, a
+   crime, a death, a disaster, a victim, a private person, or when no such photo would be accurate.
 2. "symbolic": a stock photo of the story's general topic, printed as a symbolic picture as Indian papers do: a court's
    gavel, a stock market screen, a farmer's field, a hospital ward, a classroom, rupee notes, rain on a road. Never a
    person's face, never a scene that could be taken for the event itself (no crash, wreckage, fire, blood, injured or
@@ -231,15 +234,19 @@ export async function freePhoto(sql: Sql, w: Written, storyId: string, note: (wh
       }
     }
     if (symbolic) {
-      if (!process.env.PEXELS_API_KEY) { note(file ? "no file photo suited; symbolic photos wait for the Pexels key" : "symbolic photos wait for the Pexels key"); return null; }
-      for (const p of (await pexels(symbolic.search)).slice(0, 3)) {
+      // Pexels' stock photos when its key is set, and free Commons photos of the kind of thing either way (4 Nov: a
+      // Pennsylvania drug plant went up as a "file photo" beside an Indian drug maker's story; it is a symbolic picture)
+      const stock = [...(await pexels(symbolic.search)).slice(0, 3),
+        ...(await commonsSearch(symbolic.search, 4, 1920)).sort((a, b) => Number(b.full >= 1200) - Number(a.full >= 1200)).slice(0, 2)
+          .map((p) => ({ ...commonsAt(p, 1920), alt: p.alt, credit: p.credit }))];
+      for (const p of stock) {
         const ok = await askJson(sql, { system: SYMBOLIC_FIT, user: `STORY: ${w.headline}\n${w.deck}\n\nPHOTO: ${p.alt || symbolic.en}`, maxTokens: 40, small: true },
           (v) => (typeof (v as { fits?: unknown })?.fits === "boolean" ? (v as { fits: boolean }).fits : null));
         if (!ok.ok || !ok.value) continue;
         return { photo: { url: p.url, width: p.width, height: p.height, credit: p.credit },
                  caption: { gu: `પ્રતીકાત્મક તસવીર: ${symbolic.gu}`, en: `Representative image: ${symbolic.en}`, hi: `प्रतीकात्मक तस्वीर: ${symbolic.hi}` } };
       }
-      note(file ? "no file or symbolic photo suited" : "no symbolic photo suited");
+      note(file ? "no file or symbolic photo suited" : `no symbolic photo suited${process.env.PEXELS_API_KEY ? "" : " (Pexels waits for its key)"}`);
       return null;
     }
     note(file ? "no file photo suited, and no symbolic one fits this story" : "no photo would be accurate (an accident, a crime, a person)");

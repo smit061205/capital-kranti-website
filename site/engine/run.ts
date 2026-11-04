@@ -242,6 +242,14 @@ async function photos(until = finish) {
     await sql.query(`update stories set photo_tried = false where origin = 'live' and photo is null and published_at > now() - interval '36 hours'`);
     await sql.query(`insert into state (key, value) values ('photo_retry_2', '1') on conflict (key) do nothing`);
   }
+  // once (4 Nov): a logo that went up as a file photo comes off, and the story is looked at again
+  const [logos] = await sql.query(`select value from state where key = 'photo_logo_off'`);
+  if (!logos) {
+    await sql.query(`update stories set photo = null, caption = '', photo_tried = false, updated_at = now(),
+        en = case when en is null then en else jsonb_set(en, '{caption}', '""') end, hi = case when hi is null then hi else jsonb_set(hi, '{caption}', '""') end
+      where origin = 'live' and published_at > now() - interval '3 days' and photo->>'credit' like '%Wikimedia Commons%' and coalesce(en->>'caption', '') ~* '\\mlogo\\M'`);
+    await sql.query(`insert into state (key, value) values ('photo_logo_off', '1') on conflict (key) do nothing`);
+  }
   const rows = await sql.query(
     `select s.id, s.kicker, s.headline, s.deck, s.body from stories s left join clusters c on c.story_id = s.id
       where s.origin = 'live' and s.status = 'published' and s.photo is null and not s.photo_tried and not coalesce(c.sensitive, false)
@@ -564,7 +572,9 @@ try {
   details.refiled = await refile();
   details.mended = await mendPublished();
   await step("photos");
-  const [photosAdded, again] = await Promise.all([photos(), translations(finish)]);
+  // a minute before the round's end: one story's photo search takes up to a minute and a half (4 Nov: begun at 12, it
+  // ran past the 13-minute stop and the round's last steps were lost)
+  const [photosAdded, again] = await Promise.all([photos(finish - 60_000), translations(finish)]);
   details.photos = photosAdded;
   details.translated = (details.translated as number) + again;
   await step("watch");

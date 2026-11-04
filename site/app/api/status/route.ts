@@ -61,7 +61,7 @@ export async function GET() {
     sql.query(`select to_char(published_at at time zone 'Asia/Kolkata', 'DD HH24') as hour, count(*)::int as n from stories
       where origin = 'live' and status = 'published' and published_at > now() - interval '24 hours' group by 1 order by 1`).catch(() => []),
     // what kind of photo the day's stories have, and why the others have none
-    sql.query(`select case when photo is null then coalesce(photo_why, 'not looked for yet') when photo->>'credit' like '%Pexels%' then 'symbolic photo'
+    sql.query(`select case when photo is null then coalesce(photo_why, 'not looked for yet') when caption like 'પ્રતીકાત્મક%' then 'symbolic photo'
         when photo->>'credit' like '%Wikimedia Commons%' then 'file photo' else 'official photo' end as what, count(*)::int as n from stories
       where origin = 'live' and status = 'published' and published_at > now() - interval '24 hours' group by 1 order by 2 desc`).catch(() => []),
   ]);
