@@ -64,7 +64,7 @@ export async function GET() {
   // the database questions that send the most rows, to cut what the database sends out (4 Nov: Neon's free 5 GB a month
   // ran out in four days); their wording is the code's own, with $1 for the values
   const heavy = async () => (await sql.query(`select calls::int, rows::bigint::text as rows, round(mean_exec_time)::int as ms, left(regexp_replace(query, '\\s+', ' ', 'g'), 160) as query
-      from pg_stat_statements where dbid = (select oid from pg_database where datname = current_database()) order by rows desc limit 15`));
+      from pg_stat_statements where dbid = (select oid from pg_database where datname = current_database()) order by pg_stat_statements.rows desc limit 15`));
   const reads = await heavy().catch(async () => {
     await sql.query(`create extension if not exists pg_stat_statements`).catch(() => null);
     return heavy().catch((e) => String(e));
