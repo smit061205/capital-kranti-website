@@ -237,10 +237,13 @@ async function askFree<T>(sql: Sql | null, a: Ask, check: (v: unknown) => T | nu
       res = await callGoogle(model, { system: a.system, user: a.user, temperature: a.temperature ?? 0.2, maxTokens: a.maxTokens ?? 3000 }, 200);
     }
     if (!res.ok) {
-      why = `${model}: ${res.status} ${(await res.text()).slice(0, 160)}`;
+      const said = await res.text();
+      why = `${model}: ${res.status} ${said.slice(0, 160)}`;
       whys.push(why);
-      // a day's allowance used up (OpenRouter's account, or a Google model's per-day quota): that model rests till tomorrow
-      if (res.status === 429 && /per[- ]?day|free-models-per-day|PerDay|\(RPD\)/i.test(why)) { resting.set(model, Date.now() + 24 * 3600_000); continue; }
+      // a day's allowance used up (OpenRouter's account, a Google model's per-day quota, Groq's tokens per day): that model
+      // rests till tomorrow (4 Nov: read from the first 160 letters, Groq's "tokens per day" was cut to "tokens per d" and
+      // its spent model was asked again every minute)
+      if (res.status === 429 && /per[- ]?day|free-models-per-day|PerDay|\(RPD\)|\(TPD\)/i.test(said)) { resting.set(model, Date.now() + 24 * 3600_000); continue; }
       // busy, gone, or too slow: set aside for a while, ask the next
       // ("rate-limited upstream" asks to retry shortly: a minute; anything else longer)
       if ([404, 408, 429, 500, 502, 503, 504].includes(res.status)) resting.set(model, Date.now() + (res.status === 429 || res.status === 500 ? 60_000 : REST_MS));
