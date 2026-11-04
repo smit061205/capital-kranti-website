@@ -20,7 +20,7 @@ import { pollUpdates, tell } from "../lib/telegram.ts";
 import { touched } from "../lib/write.ts";
 import { aiLeft, aiUsed, freeModels, groqModels, stopAiAt } from "./ai.ts";
 import { collect } from "./collect.ts";
-import { STALE_H, STRAY, gate, gather, importance, levelOf, mendLetters, thin, translate, writeChecked, type ClusterItem, type Debunk } from "./newsroom.ts";
+import { STALE_H, STRAY, gate, gather, importance, levelOf, mendLetters, thin, translate, translateBoth, writeChecked, type ClusterItem, type Debunk } from "./newsroom.ts";
 import { indiaDate, linkPhoto, photoOf, saveLive } from "./publish.ts";
 import { sourceById } from "./sources.ts";
 import { alertBreaking } from "../lib/push.ts";
@@ -457,10 +457,10 @@ async function translations(until = deadline, early = false) {
   let done = 0;
   const one = async (r: (typeof rows)[number]) => {
     const w = { kicker: r.kicker, headline: r.headline, deck: r.deck, body: r.body, caption: r.caption, model: "" };
-    const [en, hi] = await Promise.all([
-      r.en_ok || r.origin !== "live" ? null : translate(sql, w, "en", indiaDate()),
-      r.hi_ok ? null : translate(sql, w, "hi", indiaDate()),
-    ]);
+    const needEn = !r.en_ok && r.origin === "live", needHi = !r.hi_ok;
+    // both wanted: one request for the two (newsroom.ts translateBoth)
+    const { en, hi } = needEn && needHi ? await translateBoth(sql, w, indiaDate())
+      : { en: needEn ? await translate(sql, w, "en", indiaDate()) : null, hi: needHi ? await translate(sql, w, "hi", indiaDate()) : null };
     const failed = (!r.en_ok && r.origin === "live" && !en) || (!r.hi_ok && !hi);
     await sql.query(
       `update stories set en = coalesce($2::jsonb, en), en_status = case when $2::jsonb is not null then 'done' else en_status end,
@@ -470,7 +470,7 @@ async function translations(until = deadline, early = false) {
     if (en || hi) done++;
     log(`  ${r.id}: ${[r.en_ok || r.origin !== "live" ? "" : en ? "English" : "no English", r.hi_ok ? "" : hi ? "Hindi" : "no Hindi"].filter(Boolean).join(", ")}`);
   };
-  // three stories at a time, six requests: Flash Lite allows 15 a minute, shared with the writing and the desk
+  // three stories at a time, three requests (English and Hindi in one): Flash Lite allows 15 a minute, shared with the writing and the desk
   for (let i = 0; i < rows.length && Date.now() <= until; i += 3) await Promise.all(rows.slice(i, i + 3).map(one));
   if (done) await touched(sql);
   return done;
@@ -499,6 +499,8 @@ async function prune() {
   const old = `seen_at < now() - interval '21 days' and (cluster_id is distinct from 'factcheck' or seen_at < now() - interval '45 days')`;
   const [gone] = await sql.query(`with d as (delete from items where ${old} and published_at is not null returning 1) select count(*)::int as n from d`);
   await sql.query(`update items set summary = '', body = null where ${old} and published_at is null and (summary <> '' or body is not null)`);
+  // the "not already up" answers of events no longer waiting to be written (triage.ts sameEvent)
+  await sql.query(`delete from state where key like 'twin:%' and substr(key, 6) not in (select id from clusters where state = 'confirmed')`);
   await sql.query(`insert into state (key, value) values ('pruned', $1) on conflict (key) do update set value = excluded.value`, [day]);
   log(`old reports deleted: ${gone?.n ?? 0}`);
 }

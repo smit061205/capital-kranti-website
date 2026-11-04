@@ -5,12 +5,18 @@
 // event, and English keywords. The keywords group items about one event into
 // a cluster, across Gujarati, Hindi and English (cluster()).
 import type { NeonQueryFunction } from "@neondatabase/serverless";
-import { askJson } from "./ai.ts";
+import { askGemini, askJson, geminiRemaining } from "./ai.ts";
 import { sourceById } from "./sources.ts";
 import type { Genre, Tier } from "../lib/types.ts";
 
 type Sql = NeonQueryFunction<false, false>;
 const BATCH = 12;
+/** a batch for Gemini Flash Lite, whose tokens a minute are many times Groq's (5 Nov: 4,910 items in a day, twice the day
+ *  before's, and Groq's free 200,000 tokens a day for each model sorted half of them; the rest went to the Gemmas, whose
+ *  minute's tokens the writing needs, and 715 waited unsorted) */
+const LITE_BATCH = 40;
+/** Flash Lite requests kept for the writing, the translations and Aavtikal: below them the sorting goes back to Groq */
+const LITE_KEPT_SORTING = 350;
 const TIERS: Tier[] = ["gujarat", "india", "world"];
 const GENRES: Genre[] = ["farm", "economy", "tech", "health", "sport", "education", "entertainment"];
 
@@ -77,10 +83,13 @@ function checkBatch(n: number) {
   };
 }
 
-/** One batch through a free model (no database). */
-export async function triageBatch(sql: Sql | null, batch: TriageInput[]) {
+/** One batch through a free model: Flash Lite for a big batch (`lite`), else Groq's and the Gemmas (no database: those). */
+export async function triageBatch(sql: Sql | null, batch: TriageInput[], lite = false) {
   const user = batch.map((b) => `${b.i}. [${b.source}${b.factcheck ? ", factcheck" : ""}, ${b.lang}] ${b.title}${b.summary ? ` -- ${b.summary.slice(0, 220)}` : ""}`).join("\n");
-  const res = await askJson(sql, { system: SYSTEM, user, maxTokens: 8000, small: true }, checkBatch(batch.length));
+  const ask = { system: SYSTEM, user, maxTokens: lite ? 16000 : 8000, small: true, temperature: 0.1 };
+  const res = lite && sql
+    ? await askGemini(sql, "lite", ask, checkBatch(batch.length), { wait: false, timeoutMs: 90_000 }).then((r) => (r.ok ? r : askJson(sql, ask, checkBatch(batch.length))))
+    : await askJson(sql, ask, checkBatch(batch.length));
   if (res.ok) for (const [i, tr] of res.value) tr.tier = placeTier(tr.tier, `${batch[i - 1].title} ${batch[i - 1].summary}`);
   return res;
 }
@@ -93,13 +102,15 @@ export async function triage(sql: Sql, log: (s: string) => void, maxBatches: num
   let done = 0, batches = 0;
   while (batches < maxBatches && Date.now() < deadline) {
     const take = Math.min(SIDE_BY_SIDE, maxBatches - batches);
-    const all = await sql.query(`select id, source, lang, title, summary from items where triage is null order by seen_at desc limit ${BATCH * take}`);
+    const lite = (await geminiRemaining(sql, "lite")) > LITE_KEPT_SORTING;
+    const size = lite ? LITE_BATCH : BATCH;
+    const all = await sql.query(`select id, source, lang, title, summary from items where triage is null order by seen_at desc limit ${size * take}`);
     if (!all.length) break;
-    const groups = Array.from({ length: Math.ceil(all.length / BATCH) }, (_, g) => all.slice(g * BATCH, (g + 1) * BATCH));
+    const groups = Array.from({ length: Math.ceil(all.length / size) }, (_, g) => all.slice(g * size, (g + 1) * size));
     const results = await Promise.all(groups.map(async (rows) => {
       const input: TriageInput[] = rows.map((r, k) => ({ i: k + 1, source: sourceById.get(r.source as string)?.name ?? (r.source as string),
         lang: r.lang as string, title: r.title as string, summary: r.summary as string, factcheck: sourceById.get(r.source as string)?.trust === "factcheck" }));
-      const res = await triageBatch(sql, input);
+      const res = await triageBatch(sql, input, lite);
       if (!res.ok) { log(`  triage: ${res.why}`); return res; }
       for (const [k, r] of rows.entries()) {
         const t = res.value.get(k + 1) ?? { skipped: "no answer" };
@@ -171,6 +182,12 @@ export async function sameEvent(sql: Sql, c: { id: string; event: string; keys: 
     return { id: r.id as string, story: r.story_id as string, event: r.event as string, both, words };
   }).filter((r) => r.both >= 2 || r.words >= 3).sort((a, b) => b.both + b.words - a.both - a.words).slice(0, 6);
   if (!near.length) return null;
+  // already told "none of these" about the same earlier events: not asked again (5 Nov: the same events were asked about
+  // round after round while each waited its turn to be written)
+  const key = `twin:${c.id}`;
+  const [told0] = await sql.query(`select value from state where key = $1`, [key]);
+  const cleared = new Set(String(told0?.value ?? "").split(",").filter(Boolean));
+  if (near.every((r) => cleared.has(r.id))) return null;
   // each event with the headlines of two of its reports: the one-line event can mislead (2 Nov: "India squad announced
   // for Asia Cup including Rinku Singh" was the India A squad for the Rising Stars Asia Cup, judged a different event)
   const heads = await sql.query(
@@ -187,6 +204,8 @@ export async function sameEvent(sql: Sql, c: { id: string; event: string; keys: 
   const res = await askJson(sql, { system: SAME, user: `NEW: ${told(c.id, c.event)}\n\nEARLIER:\n${near.map((r, i) => `${i + 1}. ${told(r.id, r.event, r.story)}`).join("\n")}`, maxTokens: 60, small: true },
     (v) => { const n = Number((v as { same?: unknown })?.same); return Number.isInteger(n) && n >= 0 && n <= near.length ? n : null; });
   if (!res.ok) return "unsure";
+  if (res.value === 0) await sql.query(`insert into state (key, value) values ($1, $2) on conflict (key) do update set value = excluded.value`,
+    [key, [...new Set([...cleared, ...near.map((r) => r.id)])].join(",")]);
   return res.value > 0 ? near[res.value - 1] : null;
 }
 

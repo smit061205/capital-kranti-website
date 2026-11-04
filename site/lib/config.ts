@@ -23,8 +23,14 @@ export const WEBSITE = {
   // day, the stories' writing and checking and Instagram first, the short sorting jobs only in the day's first ₹15
   paidModel: "google/gemma-4-26b-a4b-it",
   paidDailyRupees: 30,
-  /** OpenRouter's most per million tokens, in US dollars (its cheapest providers ask $0.07 and $0.21, 4 Nov) */
-  paidMaxPrice: { prompt: 0.15, completion: 0.4 },
+  /** OpenRouter's most per million tokens, in US dollars (5 Nov: the full-quality providers below ask $0.07 to $0.10 and
+   *  $0.30 to $0.34) */
+  paidMaxPrice: { prompt: 0.1, completion: 0.34 },
+  /** the providers asked first, in order (OpenRouter's names; 5 Nov: NextBit and CoreWeave serve the full model, DeepInfra
+   *  a lightly shrunk one, all reliable that day) */
+  paidProviders: ["nextbit/bf16", "deepinfra/fp8", "coreweave/bf16"],
+  /** never asked: empty answers (Darkbloom, 4 Nov), a quarter of requests failing (Makora), a heavily shrunk model (AkashML) */
+  paidAvoid: ["darkbloom", "makora", "akashml"],
   /** OpenRouter bills in US dollars: shown in rupees (CLAUDE.md) */
   rupeesPerDollar: 88,
   // Aavtikal's desk (engine/desk.ts; the user, 29 Oct): deep explainers for AI, Tech and Science (never Politics),

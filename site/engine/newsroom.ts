@@ -69,7 +69,13 @@ export interface SourceText { source: SourceDef; url: string; title: string; tex
   /** Wikipedia's lines on the story's subject: background only, never the news (engine/wikiphoto.ts background()) */
   background?: boolean }
 
-/** Each report's text: an official page in full; an outlet's article as facts
+/** How much of the sources the writer and the checker read: each one's start, up to these many letters, and all of them
+ *  together (5 Nov: up to 24,000 letters went to both, most of a minute of a Gemma's 16,000 tokens for one story, twice;
+ *  the facts are in a report's first paragraphs, an official release's a little further down) */
+const SOURCE_CHARS = { official: 6000, outlet: 4000 };
+const ALL_CHARS = 14_000;
+
+/** Each report's text: an official page's start; an outlet's article as facts
  * only (its summary, and its page where robots.txt allows). At most 5. */
 export async function gather(items: ClusterItem[]): Promise<SourceText[]> {
   const byTrust = [...items].sort((a, b) =>
@@ -95,14 +101,20 @@ export async function gather(items: ClusterItem[]): Promise<SourceText[]> {
       }
     }
     // pictures only from official sources (§2): an outlet's photo is never used
-    out.push({ source, url: it.url, title: it.title, text: text.slice(0, 14000), image: source.trust === "official" ? image : null, official: source.trust === "official" });
-    if (out.length >= 5) break;
+    const room = ALL_CHARS - out.reduce((n, s) => n + s.text.length, 0);
+    const cut = Math.min(room, source.trust === "official" ? SOURCE_CHARS.official : SOURCE_CHARS.outlet);
+    out.push({ source, url: it.url, title: it.title, text: clip(text, cut), image: source.trust === "official" ? image : null, official: source.trust === "official" });
+    if (out.length >= 5 || room - out[out.length - 1].text.length < 800) break;
   }
-  // all the sources together stay near 24,000 letters, so one request stays within the free plan's text a minute:
-  // the longest keeps its length (the story is written as long as it), the others share what's left
-  const longest = out.reduce((a, s, i) => (s.text.length > out[a].text.length ? i : a), 0);
-  const rest = Math.max(2000, Math.floor((24_000 - (out[longest]?.text.length ?? 0)) / Math.max(1, out.length - 1)));
-  return out.map((s, i) => (i === longest ? s : { ...s, text: s.text.slice(0, rest) }));
+  return out;
+}
+
+/** a text's start, ended at a paragraph or a sentence rather than mid-word */
+function clip(text: string, most: number): string {
+  if (text.length <= most) return text;
+  const head = text.slice(0, most);
+  const end = Math.max(head.lastIndexOf("\n\n"), head.lastIndexOf(". "), head.lastIndexOf("। "));
+  return end > most * 0.6 ? head.slice(0, end + 1).trim() : head;
 }
 
 const sourcesBlock = (src: SourceText[]) => src.map((s, k) => s.background
@@ -360,20 +372,46 @@ export const needsTranslation = (_tier: Tier) => true;
 /** a Gujarati letter: in an English or Hindi translation, a sign the model didn't translate */
 export const GUJARATI = /[઀-૿]/;
 
+const TRANSLATE_BOTH = `You translate a Gujarati news story for Capital Kranti's website into English, in the style of a careful Indian English
+newspaper, and into Hindi (Devanagari), in the style of a careful Hindi newspaper.
+Keep every fact, name and number exactly; write numbers in figures as the Gujarati does (₹8,941 crore, 2.5 lakh; Hindi uses करोड़ and
+लाख); keep paragraphs separated by a blank line; translate an empty field as "". Add nothing, leave nothing out.
+Reply with JSON only: {"en":{"kicker":"","headline":"","deck":"","body":"","caption":""},"hi":{"kicker":"","headline":"","deck":"","body":"","caption":""}}`;
+
+/** A translation as given, or null when it isn't one: still Gujarati, wholly or in part (2 Nov: a model gave the Gujarati back,
+ *  it was kept as the English and Hindi, and the story stayed Gujarati on /en and /hi), or Hindi with no Devanagari */
+function translationOf(v: unknown, lang: "en" | "hi"): English | null {
+  const x = v as Partial<English>;
+  if (!x?.headline || typeof x.body !== "string") return null;
+  if (GUJARATI.test([x.kicker, x.headline, x.deck, x.body].join(" "))) return null;
+  if (lang === "hi" && !(/[ऀ-ॿ]/.test(x.headline) && /[ऀ-ॿ]/.test(x.body))) return null;
+  return { kicker: x.kicker ?? "", headline: x.headline, deck: x.deck ?? "", body: x.body, caption: x.caption ?? "" };
+}
+
+/** English and Hindi in one request (5 Nov: one each was two of Flash Lite's 1,000 a day for every story); a language that
+ *  comes back wrong, or with numbers the Gujarati hasn't, is asked for again on its own. */
+export async function translateBoth(sql: Sql | null, w: Written, date: string): Promise<{ en: English | null; hi: English | null }> {
+  const source = [w.kicker, w.headline, w.deck, w.body, w.caption].join("\n\n");
+  const a = { system: TRANSLATE_BOTH, user: JSON.stringify({ kicker: w.kicker, headline: w.headline, deck: w.deck, body: w.body, caption: w.caption }), maxTokens: 20000 };
+  const take = (v: unknown) => {
+    const x = v as { en?: unknown; hi?: unknown };
+    const en = translationOf(x?.en, "en"), hi = translationOf(x?.hi, "hi");
+    return en || hi ? { en, hi } : null;
+  };
+  const res = sql && (await geminiRemaining(sql, "lite")) > LITE_KEPT ? await askGemini(sql, "lite", a, take, { wait: false, timeoutMs: 90_000 }).then((r) => (r.ok ? r : askJson(sql, a, take))) : await askJson(sql, a, take);
+  const right = (t: English | null) => t && !numbersNotIn([t.kicker, t.headline, t.deck, t.body, t.caption].join("\n\n"), source, date).length ? t : null;
+  const en = res.ok ? right(res.value.en) : null, hi = res.ok ? right(res.value.hi) : null;
+  // nothing came back at all (every model busy): no second request for each, the round tries again later
+  if (!res.ok) return { en: null, hi: null };
+  return { en: en ?? await translate(sql, w, "en", date), hi: hi ?? await translate(sql, w, "hi", date) };
+}
+
 export async function translate(sql: Sql | null, w: Written, lang: "en" | "hi", date: string): Promise<English | null> {
   const source = [w.kicker, w.headline, w.deck, w.body, w.caption].join("\n\n");
   let note = "";
   for (let attempt = 0; attempt < 2; attempt++) {
     const a = { system: TRANSLATE(lang), user: JSON.stringify({ kicker: w.kicker, headline: w.headline, deck: w.deck, body: w.body, caption: w.caption }) + note, maxTokens: 12000 };
-    const take = (v: unknown) => {
-      const x = v as Partial<English>;
-      if (!x?.headline || typeof x.body !== "string") return null;
-      // still Gujarati, wholly or in part (2 Nov: a model gave the Gujarati back, it was kept as the English and Hindi,
-      // and the story stayed Gujarati on /en and /hi)
-      if (GUJARATI.test([x.kicker, x.headline, x.deck, x.body].join(" "))) return null;
-      if (lang === "hi" && !(/[ऀ-ॿ]/.test(x.headline) && /[ऀ-ॿ]/.test(x.body))) return null;
-      return { kicker: x.kicker ?? "", headline: x.headline, deck: x.deck ?? "", body: x.body, caption: x.caption ?? "" };
-    };
+    const take = (v: unknown) => translationOf(v, lang);
     // Gemini Flash Lite first (29 Oct: a Gemma's 16,000 tokens a minute is shared with the writing and checking, and
     // made the engine's rounds run past their time), a Gemma when it can't
     // never waiting on it: when it's busy (the desk shares its 15 requests a minute) the others at once

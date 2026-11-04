@@ -38,6 +38,34 @@ const GAP_MS = 2500;
  *  minutes on a Gemma that never answered while the round's time went) */
 const GEMMA_S = 90;
 
+/** A Gemma's free tokens a minute on Google (AI Studio, 29 Oct: 16,000), counted on what is sent: each request waits for its
+ *  share instead of being sent with others at once (5 Nov: five stories sent to two Gemmas together were refused, and a
+ *  refused Gemma rested a minute) */
+const GEMMA_TPM = 16_000 * 0.9;
+/** the longest a request waits for a Gemma's minute before the next model is asked */
+const GEMMA_WAIT_MS = 40_000;
+/** what a request's text comes to in Gemma's tokens, on the safe side: Indian letters two to a token, others three and a half */
+const tokensOf = (text: string) => {
+  const indic = (text.match(/[\u0900-\u0DFF]/g) ?? []).length;
+  return Math.ceil(indic / 2 + (text.length - indic) / 3.5);
+};
+/** each Gemma's requests of the last minute (and those waiting their turn): when, and how many tokens */
+const sent = new Map<string, { at: number; n: number }[]>();
+/** The soonest a request of `n` tokens fits in a Gemma's minute, booked for it; -1 when it won't fit within the wait. */
+function gemmaSlot(model: string, n: number): number {
+  const now = Date.now();
+  const list = (sent.get(model) ?? []).filter((x) => x.at > now - 60_000);
+  sent.set(model, list);
+  if (n > GEMMA_TPM) return list.length ? -1 : now;
+  // every minute the request falls in has room for it: the one ending as it's sent, and those ending at a later booking
+  const used = (end: number) => list.filter((x) => x.at > end - 60_000 && x.at <= end).reduce((a, x) => a + x.n, 0);
+  const fits = (t: number) => [t, ...list.map((x) => x.at).filter((e) => e > t && e < t + 60_000)].every((end) => used(end) + n <= GEMMA_TPM);
+  const at = [now, ...list.map((x) => x.at + 60_001)].filter((t) => t >= now).sort((a, b) => a - b).find(fits);
+  if (at === undefined || at - now > GEMMA_WAIT_MS || at > stopAt - 30_000) return -1;
+  list.push({ at, n });
+  return at;
+}
+
 let models: string[] | null = null;
 const last: Record<string, number> = {};
 let usedThisRun = 0;
@@ -221,8 +249,11 @@ async function askFree<T>(sql: Sql | null, a: Ask, check: (v: unknown) => T | nu
       if (await aiLeft(sql) <= 0) return { ok: false, why: "the day's free AI requests are used up", stop: true };
       continue;
     }
+    // a Gemma's minute already spoken for: the next model, or the paid one
+    const booked = isGoogle(model) ? gemmaSlot(model, tokensOf(a.system + a.user)) : Date.now();
+    if (booked < 0) { whys.push(`${model}: 429 its minute's tokens are spoken for`); continue; }
     // each request its own slot, also when several ask at once (4 Nov: the round's steps and stories side by side)
-    const at = Math.max(Date.now(), (last[route(model)] ?? 0) + GAP_MS);
+    const at = Math.max(booked, (last[route(model)] ?? 0) + GAP_MS);
     last[route(model)] = at;
     if (at > Date.now()) await new Promise((r) => setTimeout(r, at - Date.now()));
     usedThisRun++;
@@ -394,6 +425,7 @@ async function askGeminiFree<T>(sql: Sql, pool: GeminiPool, a: { system: string;
 // Instagram's photos have the rest. OpenRouter's credit is paid ahead, so it can't spend more than is there.
 
 const PAID = "paid_paise";
+const PAID_THINKING_ROOM = 2048;
 /** the paid backup's rupees spent today */
 export const paidToday = async (sql: Sql) => (await count(sql, PAID, 0)) / 100;
 let paidOff = "";
@@ -415,14 +447,17 @@ async function askPaid<T>(sql: Sql, a: { system: string; user: string; temperatu
     await count(sql, "ai_paid");
     usedThisRun++;
     const res = await call(WEBSITE.paidModel, {
-      // room for Gemma's thinking on top of the answer; only the tokens it uses are paid for
-      temperature: a.temperature, max_tokens: a.maxTokens + GOOGLE_THINKING_ROOM, response_format: { type: "json_object" },
+      // a little room for Gemma's thinking on top of the answer, as little thinking as it takes (5 Nov: 8,000 tokens of room
+      // and a provider sent back 50,000 letters of nothing, paid for)
+      temperature: a.temperature, max_tokens: a.maxTokens + PAID_THINKING_ROOM, response_format: { type: "json_object" },
       // its thinking sent back too, as some providers put the whole answer there
-      reasoning: { effort: "low" }, usage: { include: true },
-      // the fastest provider that asks no more than the most set, so the price stays capped
-      provider: { sort: "throughput", max_price: WEBSITE.paidMaxPrice, ...(avoid.length ? { ignore: avoid } : {}) },
+      reasoning: { effort: "minimal" }, usage: { include: true },
+      // the cheap full-quality providers in the settings' order, then any other under the price cap (5 Nov: the fastest at up
+      // to $0.15 and $0.40 cost twice what these ask; the cheapest of all sent back empty answers)
+      provider: { order: WEBSITE.paidProviders, allow_fallbacks: true, max_price: WEBSITE.paidMaxPrice,
+                  ignore: [...WEBSITE.paidAvoid, ...avoid] },
       messages: [{ role: "system", content: a.system }, { role: "user", content }],
-    }, 90);
+    }, a.maxTokens > 4000 ? 60 : 30);
     if (!res.ok) {
       const why = `${model}: ${res.status} ${(await res.text()).slice(0, 160)}`;
       // no credit left (402), or the key may not spend: no more paid asks this run
@@ -444,7 +479,8 @@ async function askPaid<T>(sql: Sql, a: { system: string; user: string; temperatu
     const by = answer.provider ? ` (${answer.provider})` : "";
     if (parsed === undefined) {
       whys.push(`${model}${by}: not the JSON asked for (${text.length} chars, ${answer.choices?.[0]?.finish_reason ?? "?"}): ${text.slice(0, 80).replace(/\s+/g, " ")}`);
-      if (answer.provider) avoid.push(answer.provider);
+      // OpenRouter names a provider "Io Net"; its slug is io-net
+      if (answer.provider) avoid.push(answer.provider.toLowerCase().replace(/\s+/g, "-"));
       continue;
     }
     const value = check(parsed);
