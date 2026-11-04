@@ -12,4 +12,7 @@ export const PAPER = {
   phone: "98256 08744",
   landline: "(079) 23210071",
   founded: 1993,
+  /** the people behind the paper (the user, 4 Nov): named on the About page and in what Google reads */
+  editor: { gu: "પાર્થ ઠક્કર", en: "Parth Thakkar", hi: "पार्थ ठक्कर" },
+  tech: [{ gu: "સ્મિત ઠક્કર", en: "Smit Thakkar", hi: "स्मित ठक्कर" }, { gu: "મિથિલેશ ઠક્કર", en: "Mithilesh Thakkar", hi: "मिथिलेश ठक्कर" }],
 };

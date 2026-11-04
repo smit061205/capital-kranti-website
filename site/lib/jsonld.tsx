@@ -5,6 +5,12 @@ import { PAPER, SITE_URL } from "./site.ts";
 
 /** The paper itself, named once and referred to by its @id from every article. */
 export const ORG_ID = `${SITE_URL}/#org`;
+/** The editor, named once and referred to from the paper and from the editor's own stories. */
+export const EDITOR_ID = `${SITE_URL}/#editor`;
+export function editor(lang: Lang) {
+  return { "@type": "Person", "@id": EDITOR_ID, name: PAPER.editor.en, alternateName: [PAPER.editor.gu, PAPER.editor.hi], jobTitle: "Editor",
+           url: `${SITE_URL}${href(lang, "/about")}`, worksFor: { "@id": ORG_ID } };
+}
 export function organization(lang: Lang) {
   const page = (p: string) => `${SITE_URL}${href(lang, p)}`;
   return {
@@ -15,7 +21,8 @@ export function organization(lang: Lang) {
     email: PAPER.email, telephone: `+91 ${PAPER.phone}`,
     address: { "@type": "PostalAddress", addressLocality: "Gandhinagar", addressRegion: "Gujarat", addressCountry: "IN" },
     publishingPrinciples: page("/editorial-policy"), correctionsPolicy: page("/corrections"),
-    verificationFactCheckingPolicy: page("/how-we-check"), actionableFeedbackPolicy: page("/contact"),
+    verificationFactCheckingPolicy: page("/how-we-check"), actionableFeedbackPolicy: page("/contact"), masthead: page("/about"),
+    employee: [editor(lang), ...PAPER.tech.map((p) => ({ "@type": "Person", name: p.en, alternateName: [p.gu, p.hi], jobTitle: "Technology" }))],
   };
 }
 
@@ -29,7 +36,7 @@ export function breadcrumbs(lang: Lang, steps: { name: string; path: string }[])
 
 /** A news story or an article: the page's own address, its words, dates, pictures and who wrote it. */
 export function article(o: { type?: "NewsArticle" | "Article"; url: string; lang: Lang; headline: string; description?: string; section?: string;
-                             publishedAt: string; updatedAt: string; image?: string | null; author?: { name: string; url: string }; basedOn?: string; words?: number }) {
+                             publishedAt: string; updatedAt: string; image?: string | null; author?: { name: string; url: string } | "editor"; basedOn?: string; words?: number }) {
   return {
     "@type": o.type ?? "NewsArticle", "@id": `${o.url}#article`, url: o.url, mainEntityOfPage: o.url,
     // Google shows at most 110 characters of a headline
@@ -38,7 +45,9 @@ export function article(o: { type?: "NewsArticle" | "Article"; url: string; lang
     datePublished: o.publishedAt, dateModified: o.updatedAt || o.publishedAt,
     // a story without a photo of its own shows the paper's share picture rather than none
     image: [o.image ? new URL(o.image, SITE_URL).href : `${SITE_URL}/og.png`],
-    author: o.author ? { "@type": "Organization", name: o.author.name, url: o.author.url } : { "@type": "Organization", name: PAPER[o.lang].name, url: `${SITE_URL}/` },
+    // the engine's stories are the paper's desk's; the editor's own carry the editor's name
+    author: o.author === "editor" ? editor(o.lang) : o.author ? { "@type": "Organization", name: o.author.name, url: o.author.url }
+          : { "@type": "Organization", name: PAPER[o.lang].name, url: `${SITE_URL}/` },
     publisher: { "@id": ORG_ID }, isAccessibleForFree: true, wordCount: o.words, isBasedOn: o.basedOn,
   };
 }

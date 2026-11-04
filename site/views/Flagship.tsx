@@ -198,7 +198,7 @@ export async function FlArticle({ lang, id }: { lang: Lang; id: string }) {
   const ld = [
     article({ type: "Article", url: `${SITE_URL}${featureHref(f, shown)}`, lang: shown, headline: ts.headline, description: ts.dek, section: beatName(f.beat, shown),
               publishedAt: f.publishedAt, updatedAt: f.updatedAt, image: f.photo && shareCopy(f.photo),
-              author: { name: AUTHORS[f.author].name[shown], url: `${SITE_URL}${fl(shown, `/author/${f.author}`)}` }, words: ts.body.split(/\s+/).filter(Boolean).length }),
+              author: f.author === "editor" ? "editor" : { name: AUTHORS[f.author].name[shown], url: `${SITE_URL}${fl(shown, `/author/${f.author}`)}` }, words: ts.body.split(/\s+/).filter(Boolean).length }),
     breadcrumbs(shown, [{ name: flw(shown).name, path: "/aavtikal" }, { name: beatName(f.beat, shown), path: `/aavtikal/${f.beat}` }, { name: ts.headline, path: `/aavtikal/p/${f.id}` }]),
   ];
   return (

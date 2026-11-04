@@ -26,7 +26,7 @@ export const AUTHORS: Record<AuthorKey, { name: Record<Lang, string> }> = {
     name: { gu: "આવતીકાલ AI ડેસ્ક", en: "Aavtikal AI desk", hi: "आवतीकाल AI डेस्क" },
   },
   editor: {
-    name: { gu: "સંપાદક", en: "The editor", hi: "संपादक" },
+    name: { gu: "પાર્થ ઠક્કર", en: "Parth Thakkar", hi: "पार्थ ठक्कर" },
   },
 };
 export const isAuthor = (k: string): k is AuthorKey => k in AUTHORS;

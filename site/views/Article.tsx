@@ -38,6 +38,7 @@ function articleLd(s: Story, lang: Lang) {
   return [
     article({ url: `${SITE_URL}${href(shown, `/news/${s.id}`)}`, lang: shown, headline: w.headline, description: w.deck, section: sectionName(s.tier, shown),
               publishedAt: s.publishedAt, updatedAt: s.updatedAt, image: s.photo && shareCopy(s.photo), basedOn: s.source?.url ?? s.sources[0]?.url,
+              author: s.byEditor ? "editor" : undefined,
               words: w.body.split(/\s+/).filter(Boolean).length }),
     breadcrumbs(shown, [{ name: PAPER[shown].name, path: "/" }, { name: sectionName(s.tier, shown), path: `/section/${s.tier}` }, { name: w.headline, path: `/news/${s.id}` }]),
   ];
@@ -74,7 +75,9 @@ export default async function Article({ id, lang }: { id: string; lang: Lang }) 
           ))}
           <h1>{w.headline}</h1>
           {w.deck && <p className="stand">{w.deck}</p>}
-          <p className="byl">{t(lang, "by")} <b>{t(lang, "desk")}</b>, {PAPER[lang].place}</p>
+          {/* the editor's own reports carry the editor's name; the engine's stories the desk's, with the editor who answers for the paper */}
+          <p className="byl">{t(lang, "by")} <b>{s.byEditor ? PAPER.editor[lang] : t(lang, "desk")}</b>, {PAPER[lang].place}
+            {!s.byEditor && <> · {t(lang, "editorTitle")}: {PAPER.editor[lang]}</>}</p>
           <p className="byt">{dateText(s.publishedAt, lang)}, {timeText(s.publishedAt, lang)}
             {changed && <> · {t(lang, "updatedAt")} {timeText(s.updatedAt, lang)}</>}
             {" · "}{num(minutes(w.body), lang)} {t(lang, "min")}</p>
