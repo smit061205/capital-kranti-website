@@ -192,6 +192,8 @@ export const SCHEMA = [
   // how many times a story's English or Hindi failed (engine/run.ts translations(): 4 Nov, two that kept failing took
   // five minutes of every round and no news was written)
   `alter table stories add column if not exists translate_fails int not null default 0`,
+  // why a live story has no photo (engine/run.ts; 4 Nov: four in five had none, and no one could say why)
+  `alter table stories add column if not exists photo_why text`,
 ];
 
 // the schema's version, kept in the database: a reader checks it with one

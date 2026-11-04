@@ -9,7 +9,6 @@ import type { NeonQueryFunction } from "@neondatabase/serverless";
 import type { Photo } from "../lib/types.ts";
 import { askJson } from "./ai.ts";
 import type { SourceText, Written } from "./newsroom.ts";
-import { storePhoto } from "./publish.ts";
 
 type Sql = NeonQueryFunction<false, false>;
 // Wikimedia asks programs to name themselves and a way to reach them
@@ -58,7 +57,7 @@ export async function background(sql: Sql, event: string, reports: string): Prom
 export const plain = (html: string) => html.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, " ").trim();
 
 /** The article's main photo, when it's a free one on Commons: its address (1600 px wide), its credit and what it shows. */
-export async function leadPhoto(title: string): Promise<{ url: string; credit: string; about: string } | null> {
+export async function leadPhoto(title: string): Promise<{ url: string; width: number; height: number; credit: string; about: string } | null> {
   const get = async (u: string) => {
     const r = await fetch(u, { headers: { "user-agent": UA }, signal: AbortSignal.timeout(15_000) });
     return r.ok ? r.json() : null;
@@ -72,9 +71,10 @@ export async function leadPhoto(title: string): Promise<{ url: string; credit: s
   const parts = new URL(src).pathname.split("/");
   const file = decodeURIComponent(parts.includes("thumb") ? parts.at(-2)! : parts.at(-1)!);
   if (!/\.(jpe?g|png|webp)$/i.test(file)) return null;
-  const q = new URLSearchParams({ action: "query", titles: `File:${file}`, prop: "imageinfo", iiprop: "url|extmetadata", iiurlwidth: "1600", format: "json", origin: "*" });
+  // 1920 wide, a width Commons makes (4 Nov: Google shows a story's photo large only from 1200 wide)
+  const q = new URLSearchParams({ action: "query", titles: `File:${file}`, prop: "imageinfo", iiprop: "url|size|extmetadata", iiurlwidth: "1920", format: "json", origin: "*" });
   const info = (await get(`https://commons.wikimedia.org/w/api.php?${q}`)) as
-    { query?: { pages?: Record<string, { imageinfo?: { thumburl?: string; url?: string; extmetadata?: Record<string, { value?: string }> }[] }> } } | null;
+    { query?: { pages?: Record<string, { imageinfo?: { thumburl?: string; thumbwidth?: number; thumbheight?: number; width?: number; height?: number; url?: string; extmetadata?: Record<string, { value?: string }> }[] }> } } | null;
   const ii = Object.values(info?.query?.pages ?? {})[0]?.imageinfo?.[0];
   const meta = ii?.extmetadata ?? {};
   const licence = plain(meta.LicenseShortName?.value ?? "");
@@ -84,7 +84,7 @@ export async function leadPhoto(title: string): Promise<{ url: string; credit: s
   const about = bare(`${file} ${plain(meta.ImageDescription?.value ?? "")} ${plain(meta.ObjectName?.value ?? "")}`);
   if (!bare(title).split(/[\s_(),-]+/).some((word) => word.length >= 4 && about.includes(word))) return null;
   const artist = plain(meta.Artist?.value ?? "").slice(0, 80) || "Wikimedia Commons";
-  return { url: ii.thumburl ?? ii.url!, credit: `${artist}, ${licence}, Wikimedia Commons`,
+  return { url: ii.thumburl ?? ii.url!, width: ii.thumbwidth ?? ii.width ?? 0, height: ii.thumbheight ?? ii.height ?? 0, credit: `${artist}, ${licence}, Wikimedia Commons`,
            about: `${file.replace(/\.\w+$/, "").replace(/_/g, " ")}. ${plain(meta.ImageDescription?.value ?? "")}`.slice(0, 400) };
 }
 
@@ -146,9 +146,9 @@ export async function commonsPictures(title: string, max = 6): Promise<CommonsPi
 }
 
 /** Free-licence photos found by searching Wikimedia Commons itself, for a subject whose Wikipedia articles have none. */
-export async function commonsSearch(query: string, max = 4): Promise<CommonsPicture[]> {
+export async function commonsSearch(query: string, max = 4, width = 1200): Promise<CommonsPicture[]> {
   const q = new URLSearchParams({ action: "query", generator: "search", gsrsearch: `${query} filetype:bitmap`, gsrnamespace: "6", gsrlimit: "20",
-    prop: "imageinfo", iiprop: "url|size|extmetadata", iiurlwidth: "1200", format: "json", origin: "*" });
+    prop: "imageinfo", iiprop: "url|size|extmetadata", iiurlwidth: String(width), format: "json", origin: "*" });
   try {
     const r = await fetch(`https://commons.wikimedia.org/w/api.php?${q}`, { headers: { "user-agent": UA }, signal: AbortSignal.timeout(20_000) });
     if (!r.ok) return [];
@@ -158,22 +158,94 @@ export async function commonsSearch(query: string, max = 4): Promise<CommonsPict
   }
 }
 
-/** A file photo of the story's subject, stored like the official ones; null when there's no fit. */
-export async function freePhoto(sql: Sql, w: Written, storyId: string): Promise<FreePhoto | null> {
+const PLAN = `You find a photo for a news story on an Indian news website, when the story has no photo of its own.
+Answer two ways, each with a short search (2-5 English words) and what the photo shows, as a caption in Gujarati,
+English and Hindi (a few words):
+1. "file": a real photo on Wikimedia Commons of the organisation, place or thing the story is about: a company's
+   aircraft, building or product, a government body's headquarters, the city or district for a story about the place
+   itself, a dam, a train, a ship. null for an accident, a crime, a death, a disaster, a victim, a private person, or
+   when no such photo would be accurate.
+2. "symbolic": a stock photo of the story's general topic, printed as a symbolic picture as Indian papers do: a court's
+   gavel, a stock market screen, a farmer's field, a hospital ward, a classroom, rupee notes, rain on a road. Never a
+   person's face, never a scene that could be taken for the event itself (no crash, wreckage, fire, blood, injured or
+   dead people, no police arrest). null when nothing suits.
+Reply with JSON only: {"file": {"search": "", "gu": "", "en": "", "hi": ""} or null, "symbolic": {"search": "", "gu": "", "en": "", "hi": ""} or null}`;
+
+interface Idea { search: string; gu: string; en: string; hi: string }
+const ideaOf = (v: unknown): Idea | null => {
+  const x = v as Partial<Idea> | null;
+  return x && typeof x.search === "string" && x.search.trim() && x.gu && x.en ? { search: x.search.trim(), gu: String(x.gu), en: String(x.en), hi: String(x.hi || x.en) } : null;
+};
+
+const SYMBOLIC_FIT = `You check a stock photo to print as a clearly labelled symbolic picture beside a news story. You get the
+story's headline and summary and the photo's description. Answer whether it suits the story's topic and could not mislead:
+no identifiable person who could be taken for someone in the story, nothing suggesting an event or a place the story
+doesn't name. Reply with JSON only: {"fits": true} or {"fits": false}.`;
+
+/** Free stock photos from Pexels (its own servers, which it allows; 4 Nov, the user: symbolic pictures as the papers print
+ *  them), when the PEXELS_API_KEY secret is set; landscape, at least 1200 wide. */
+async function pexels(search: string): Promise<{ url: string; width: number; height: number; alt: string; credit: string }[]> {
+  const key = process.env.PEXELS_API_KEY;
+  if (!key) return [];
+  const r = await fetch(`https://api.pexels.com/v1/search?${new URLSearchParams({ query: search, per_page: "8", orientation: "landscape" })}`,
+    { headers: { authorization: key }, signal: AbortSignal.timeout(15_000) }).catch(() => null);
+  if (!r?.ok) return [];
+  const photos = ((await r.json().catch(() => null)) as { photos?: { width: number; height: number; alt?: string; photographer?: string; src?: { original?: string } }[] } | null)?.photos ?? [];
+  return photos.filter((p) => p.src?.original && p.width >= 1200).map((p) => {
+    const w = Math.min(1600, p.width);
+    return { url: `${p.src!.original}?auto=compress&cs=tinysrgb&w=${w}`, width: w, height: Math.round(p.height * (w / p.width)), alt: p.alt ?? "",
+             credit: `${(p.photographer ?? "").slice(0, 60) || "Photographer"}, Pexels` };
+  });
+}
+
+/** A photo for a story without one, shown from Wikimedia's or Pexels' own servers (4 Nov: storing each took one of the
+ *  site's 50 uploads a day, while some 700 stories went up, and four in five had no photo):
+ *  1. the subject's own photo, as before (a public figure, a landmark: its Wikipedia article's photo);
+ *  2. a Commons photo of the organisation, place or thing the story is about;
+ *  3. a stock photo of its topic, labelled symbolic.
+ *  Each is checked against the story before it goes up. `note` hears why there's none. */
+export async function freePhoto(sql: Sql, w: Written, storyId: string, note: (why: string) => void = () => {}): Promise<FreePhoto | null> {
+  void storyId;
+  const story = { headline: w.headline, deck: w.deck };
   try {
     const who = await subjectOf(sql, w);
-    if (!who) return null;
-    const found = await leadPhoto(who.title);
-    if (!found) return null;
-    // only a photo that suits the story; when that can't be told, none
-    if ((await fitsStory(sql, w, who.en || who.title, found.about)) !== true) return null;
-    const stored = await storePhoto(sql, found.url, storyId, UA);
-    if (!stored) return null;
-    return {
-      photo: { ...stored, credit: found.credit },
-      caption: { gu: `ફાઇલ ફોટો: ${who.gu}`, en: `File photo: ${who.en || who.title}`, hi: `फ़ाइल फ़ोटो: ${who.hi || who.en || who.title}` },
-    };
-  } catch {
+    if (who) {
+      const found = await leadPhoto(who.title);
+      if (found && found.width && (await fitsStory(sql, story, who.en || who.title, found.about)) === true) {
+        return { photo: { url: found.url, width: found.width, height: found.height, credit: found.credit },
+                 caption: { gu: `ફાઇલ ફોટો: ${who.gu}`, en: `File photo: ${who.en || who.title}`, hi: `फ़ाइल फ़ोटो: ${who.hi || who.en || who.title}` } };
+      }
+    }
+    const plan = await askJson(sql, { system: PLAN, user: `${w.headline}\n${w.deck}\n\n${w.body.slice(0, 1200)}`, maxTokens: 400, small: true },
+      (v) => (v && typeof v === "object" ? { file: ideaOf((v as { file?: unknown }).file), symbolic: ideaOf((v as { symbolic?: unknown }).symbolic) } : null));
+    if (!plan.ok) { note("the free models were busy"); return null; }
+    const { file, symbolic } = plan.value;
+    if (file) {
+      const found = await commonsSearch(file.search, 6, 1920);
+      // the widest first: from 1200, Google shows a story's photo large
+      for (const p of found.sort((a, b) => Number(b.full >= 1200) - Number(a.full >= 1200)).slice(0, 3)) {
+        if ((await fitsStory(sql, story, file.en, p.alt)) !== true) continue;
+        const big = commonsAt(p, 1920);
+        return { photo: { url: big.url, width: big.width, height: big.height, credit: p.credit },
+                 caption: { gu: `ફાઇલ ફોટો: ${file.gu}`, en: `File photo: ${file.en}`, hi: `फ़ाइल फ़ोटो: ${file.hi}` } };
+      }
+    }
+    if (symbolic) {
+      if (!process.env.PEXELS_API_KEY) { note(file ? "no file photo suited; symbolic photos wait for the Pexels key" : "symbolic photos wait for the Pexels key"); return null; }
+      for (const p of (await pexels(symbolic.search)).slice(0, 3)) {
+        const ok = await askJson(sql, { system: SYMBOLIC_FIT, user: `STORY: ${w.headline}\n${w.deck}\n\nPHOTO: ${p.alt || symbolic.en}`, maxTokens: 40, small: true },
+          (v) => (typeof (v as { fits?: unknown })?.fits === "boolean" ? (v as { fits: boolean }).fits : null));
+        if (!ok.ok || !ok.value) continue;
+        return { photo: { url: p.url, width: p.width, height: p.height, credit: p.credit },
+                 caption: { gu: `પ્રતીકાત્મક તસવીર: ${symbolic.gu}`, en: `Representative image: ${symbolic.en}`, hi: `प्रतीकात्मक तस्वीर: ${symbolic.hi}` } };
+      }
+      note(file ? "no file or symbolic photo suited" : "no symbolic photo suited");
+      return null;
+    }
+    note(file ? "no file photo suited, and no symbolic one fits this story" : "no photo would be accurate (an accident, a crime, a person)");
+    return null;
+  } catch (e) {
+    note(`failed: ${e instanceof Error ? e.message : e}`.slice(0, 80));
     return null;
   }
 }

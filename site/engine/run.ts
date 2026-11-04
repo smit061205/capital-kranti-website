@@ -200,20 +200,29 @@ async function writeOne(c: Record<string, any>): Promise<"stop" | "busy" | void>
   // both at once: neither needs the other's answer
   let [en, hi] = translated ? await Promise.all([translate(sql, w, "en", indiaDate()), translate(sql, w, "hi", indiaDate())]) : [null, null];
   let photo = await photoOf(sql, src, id);
-  // no official photo: a file photo of the story's subject from Wikimedia Commons (not for sensitive news)
+  // why it has none, for the status page (4 Nov: four stories in five went up without a photo, and no one knew why)
+  let photoWhy: string | null = photo ? null : src.some((s) => s.official && s.image) ? "the official photo couldn't be kept (too small, or the day's 50 uploads used)" : null;
+  let fitted = false;
+  // no official photo: a file photo or a symbolic one (wikiphoto.ts freePhoto; not for sensitive news)
+  if (!photo && c.sensitive) photoWhy = "sensitive news: no file or symbolic photo";
   if (!photo && !c.sensitive) {
-    const free = await freePhoto(sql, w, id);
+    const free = await freePhoto(sql, w, id, (why) => { photoWhy = why; });
     if (free) {
       photo = free.photo;
+      photoWhy = null;
+      fitted = true;
       w = { ...w, caption: free.caption.gu };
       if (en) en = { ...en, caption: free.caption.en };
       if (hi) hi = { ...hi, caption: free.caption.hi };
-      log(`    file photo: ${free.caption.en} (${free.photo.credit})`);
+      log(`    photo: ${free.caption.en} (${free.photo.credit})`);
     }
   }
+  if (!photo && !photoWhy) photoWhy = "no official photo";
   await saveLive(sql, { id, tier: c.tier, genres: c.genres, written: w, checked, src, importance: imp, status: "published",
                         holdReason: null, en, hi, translated, photo });
-  await sql.query(`update stories set photo_tried = true where id = $1`, [id]);
+  // a photo checked against the story already isn't checked again (photoFit)
+  await sql.query(`update stories set photo_tried = true, photo_why = $2, checks = case when $3 then coalesce(checks, '{}'::jsonb) || '{"photo_fit": true}' else checks end where id = $1`,
+    [id, photoWhy, fitted]);
   await sql.query(`update clusters set state = $2, story_id = $3, reason = $4 where id = $1`, [c.id, "published", id, null]);
   await touched(sql);
   log(`    published${checked.cut ? ` (${checked.cut} unsupported line(s) cut)` : ""}: ${w.headline}`);
@@ -227,26 +236,30 @@ async function writeOne(c: Record<string, any>): Promise<"stop" | "busy" | void>
 async function photos() {
   // once: the stories looked for before the lookup read Wikipedia's resized-copy addresses
   // and India's open licence (29 Oct) are looked for again
-  const [again] = await sql.query(`select value from state where key = 'photo_retry'`);
+  // and again on 4 Nov, when file photos of things and places and symbolic photos came in (wikiphoto.ts freePhoto)
+  const [again] = await sql.query(`select value from state where key = 'photo_retry_2'`);
   if (!again) {
     await sql.query(`update stories set photo_tried = false where origin = 'live' and photo is null and published_at > now() - interval '36 hours'`);
-    await sql.query(`insert into state (key, value) values ('photo_retry', '1') on conflict (key) do nothing`);
+    await sql.query(`insert into state (key, value) values ('photo_retry_2', '1') on conflict (key) do nothing`);
   }
   const rows = await sql.query(
-    `select id, kicker, headline, deck, body from stories where origin = 'live' and status = 'published' and photo is null and not photo_tried
-       and published_at > now() - interval '36 hours' order by importance desc nulls last, published_at desc limit 6`);
+    `select s.id, s.kicker, s.headline, s.deck, s.body from stories s left join clusters c on c.story_id = s.id
+      where s.origin = 'live' and s.status = 'published' and s.photo is null and not s.photo_tried and not coalesce(c.sensitive, false)
+       and s.published_at > now() - interval '36 hours' order by s.importance desc nulls last, s.published_at desc limit 8`);
   let added = 0;
   for (const r of rows) {
     if (Date.now() > finish) break;
-    const free = await freePhoto(sql, { kicker: r.kicker, headline: r.headline, deck: r.deck, body: r.body, caption: "", model: "" }, r.id);
+    let why: string | null = null;
+    const free = await freePhoto(sql, { kicker: r.kicker, headline: r.headline, deck: r.deck, body: r.body, caption: "", model: "" }, r.id, (x) => { why = x; });
     await sql.query(
-      `update stories set photo_tried = true, photo = coalesce($2::jsonb, photo), caption = coalesce($3, caption),
+      `update stories set photo_tried = true, photo = coalesce($2::jsonb, photo), caption = coalesce($3, caption), photo_why = $6,
+          checks = case when $2::jsonb is not null then coalesce(checks, '{}'::jsonb) || '{"photo_fit": true}' else checks end,
           en = case when en is not null and $4::text is not null then jsonb_set(en, '{caption}', to_jsonb($4::text)) else en end,
           hi = case when hi is not null and $5::text is not null then jsonb_set(hi, '{caption}', to_jsonb($5::text)) else hi end,
           updated_at = case when $2::jsonb is not null then now() else updated_at end
         where id = $1`,
-      [r.id, free ? JSON.stringify(free.photo) : null, free?.caption.gu ?? null, free?.caption.en ?? null, free?.caption.hi ?? null]);
-    if (free) { added++; log(`    ${r.id}: file photo, ${free.caption.en} (${free.photo.credit})`); }
+      [r.id, free ? JSON.stringify(free.photo) : null, free?.caption.gu ?? null, free?.caption.en ?? null, free?.caption.hi ?? null, free ? null : why]);
+    if (free) { added++; log(`    ${r.id}: photo, ${free.caption.en} (${free.photo.credit})`); }
   }
   if (added) await touched(sql);
   return added;
