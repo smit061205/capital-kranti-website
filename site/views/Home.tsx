@@ -5,7 +5,8 @@ import type { Lang, Story } from "../lib/types.ts";
 import { elsewhere, latestStories, moreOnSubject, mostRead } from "../lib/db.ts";
 import { href, t } from "../lib/i18n.ts";
 import { sectionName } from "../lib/sections.ts";
-import { decent, ElsewhereRow, Join, Meta, MoreOn, samePhoto, strong, words } from "../components/cards.tsx";
+import { decent, ElsewhereRow, Join, Meta, MoreOn, strong, words } from "../components/cards.tsx";
+import { frontTop, topScore } from "../lib/rank.ts";
 import Link from "next/link";
 import { pic, SIZES } from "../lib/photo.ts";
 import { num, timeText } from "../lib/format.ts";
@@ -21,11 +22,11 @@ const BELOW = ["gujarat", "india", "world", "economy", "farm", "tech", "health",
 const newest = (a: Story, b: Story) => b.publishedAt.localeCompare(a.publishedAt);
 const storyHref = (s: Story, lang: Lang) => href(lang, `/news/${s.id}`);
 
-// Each section's newest stories, led by the most important of the last day, one with a photo if it has one
+// Each section's newest stories, led by the most important of the last day for its age (lib/rank.ts), one with a photo if it has one
 // (29 Oct: farming was led by a week-old photo story above one of ten hours before).
 function freshFirst(list: Story[]): Story[] {
   const day = list.filter((s) => Date.now() - Date.parse(s.publishedAt) < 24 * 3600_000)
-    .sort((a, b) => (b.importance ?? 0) - (a.importance ?? 0) || newest(a, b));
+    .sort((a, b) => topScore(b) - topScore(a) || newest(a, b));
   const lead = day.find(decent) ?? day[0] ?? list.find(decent) ?? list[0];
   return lead ? [lead, ...list.filter((s) => s !== lead)] : list;
 }
@@ -115,19 +116,12 @@ export default async function Home({ lang }: { lang: Lang }) {
   const stories = await latestStories(200);
   const day = stories[0]?.issueDate;
   const today = stories.filter((s) => s.issueDate === day);
-  // the lead: the engine's most important story of the last 12 hours when it's headline-sized (ROADMAP §0.1), else the
-  // newest day's front page; fresh first, never an old story (29 Oct); among the fresh ones, one with a good wide photo
-  const fresh = stories.filter((s) => s.origin === "live" && Date.now() - Date.parse(s.publishedAt) < 12 * 3600_000 && (s.importance ?? 0) >= 7.5)
-    .sort((a, b) => (b.importance ?? 0) - (a.importance ?? 0) || b.publishedAt.localeCompare(a.publishedAt));
-  const lead = fresh.find(strong) ?? fresh[0] ?? today.find((s) => strong(s) && s.page === 1) ?? today.find(strong) ?? today[0];
+  // the top: the lead, a pair and a row of three, ranked by how much each matters, how fresh it is and how many outlets
+  // report it, each a different event (lib/rank.ts; 4 Nov: the pair and the three were simply the newest with a photo)
+  const top = frontTop(stories, { strong, decent });
+  const lead = top.lead ?? today[0];
   const [more, read, articles, others] = await Promise.all([lead ? moreOnSubject(lead.id) : [], mostRead(16), features({ limit: 6 }), elsewhere(lang)]);
-  // the next stories, today's paper first: a pair (with pictures when both have one, so they match), then three across
-  const pool = [...today, ...stories.filter((s) => s.issueDate !== day)].filter((s) => s !== lead);
-  const pics = pool.filter(decent);
-  // two different pictures: never one file photo twice side by side
-  const second = pics.slice(1).find((s) => !samePhoto(s, pics[0]));
-  const pair = second ? [pics[0], second] : pool.slice(0, 2);
-  const three = pool.filter((s) => !pair.includes(s)).slice(0, 3);
+  const { pair, three } = top;
   const shown = new Set([lead, ...pair, ...three].filter(Boolean).map((s) => s!.id));
   // the latest: newest first, without what's above; most read and the sections leave out what's already shown (2 Nov)
   const latest = stories.filter((s) => !shown.has(s.id)).sort(newest).slice(0, 8);
