@@ -103,12 +103,14 @@ async function photosFor(sql: Sql, s: Story): Promise<CardPhoto[]> {
 // ---- a section's set
 
 async function makeSet(sql: Sql, tier: Tier, edition: string, seen: (looked: number, of: number, cards: number) => Promise<void>): Promise<InstaSet | null> {
-  const since = Date.now() - 12 * 3600_000;
-  const stories = (await storiesIn(tier, 60))
-    .filter((s) => new Date(s.publishedAt).getTime() >= since)
-    .sort((a, b) => (b.importance ?? 0) - (a.importance ?? 0) || b.publishedAt.localeCompare(a.publishedAt));
+  // the last 12 hours' most important first, then the 12 hours before (4 Nov: Gujarat had 14 stories in 12 hours and 4 with
+  // a photo, so no set was made)
+  const at = (s: Story) => new Date(s.publishedAt).getTime();
+  const byWeight = (a: Story, b: Story) => (b.importance ?? 0) - (a.importance ?? 0) || b.publishedAt.localeCompare(a.publishedAt);
+  const all = (await storiesIn(tier, 80)).filter((s) => at(s) >= Date.now() - 24 * 3600_000);
+  const stories = [...all.filter((s) => at(s) >= Date.now() - 12 * 3600_000).sort(byWeight), ...all.filter((s) => at(s) < Date.now() - 12 * 3600_000).sort(byWeight)];
   const cards: Card[] = [];
-  const looking = stories.slice(0, 14);
+  const looking = stories.slice(0, 20);
   // three stories at a time (each waits on Wikimedia and two AI answers): a section in a few minutes, not ten
   for (let i = 0; i < looking.length && cards.length < MAX_STORIES; i += 3) {
     const batch = looking.slice(i, i + 3);
@@ -119,7 +121,7 @@ async function makeSet(sql: Sql, tier: Tier, edition: string, seen: (looked: num
     }
     await seen(Math.min(i + 3, looking.length), looking.length, cards.length);
   }
-  log(`${sectionName(tier, "en")}: ${stories.length} stories in 12 hours, ${cards.length} with a good photo`);
+  log(`${sectionName(tier, "en")}: ${stories.length} stories in 24 hours, ${looking.length} looked at, ${cards.length} with a good photo`);
   if (cards.length < MIN_STORIES) return null;
   return {
     id: `${edition}-${tier}-${randomBytes(3).toString("hex")}`, edition, tier, state: "making", cards,
@@ -244,7 +246,7 @@ if (ask) {
   const r = ask.tiers.length ? await edition(dueNew ?? editionAt(), ask.tiers) : { made: [], left: [] };
   await putInstaNews(sql, { at: new Date().toISOString(), text: [
     ...r.made.map((s) => `${sectionName(s.tier, "gu")}: ${s.cards.length} સમાચાર`),
-    ...(r.left.length ? [`${r.left.join(", ")}: છેલ્લા ૧૨ કલાકમાં સારા ફોટાવાળા પૂરતા સમાચાર નથી`] : []),
+    ...(r.left.length ? [`${r.left.join(", ")}: છેલ્લા ૨૪ કલાકમાં ફોટાવાળા પૂરતા (૫) સમાચાર નથી`] : []),
   ].join("; ") });
   await askDone(sql, ask);
   if (dueNew && !r.made.length) await none(dueNew);
