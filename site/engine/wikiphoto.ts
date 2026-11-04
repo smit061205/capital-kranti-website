@@ -97,8 +97,14 @@ view of a place fits a story about that place. Reply with JSON only: {"fits": tr
 
 /** Whether a file photo suits the story (2 Nov: a fruit market in Hodeidah beside a strike on its port); null when the
  *  free models couldn't say. */
-export async function fitsStory(sql: Sql, w: { headline: string; deck: string }, subject: string, about: string): Promise<boolean | null> {
-  const res = await askJson(sql, { system: FIT, user: `STORY: ${w.headline}\n${w.deck}\n\nPHOTO SUBJECT: ${subject}\nPHOTO DESCRIPTION: ${about || "(none)"}`, maxTokens: 40, small: true },
+const SEARCHED = `
+This photo was found by searching, not taken from the subject's own article, so be strict: answer false if it shows war,
+soldiers in battle, wounded, sick, dead or grieving people, a stretcher, weapons being used, an arrest, a disaster, a
+historical or archive scene (old, black and white), or anything a reader could find offensive or upsetting beside this
+story; false if it shows another country's or another time's version of the thing; false when unsure.`;
+
+export async function fitsStory(sql: Sql, w: { headline: string; deck: string }, subject: string, about: string, searched = false): Promise<boolean | null> {
+  const res = await askJson(sql, { system: searched ? FIT + SEARCHED : FIT, user: `STORY: ${w.headline}\n${w.deck}\n\nPHOTO SUBJECT: ${subject}\nPHOTO DESCRIPTION: ${about || "(none)"}`, maxTokens: 40, small: true },
     (v) => (typeof (v as { fits?: unknown })?.fits === "boolean" ? (v as { fits: boolean }).fits : null));
   return res.ok ? res.value : null;
 }
@@ -174,6 +180,11 @@ English and Hindi (a few words):
    dead people, no police arrest). null when nothing suits.
 Reply with JSON only: {"file": {"search": "", "gu": "", "en": "", "hi": ""} or null, "symbolic": {"search": "", "gu": "", "en": "", "hi": ""} or null}`;
 
+/** What a searched photo must never show beside the news: war, wounds, death, arrests, disasters, and old archive scenes
+ *  (4 Nov: "Indian Army soldiers carry a wounded officer on a stretcher in France", a First World War photo, went up beside
+ *  a story on the Agniveers' new recruitment rules). Read from the file's name and its description. */
+export const UNFIT = /\b(war|wars|wartime|battle|battlefield|combat|wounded|injur\w*|casualt\w*|stretcher|corpse\w*|dead|death\w*|died|dying|killed|funeral|cremat\w*|burial|grave\w*|cemetery|memorial|martyr\w*|blood\w*|bomb\w*|blast|explosion|riot\w*|massacre|terror\w*|attack\w*|prisoner\w*|captive\w*|arrest\w*|execution|hanging|refugee\w*|famine|flood\w*|disaster|accident|crash\w*|wreck\w*|fire|burning|ruins|trench\w*|ww1|wwi|ww2|wwii|1[0-8]\d\d|19[0-7]\d|historic\w*|archive\w*|archival|vintage|black and white|monochrome)\b/i;
+
 interface Idea { search: string; gu: string; en: string; hi: string }
 const ideaOf = (v: unknown): Idea | null => {
   const x = v as Partial<Idea> | null;
@@ -226,8 +237,9 @@ export async function freePhoto(sql: Sql, w: Written, storyId: string, note: (wh
     if (file) {
       const found = await commonsSearch(file.search, 6, 1920);
       // the widest first: from 1200, Google shows a story's photo large
-      for (const p of found.sort((a, b) => Number(b.full >= 1200) - Number(a.full >= 1200)).slice(0, 3)) {
-        if ((await fitsStory(sql, story, file.en, p.alt)) !== true) continue;
+      for (const p of found.filter((p) => !UNFIT.test(`${p.url.replace(/%[0-9a-f]{2}|[_/]/gi, " ")} ${p.alt}`))
+        .sort((a, b) => Number(b.full >= 1200) - Number(a.full >= 1200)).slice(0, 3)) {
+        if ((await fitsStory(sql, story, file.en, `${p.alt} (file: ${(p.url.split("/").pop() ?? "").replace(/%[0-9a-f]{2}|_/gi, " ")})`, true)) !== true) continue;
         const big = commonsAt(p, 1920);
         return { photo: { url: big.url, width: big.width, height: big.height, credit: p.credit },
                  caption: { gu: `ફાઇલ ફોટો: ${file.gu}`, en: `File photo: ${file.en}`, hi: `फ़ाइल फ़ोटो: ${file.hi}` } };
@@ -239,8 +251,8 @@ export async function freePhoto(sql: Sql, w: Written, storyId: string, note: (wh
       const stock = [...(await pexels(symbolic.search)).slice(0, 3),
         ...(await commonsSearch(symbolic.search, 4, 1920)).sort((a, b) => Number(b.full >= 1200) - Number(a.full >= 1200)).slice(0, 2)
           .map((p) => ({ ...commonsAt(p, 1920), alt: p.alt, credit: p.credit }))];
-      for (const p of stock) {
-        const ok = await askJson(sql, { system: SYMBOLIC_FIT, user: `STORY: ${w.headline}\n${w.deck}\n\nPHOTO: ${p.alt || symbolic.en}`, maxTokens: 40, small: true },
+      for (const p of stock.filter((p) => !UNFIT.test(`${p.url.replace(/%[0-9a-f]{2}|[_/]/gi, " ")} ${p.alt}`))) {
+        const ok = await askJson(sql, { system: SYMBOLIC_FIT + SEARCHED, user: `STORY: ${w.headline}\n${w.deck}\n\nPHOTO: ${p.alt || symbolic.en}`, maxTokens: 40, small: true },
           (v) => (typeof (v as { fits?: unknown })?.fits === "boolean" ? (v as { fits: boolean }).fits : null));
         if (!ok.ok || !ok.value) continue;
         return { photo: { url: p.url, width: p.width, height: p.height, credit: p.credit },

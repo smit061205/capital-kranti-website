@@ -24,7 +24,7 @@ import { STALE_H, STRAY, gate, gather, importance, levelOf, mendLetters, needsTr
 import { indiaDate, photoOf, saveLive } from "./publish.ts";
 import { alertBreaking } from "../lib/push.ts";
 import { birthdays, leaders } from "../lib/leaders.ts";
-import { background, fitsStory, freePhoto, leadPhoto } from "./wikiphoto.ts";
+import { background, fitsStory, freePhoto, leadPhoto, UNFIT } from "./wikiphoto.ts";
 import { cluster, nearEvent, placeTier, sameEvent, triage, type Triage } from "./triage.ts";
 
 const url = process.env.DATABASE_URL;
@@ -241,6 +241,22 @@ async function photos(until = finish) {
   if (!again) {
     await sql.query(`update stories set photo_tried = false where origin = 'live' and photo is null and published_at > now() - interval '36 hours'`);
     await sql.query(`insert into state (key, value) values ('photo_retry_2', '1') on conflict (key) do nothing`);
+  }
+  // once (4 Nov): a searched photo of war, wounds, death or an old archive scene comes off (a First World War stretcher
+  // beside the Agniveers' story), and the story is looked at again with the stricter search
+  const [unfit] = await sql.query(`select value from state where key = 'photo_unfit_off'`);
+  if (!unfit) {
+    const had = await sql.query(`select id, photo->>'url' as url, coalesce(en->>'caption', '') as cap from stories
+      where origin = 'live' and published_at > now() - interval '3 days' and photo->>'credit' ~ '(Wikimedia Commons|Pexels)'`);
+    const off = had.filter((r) => r.id === "live-142f41186fe1" || UNFIT.test(`${String(r.url).replace(/%[0-9a-f]{2}|[_/]/gi, " ")} ${r.cap}`)).map((r) => r.id);
+    if (off.length) {
+      await sql.query(`update stories set photo = null, caption = '', photo_tried = true, photo_why = 'photo taken off: unfit', updated_at = now(),
+          en = case when en is null then en else jsonb_set(en, '{caption}', '""') end, hi = case when hi is null then hi else jsonb_set(hi, '{caption}', '""') end
+        where id = any($1)`, [off]);
+      await touched(sql);
+    }
+    log(`    unfit photos taken off: ${off.join(", ") || "none"}`);
+    await sql.query(`insert into state (key, value) values ('photo_unfit_off', '1') on conflict (key) do nothing`);
   }
   // once (4 Nov): a logo that went up as a file photo comes off, and the story is looked at again
   const [logos] = await sql.query(`select value from state where key = 'photo_logo_off'`);
