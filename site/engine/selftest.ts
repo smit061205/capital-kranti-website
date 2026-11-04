@@ -177,7 +177,9 @@ test("the front page's top: important and fresh first, one story of an event, no
   const ag2 = st("Cabinet decision: path cleared for permanent recruitment of Agniveers in army", 8, 1);
   assert.ok(!sameStory(ag1, ag2));
   assert.equal(ranked([ag1, ag2, st("Cabinet increases service tenure of Agniveers and raises salary", 7, 1), st("Cabinet approves cattle insurance scheme", 7, 1), st("Cabinet clears lithium processing support", 7, 1),
-    st("Manipur violence four dead", 7, 1), st("Amul raises ghee prices", 6, 1)], now).filter((s) => s === ag1 || s === ag2).length, 1);
+    st("Manipur violence four dead", 7, 1), st("Amul raises ghee prices", 6, 1),
+    // a day's other stories, so a word in three headlines is rare among them
+    ...Array.from({ length: 30 }, (_, i) => st(`other news item ${"abcdefghijklmnopqrstuvwxyzABCD"[i]}x${i}`, 4, 2))], now).filter((s) => s === ag1 || s === ag2).length, 1);
   assert.equal(ranked([st("Cabinet approves cattle insurance scheme", 7, 1), st("Cabinet clears lithium processing support", 7, 1),
     st("Cabinet extends fast track courts scheme", 7, 1), st("Manipur violence four dead", 7, 1), st("Amul raises ghee prices", 6, 1), st("Toyota Innova launch", 6, 1)], now).length, 6);
   // no more than two of one desk among the first six, and Gujarat's best brought in when it's near

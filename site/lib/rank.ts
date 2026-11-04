@@ -46,10 +46,11 @@ export function ranked(stories: Story[], now = Date.now(), size = 12): Story[] {
   // the last day and a half; older only when there's nothing newer (the paper alone, the engine stopped)
   const recent = stories.filter((s) => now - Date.parse(s.publishedAt) < 36 * 3600_000);
   const pool = (recent.length >= 6 ? recent : stories).map((s) => ({ s, score: topScore(s, now) })).sort((a, b) => b.score - a.score);
-  // a word in at most three of these stories' headlines (4 Nov: three stories of the Agniveers' cabinet decision)
+  // a word in at most three of these stories' headlines (4 Nov: three stories of the Agniveers' cabinet decision),
   const seen = new Map<string, number>();
   for (const x of pool) for (const w of wordsOf(x.s)) seen.set(w, (seen.get(w) ?? 0) + 1);
-  const rare = (w: string) => (seen.get(w) ?? 0) <= 3;
+  // and in at most a tenth of them (on a quiet day "cabinet" can be in three of a dozen, and isn't rare)
+  const rare = (w: string) => (seen.get(w) ?? 0) <= Math.min(3, pool.length * 0.1);
   const top: { s: Story; score: number }[] = [];
   const later: { s: Story; score: number }[] = [];
   for (const x of pool) {
