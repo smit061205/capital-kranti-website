@@ -137,7 +137,7 @@ async function makeSet(sql: Sql, tier: Tier, edition: string, seen: (looked: num
   if (cards.length < MIN_STORIES) return null;
   return {
     id: `${edition}-${tier}-${randomBytes(3).toString("hex")}`, edition, tier, state: "making", cards,
-    caption: captionFor(tier, edition, cards), image: null, madeAt: new Date().toISOString(), postedAt: null, postUrl: null, note: "",
+    caption: captionFor(tier, edition, cards), image: null, madeAt: new Date().toISOString(), postedAt: null, postUrl: null, note: "", fbUrl: null,
   };
 }
 
@@ -255,7 +255,7 @@ const due = settings.auto && settings.times.length ? editionNow(settings.times) 
 const now = due ?? (process.argv.includes("--now") ? editionAt() : null);
 const dueNew = now && !recent.some((s) => s.edition === now) ? now : null;
 const none = (edition: string) => saveSet(sql, { id: `${edition}-none`, edition, tier: "gujarat", state: "expired", cards: [], caption: "", image: null,
-                                                madeAt: new Date().toISOString(), postedAt: null, postUrl: null, note: "too few stories with good photos" });
+                                                madeAt: new Date().toISOString(), postedAt: null, postUrl: null, fbUrl: null, note: "too few stories with good photos" });
 if (ask) {
   // a set the editor asked for; when an edition is due as well, the asked one is that edition (made once, not twice)
   const r = ask.tiers.length ? await edition(dueNew ?? editionAt(), ask.tiers) : { made: [], left: [] };

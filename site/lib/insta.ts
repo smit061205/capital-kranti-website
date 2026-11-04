@@ -33,6 +33,8 @@ export interface InstaSet {
   /** the cards as one tall picture in the photo store, one under another (one upload a set: the store's free uploads are few) */
   image: string | null;
   madeAt: string; postedAt: string | null; postUrl: string | null; note: string;
+  /** its post on the paper's Facebook Page (lib/facebook.ts), when it went up there */
+  fbUrl: string | null;
 }
 
 /** the last card's photo, one for each section: free photos from Wikimedia Commons, credited (the user picks them by eye) */
@@ -165,7 +167,7 @@ const setOf = (r: Record<string, unknown>): InstaSet => ({
   id: r.id as string, edition: r.edition as string, tier: r.tier as Tier, state: r.state as SetState,
   cards: r.cards as Card[], caption: r.caption as string, image: (r.image as string) ?? null,
   madeAt: new Date(r.made_at as string).toISOString(), postedAt: r.posted_at ? new Date(r.posted_at as string).toISOString() : null,
-  postUrl: (r.post_url as string) ?? null, note: (r.note as string) ?? "",
+  postUrl: (r.post_url as string) ?? null, note: (r.note as string) ?? "", fbUrl: (r.fb_url as string) ?? null,
 });
 
 /** the latest sets, newest first (the editor page shows the current edition's and the last few posted) */
@@ -185,11 +187,11 @@ export async function getSet(sql: Sql, id: string): Promise<InstaSet | null> {
 export async function saveSet(sql: Sql, s: InstaSet) {
   await prepared(sql);
   await sql.query(
-    `insert into insta_sets (id, edition, tier, state, cards, caption, image, made_at, posted_at, post_url, note)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+    `insert into insta_sets (id, edition, tier, state, cards, caption, image, made_at, posted_at, post_url, note, fb_url)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
      on conflict (id) do update set state = excluded.state, cards = excluded.cards, caption = excluded.caption, image = excluded.image,
-       posted_at = excluded.posted_at, post_url = excluded.post_url, note = excluded.note`,
-    [s.id, s.edition, s.tier, s.state, JSON.stringify(s.cards), s.caption, s.image, s.madeAt, s.postedAt, s.postUrl, s.note]);
+       posted_at = excluded.posted_at, post_url = excluded.post_url, note = excluded.note, fb_url = excluded.fb_url`,
+    [s.id, s.edition, s.tier, s.state, JSON.stringify(s.cards), s.caption, s.image, s.madeAt, s.postedAt, s.postUrl, s.note, s.fbUrl ?? null]);
 }
 
 // ---- what goes up

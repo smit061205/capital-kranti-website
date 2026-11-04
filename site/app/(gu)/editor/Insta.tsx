@@ -27,6 +27,8 @@ const WORDS = {
     posted: "મુકાયો", failed: "મુકાયો નહીં", expired: "સમય ગયો",
     drop: "આ કાર્ડ હટાવો", next: "બીજો ફોટો", earlier: "← આગળ", later: "પાછળ →", caption: "ઇન્સ્ટાગ્રામ પરના શબ્દો", saveCaption: "શબ્દો સાચવો",
     approve: "મંજૂર કરો અને મૂકો", again: "હવે મૂકો", skip: "આ સેટ ન મૂકો", sure: "હા, ન મૂકો", see: "ઇન્સ્ટાગ્રામ પર જુઓ", last: "છેલ્લે મુકાયેલા",
+    fbOn: (n: string) => `ફેસબુક પેજ જોડાયેલું છે: ${n}`, fbOff: "ફેસબુક પેજ હજી જોડાયેલું નથી: જોડાશે પછી સેટ ત્યાં પણ મુકાશે.",
+    fbBroken: "ફેસબુક પેજ સુધી પહોંચાતું નથી. ફેસબુકનું કારણ:", fbSee: "ફેસબુક પર જુઓ", fbToo: "ફેસબુક પર પણ મૂકો",
     lastCard: "છેલ્લું કાર્ડ: વિભાગની લિંક",
     settings: "સમય અને વિભાગ બદલો", how: "સેટ કેવી રીતે બને", auto: "દરરોજ નક્કી સમયે જાતે", byHand: "ફક્ત હું માગું ત્યારે",
     times: "સમય (ભારતનો)", timesHelp: `${num(MAX_TIMES, "gu")} સુધી સમય. દરેક સમયના એક કલાક પહેલાં સેટ તૈયાર થાય છે; ખાલી રાખેલો સમય ગણાશે નહીં.`,
@@ -48,6 +50,8 @@ const WORDS = {
     posted: "Posted", failed: "Not posted", expired: "Time passed",
     drop: "Take this card out", next: "Another photo", earlier: "← Earlier", later: "Later →", caption: "The words on Instagram", saveCaption: "Save the words",
     approve: "Approve and post", again: "Post now", skip: "Don't post this set", sure: "Yes, don't post", see: "See it on Instagram", last: "Posted lately",
+    fbOn: (n: string) => `The Facebook Page is connected: ${n}`, fbOff: "The Facebook Page isn't connected yet: once it is, sets go up there too.",
+    fbBroken: "The Facebook Page can't be reached. Facebook's reason:", fbSee: "See it on Facebook", fbToo: "Post on Facebook too",
     lastCard: "Last card: the section's link",
     settings: "Change the times and sections", how: "How sets are made", auto: "By themselves, every day at set times", byHand: "Only when I ask",
     times: "Times (India)", timesHelp: `Up to ${MAX_TIMES} times. A set is ready an hour before each; a time left empty doesn't count.`,
@@ -61,9 +65,9 @@ const WORDS = {
 const clock = (iso: string, lang: "gu" | "en") => timeName(new Date(new Date(iso).getTime() + 5.5 * 3600_000).toISOString().slice(11, 16), lang);
 const list = (xs: string[], and: string) => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")}${and}${xs.at(-1)}` : xs[0] ?? "");
 
-export default function Insta({ lang, sets, settings, ask, news, progress, who, logs }: {
+export default function Insta({ lang, sets, settings, ask, news, progress, who, page, logs }: {
   lang: "gu" | "en"; sets: InstaSet[]; settings: InstaSettings; ask: InstaAsk | null; news: InstaNews | null; progress: InstaProgress | null;
-  who: { name: string } | { why: string } | null; logs: InstaLogLine[];
+  who: { name: string } | { why: string } | null; page: { name: string } | { why: string } | null; logs: InstaLogLine[];
 }) {
   const w = WORDS[lang];
   const nn = (x: number) => (lang === "gu" ? num(x, "gu") : String(x));
@@ -98,6 +102,9 @@ export default function Insta({ lang, sets, settings, ask, news, progress, who, 
       {!who ? <p className={s.note}>{w.off}</p>
         : "name" in who ? <p className={s.done}>✓ {w.on(who.name)}</p>
         : <p className={s.why}>{w.broken} {who.why}</p>}
+      {!page ? <p className={s.note}>{w.fbOff}</p>
+        : "name" in page ? <p className={s.done}>✓ {w.fbOn(page.name)}</p>
+        : <p className={s.why}>{w.fbBroken} {page.why}</p>}
 
       <div className={s.card}>
         <h3>{w.now}</h3>
@@ -161,7 +168,12 @@ export default function Insta({ lang, sets, settings, ask, news, progress, who, 
       {posted.length > 0 && <>
         <h3 className={s.sub}>{w.last}</h3>
         <ul className={s.runs}>{posted.map((x) => (
-          <li key={x.id}><span>{sectionName(x.tier, "gu")} · {editionName(x.edition)}</span>{x.postUrl && <a href={x.postUrl} target="_blank" rel="noopener">{w.see}</a>}</li>
+          <li key={x.id}><span>{sectionName(x.tier, "gu")} · {editionName(x.edition)}</span>
+            {x.postUrl && <a href={x.postUrl} target="_blank" rel="noopener">{w.see}</a>}
+            {x.fbUrl && <a href={x.fbUrl} target="_blank" rel="noopener">{w.fbSee}</a>}
+            {!x.fbUrl && page && "name" in page && x.image && (
+              <form action={approveInsta.bind(null, x.id)}><Press className={s.small} busy={w.posting}>{w.fbToo}</Press></form>
+            )}</li>
         ))}</ul>
       </>}
 
