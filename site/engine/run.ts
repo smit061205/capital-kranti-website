@@ -115,9 +115,10 @@ async function write(until = deadline) {
   const left = await aiLeft(sql);
   const can = Math.min(PER_RUN, Math.floor((left - RESERVE) / 5));
   if (can <= 0) { log(`  writing: waits (${left} free requests left today)`); return; }
-  // today's news first: a day-old event goes after anything newer, however big it scored
+  // today's news first: a day-old event goes after anything newer, however big it scored; Gujarat's news a point and a
+  // half ahead of the rest (5 Nov: a Gujarati paper's own state's news should not wait behind the nation's)
   const ready = await sql.query(`select id, event, keys, tier, genres, sensitive, score, first_seen, write_tries from clusters where state = 'confirmed'
-    order by write_tries, first_seen > now() - interval '12 hours' desc, score desc, first_seen asc limit ${PER_RUN * 8}`);
+    order by write_tries, first_seen > now() - interval '12 hours' desc, score + case when tier = 'gujarat' then 1.5 else 0 end desc, first_seen asc limit ${PER_RUN * 8}`);
   let next = 0, stopped = false;
   const writer = async () => {
     while (!stopped && wrote < can && Date.now() <= until && next < ready.length) {
@@ -501,6 +502,8 @@ async function prune() {
   await sql.query(`update items set summary = '', body = null where ${old} and published_at is null and (summary <> '' or body is not null)`);
   // the "not already up" answers of events no longer waiting to be written (triage.ts sameEvent)
   await sql.query(`delete from state where key like 'twin:%' and substr(key, 6) not in (select id from clusters where state = 'confirmed')`);
+  // the readers' day-old fingerprints (app/api/read)
+  await sql.query(`delete from read_once where day < (now() at time zone 'Asia/Kolkata')::date - 1`);
   await sql.query(`insert into state (key, value) values ('pruned', $1) on conflict (key) do update set value = excluded.value`, [day]);
   log(`old reports deleted: ${gone?.n ?? 0}`);
 }

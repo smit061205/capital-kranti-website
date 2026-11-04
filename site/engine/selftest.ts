@@ -7,12 +7,13 @@ import assert from "node:assert/strict";
 import { readJson } from "./ai.ts";
 import { ownItem } from "./collect.ts";
 import { parseFeed, pageText } from "./feed.ts";
-import { copiedShare, cutUnsupported, gate, importance, lengthFor, levelOf, sentencesOf, thin, toGujarati, type ClusterItem, type SourceText } from "./newsroom.ts";
+import { copiedShare, cutUnsupported, doubledWord, gate, importance, lengthFor, levelOf, sentencesOf, thin, toGujarati, type ClusterItem, type SourceText } from "./newsroom.ts";
 import { SOURCES, sourceById } from "./sources.ts";
 import { numbersNotIn } from "./text.ts";
 import { keySet, placeTier, similarity, SAME_EVENT } from "./triage.ts";
 import { coverTier } from "./cover.ts";
 import { commonsAt } from "./wikiphoto.ts";
+import { authorName, creditText } from "../lib/photo.ts";
 import { frontTop, ranked, sameStory, topScore } from "../lib/rank.ts";
 import type { Story } from "../lib/types.ts";
 
@@ -119,6 +120,20 @@ test("news from outside Gujarat isn't filed under Gujarat", () => {
   assert.equal(placeTier("gujarat", "ભૂપેન્દ્ર પટેલ દિલ્હીમાં વડાપ્રધાનને મળ્યા"), "gujarat");
   assert.equal(placeTier("gujarat", "વડોદરામાં સોની પરિવારના ત્રણ સભ્યોએ આત્મહત્યા કરી"), "gujarat");
   assert.equal(placeTier("india", "Delhi air quality"), "india");
+  assert.equal(placeTier("gujarat", "LIC launches new pension plan for senior citizens", "en"), "india");
+  assert.equal(placeTier("gujarat", "Surat textile traders get GST relief", "en"), "gujarat");
+  assert.equal(placeTier("gujarat", "ધોળકિયા ગામમાં નવી શાળાનું ઉદ્ઘાટન", "gu"), "gujarat");
+  assert.equal(authorName("This photo was taken by Ramesh Patel. Please credit me when you use it, thanks."), "Ramesh Patel");
+  assert.equal(authorName("Photo by: A. K. Sharma (talk)"), "A. K. Sharma");
+  assert.equal(authorName("Own work"), "Own work");
+  assert.equal(authorName(""), "Wikimedia Commons");
+  assert.ok(authorName("x".repeat(30) + " " + "y".repeat(30)).length <= 50);
+  assert.equal(creditText("This image was taken by Jay Shah. Use freely, CC BY-SA 4.0, Wikimedia Commons"), "Jay Shah, CC BY-SA 4.0, Wikimedia Commons");
+  assert.equal(creditText("Asha Rao, Unsplash"), "Asha Rao, Unsplash");
+  assert.equal(doubledWord("વિધિસર વિધિસર મંજૂરી મળી"), "વિધિસર");
+  assert.equal(doubledWord("જુદા જુદા જિલ્લામાં વરસાદ"), null);
+  assert.equal(doubledWord("ધીમે ધીમે ભાવ ઘટ્યા, ખેડૂતો ખુશ"), null);
+  assert.equal(doubledWord("સરકારે યોજના જાહેર કરી\nયોજના હેઠળ સહાય"), null);
 });
 test("a cover from Commons is asked for at Wikimedia's own sizes, never larger than its original", () => {
   const p = { url: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c5/A.jpg/1280px-A.jpg?utm_source=x", width: 1280, height: 720, full: 4000 };

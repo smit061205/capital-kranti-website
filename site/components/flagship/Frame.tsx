@@ -9,7 +9,7 @@ import { SearchIcon } from "../icons.tsx";
 import type { Lang } from "../../lib/types.ts";
 import { href } from "../../lib/i18n.ts";
 import { BEATS, beatName, flw, type Beat } from "../../lib/flagship.ts";
-import { PAPER } from "../../lib/site.ts";
+import { PAPER, WHATSAPP_CHANNEL } from "../../lib/site.ts";
 import { num } from "../../lib/format.ts";
 
 /** A flagship path in the reader's language: fl("en", "/ai") → /en/aavtikal/ai. */
@@ -50,7 +50,7 @@ export default function Frame({ lang, beat, path, children }: { lang: Lang; beat
           </Link>
           <div className={s.barR}>
             <Link prefetch={false} className={s.hideS} href={href(lang, "/")}>{w.daily}</Link>
-            <a className={`${s.pill} ${s.hideS}`} href="#join">{w.join}</a>
+            {WHATSAPP_CHANNEL && <a className={`${s.pill} ${s.hideS}`} href="#join">{w.join}</a>}
             <Menu label={w.menu} close={w.close}>
               <div className={s.dGroup}>
                 <Link prefetch={false} className={s.dBig} href={fl(lang)} aria-current={!beat && path === "" ? "page" : undefined}>{w.home}</Link>

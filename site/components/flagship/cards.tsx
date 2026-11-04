@@ -7,6 +7,7 @@ import type { Lang } from "../../lib/types.ts";
 import { pic, SIZES } from "../../lib/photo.ts";
 import { AUTHORS, beatName, featureWords, flw, readMinutes, type Feature } from "../../lib/flagship.ts";
 import { num, shortDate } from "../../lib/format.ts";
+import { WHATSAPP_CHANNEL } from "../../lib/site.ts";
 
 /** Gujarati words shown on an English or Hindi page are marked so, and keep the Gujarati sizes. */
 export const gl = (lang: Lang, translated: boolean) => (lang !== "gu" && !translated ? "gu" : undefined);
@@ -92,14 +93,15 @@ export function Grid({ items, lang, tag = true, dive = false }: { items: Feature
   );
 }
 
-/** The WhatsApp box (Pirate Wires' pop-up, set into the page instead). */
+/** The WhatsApp box (Pirate Wires' pop-up, set into the page instead), once there is a channel (lib/site.ts). */
 export function JoinBox({ lang }: { lang: Lang }) {
   const w = flw(lang);
+  if (!WHATSAPP_CHANNEL) return null;
   return (
     <section id="join" className={s.joinBox} aria-labelledby="join-h">
       <h2 id="join-h">{w.joinTitle}</h2>
       <p>{w.joinText}</p>
-      <span className={s.joinBtn} aria-disabled="true">{w.joinSoon}</span>
+      <a className={s.joinBtn} href={WHATSAPP_CHANNEL} target="_blank" rel="noopener">WhatsApp</a>
     </section>
   );
 }

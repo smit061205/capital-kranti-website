@@ -1,18 +1,21 @@
 // Instagram's own watcher (.github/workflows/site-insta.yml), apart from the news engine (the user, 4 Nov: "why is insta
 // tied to 15 minute runs"): every 20 seconds it looks whether there's work, a set the editor asked for, a set the editor
-// changed, or an edition due at the editor's times, and runs engine/insta.ts for it at once, a fresh process each time
+// changed, or an edition due at the editor's times, and runs engine/insta.ts for it at once (and, with nothing to do, the
+// shared pictures of stories without a photo: engine/share.ts), a fresh process each time
 // so it runs main's latest code. Ends by itself after the seconds it's given.
 // Run: node --experimental-strip-types --no-warnings site/engine/instawatch.ts 600
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { db } from "../lib/db.ts";
 import { editionNow, instaLog, instaSettings } from "../lib/insta.ts";
+import { waiting } from "./share.ts";
 
 const sql = db();
 if (!sql) { console.log("no DATABASE_URL"); process.exit(0); }
 const until = Date.now() + Number(process.argv[2] ?? 600) * 1000;
 const pause = (s: number) => new Promise((r) => setTimeout(r, s * 1000));
 const INSTA = fileURLToPath(new URL("./insta.ts", import.meta.url));
+const SHARE = fileURLToPath(new URL("./share.ts", import.meta.url));
 
 /** "ask": the editor asked for a set (always at once); "more": a changed set or a due edition (not again within five
  *  minutes of a run, so a set whose pictures keep failing isn't tried every 20 seconds) */
@@ -28,7 +31,7 @@ async function work(): Promise<"ask" | "more" | null> {
   return made ? null : "more";
 }
 
-let lastRun = 0;
+let lastRun = 0, lastShare = 0;
 while (Date.now() < until - 20_000) {
   try {
     const w = await work();
@@ -38,6 +41,12 @@ while (Date.now() < until - 20_000) {
       const run = spawnSync(process.execPath, ["--experimental-strip-types", "--no-warnings", INSTA], { stdio: "inherit", timeout: 15 * 60_000 });
       if (run.signal) await instaLog(sql, "engine", "કામ ૧૫ મિનિટમાં પૂરું ન થયું, અટકાવ્યું; થોડી વારમાં ફરી પ્રયાસ થશે");
       else if (run.status) await instaLog(sql, "engine", `કામ ભૂલથી અટક્યું (કોડ ${run.status}); થોડી વારમાં ફરી પ્રયાસ થશે`);
+      continue;
+    }
+    // with nothing for Instagram, the shared pictures of stories without a photo (engine/share.ts), every five minutes at most
+    if (!w && Date.now() - lastShare > 5 * 60_000) {
+      lastShare = Date.now();
+      if ((await waiting(sql, 1)).length) spawnSync(process.execPath, ["--experimental-strip-types", "--no-warnings", SHARE], { stdio: "inherit", timeout: 5 * 60_000 });
       continue;
     }
   } catch (e) {

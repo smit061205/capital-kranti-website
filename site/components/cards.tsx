@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { ViewTransition } from "react";
 import type { Lang, Story } from "../lib/types.ts";
-import { pic, SIZES } from "../lib/photo.ts";
+import { creditText, pic, SIZES, UNSPLASH_HOME } from "../lib/photo.ts";
 import type { Elsewhere } from "../lib/db.ts";
 import { href, t } from "../lib/i18n.ts";
 import { sectionName } from "../lib/sections.ts";
@@ -10,6 +10,7 @@ import { num, timeText } from "../lib/format.ts";
 import TimeAgo from "./TimeAgo.tsx";
 import Alerts from "./Alerts.tsx";
 import { Chev } from "./icons.tsx";
+import { WHATSAPP_CHANNEL } from "../lib/site.ts";
 
 /** A story's words in the reader's language: its English or Hindi when it has one, else the Gujarati. */
 export function words(s: Story, lang: Lang) {
@@ -18,6 +19,18 @@ export function words(s: Story, lang: Lang) {
            body: e?.body || s.body, caption: e?.caption || s.caption, translated: !!e };
 }
 const storyHref = (s: Story, lang: Lang) => href(lang, `/news/${s.id}`);
+
+/** "(ફોટો: …)" after a caption: who took the photo, else the story's source. An Unsplash photo links its photographer and
+ *  Unsplash, as Unsplash's rules ask, wherever the credit isn't already inside a link (`links`). */
+export function Credit({ s, lang, links = true }: { s: Story; lang: Lang; links?: boolean }) {
+  const c = s.photo?.credit;
+  const unsplash = links && c && s.photo?.creditUrl && c.endsWith(", Unsplash");
+  return (
+    <> ({t(lang, "photo")}: {unsplash
+      ? <><a href={s.photo!.creditUrl} target="_blank" rel="noopener">{c.slice(0, -", Unsplash".length)}</a>, <a href={UNSPLASH_HOME} target="_blank" rel="noopener">Unsplash</a></>
+      : c ? creditText(c) : s.source?.name ?? "PIB"})</>
+  );
+}
 
 export function Meta({ s, lang, sec = true }: { s: Story; lang: Lang; sec?: boolean }) {
   return (
@@ -75,7 +88,7 @@ export function Lead({ s: story, lang, more = [] }: { s: Story; lang: Lang; more
       {s.photo && (
         <div className="pic">
           <Link prefetch={false} href={storyHref(s, lang)} tabIndex={-1}><Photo s={s} lang={lang} eager morph /></Link>
-          {w.caption && <p className="cap">{w.caption} ({t(lang, "photo")}: {s.photo?.credit ?? s.source?.name ?? "PIB"})</p>}
+          {w.caption && <p className="cap">{w.caption}<Credit s={s} lang={lang} /></p>}
         </div>
       )}
     </article>
@@ -105,7 +118,7 @@ export function Pictured({ s, lang, own }: { s: Story; lang: Lang; own: boolean 
     <article className="pictured">
       <Link prefetch={false} className="h" href={storyHref(s, lang)}>
         <Photo s={s} lang={lang} eager morph />
-        {w.caption && <p className="cap">{w.caption} ({t(lang, "photo")}: {s.photo?.credit ?? s.source?.name ?? "PIB"})</p>}
+        {w.caption && <p className="cap">{w.caption}<Credit s={s} lang={lang} links={false} /></p>}
         {own && <><h2 className="h2">{w.headline}</h2>{w.deck && <p className="dek">{w.deck}</p>}<Meta s={s} lang={lang} /></>}
       </Link>
     </article>
@@ -197,12 +210,15 @@ export function River({ stories, lang, sec = false }: { stories: Story[]; lang: 
   );
 }
 
+/** The WhatsApp channel, when there is one, and the alerts button (which shows only where a phone can take alerts). */
 export function Join({ lang }: { lang: Lang }) {
   return (
     <div className="join">
-      <h3>{t(lang, "joinTitle")}</h3>
-      <p>{t(lang, "joinText")}</p>
-      <span className="note">{t(lang, "joinSoon")}</span>
+      {WHATSAPP_CHANNEL && <>
+        <h3>{t(lang, "joinTitle")}</h3>
+        <p>{t(lang, "joinText")}</p>
+        <a className="wa" href={WHATSAPP_CHANNEL} target="_blank" rel="noopener">WhatsApp</a>
+      </>}
       <Alerts lang={lang} words={{ on: t(lang, "alertsOn"), areOn: t(lang, "alertsAreOn"), off: t(lang, "alertsOff"), note: t(lang, "alertsNote"),
         denied: t(lang, "alertsDenied"), ios: t(lang, "alertsIos"), failed: t(lang, "alertsFailed") }} />
     </div>

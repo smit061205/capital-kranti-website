@@ -7,6 +7,7 @@
 // named for another company). It's captioned as a file photo and credited to its author.
 import type { NeonQueryFunction } from "@neondatabase/serverless";
 import type { Photo } from "../lib/types.ts";
+import { authorName } from "../lib/photo.ts";
 import { askJson } from "./ai.ts";
 import type { SourceText, Written } from "./newsroom.ts";
 
@@ -83,7 +84,7 @@ export async function leadPhoto(title: string): Promise<{ url: string; width: nu
   const bare = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const about = bare(`${file} ${plain(meta.ImageDescription?.value ?? "")} ${plain(meta.ObjectName?.value ?? "")}`);
   if (!bare(title).split(/[\s_(),-]+/).some((word) => word.length >= 4 && about.includes(word))) return null;
-  const artist = plain(meta.Artist?.value ?? "").slice(0, 80) || "Wikimedia Commons";
+  const artist = authorName(plain(meta.Artist?.value ?? ""));
   return { url: ii.thumburl ?? ii.url!, width: ii.thumbwidth ?? ii.width ?? 0, height: ii.thumbheight ?? ii.height ?? 0, credit: `${artist}, ${licence}, Wikimedia Commons`,
            about: `${file.replace(/\.\w+$/, "").replace(/_/g, " ")}. ${plain(meta.ImageDescription?.value ?? "")}`.slice(0, 400) };
 }
@@ -131,7 +132,7 @@ function freeOnes(pages: CommonsPage[], max: number): CommonsPicture[] {
     if (/\b(logo|logotype|icon|emblem|seal|insignia|coat of arms|wordmark|banner|poster|infographic|screenshot)\b/i.test(plain(meta.ImageDescription?.value ?? ""))) continue;
     if (ii.thumbheight > ii.thumbwidth * 1.6 || ii.thumbwidth > ii.thumbheight * 3.5) continue;
     const alt = plain(meta.ImageDescription?.value ?? "").slice(0, 160) || pg.title.replace(/^File:|\.\w+$/g, "");
-    const artist = plain(meta.Artist?.value ?? "").slice(0, 80) || "Wikimedia Commons";
+    const artist = authorName(plain(meta.Artist?.value ?? ""));
     out.push({ url: ii.thumburl, width: ii.thumbwidth, height: ii.thumbheight, full: ii.width ?? ii.thumbwidth, alt, credit: `${artist}, ${licence}, Wikimedia Commons` });
     if (out.length >= max) break;
   }
@@ -215,14 +216,14 @@ async function pexels(search: string): Promise<{ url: string; width: number; hei
 /** Free stock photos from Unsplash (4 Nov: Pexels gave the user no key; Unsplash gives one at once, for a free developer
  *  app), when the UNSPLASH_ACCESS_KEY secret is set; landscape, at least 1200 wide, shown from Unsplash's own servers as
  *  its rules ask. `used` tells Unsplash a photo was chosen (its rules ask for that too). */
-async function unsplash(search: string): Promise<{ url: string; width: number; height: number; alt: string; credit: string; used: () => void }[]> {
+async function unsplash(search: string): Promise<{ url: string; width: number; height: number; alt: string; credit: string; creditUrl?: string; used: () => void }[]> {
   const key = process.env.UNSPLASH_ACCESS_KEY;
   if (!key) return [];
   const head = { authorization: `Client-ID ${key}`, "accept-version": "v1" };
   const r = await fetch(`https://api.unsplash.com/search/photos?${new URLSearchParams({ query: search, per_page: "8", orientation: "landscape", content_filter: "high" })}`,
     { headers: head, signal: AbortSignal.timeout(15_000) }).catch(() => null);
   if (!r?.ok) return [];
-  type Hit = { width: number; height: number; alt_description?: string | null; description?: string | null; user?: { name?: string }; urls?: { raw?: string }; links?: { download_location?: string } };
+  type Hit = { width: number; height: number; alt_description?: string | null; description?: string | null; user?: { name?: string; links?: { html?: string } }; urls?: { raw?: string }; links?: { download_location?: string } };
   const hits = ((await r.json().catch(() => null)) as { results?: Hit[] } | null)?.results ?? [];
   return hits.filter((p) => p.urls?.raw && p.width >= 1200).map((p) => {
     const w = Math.min(1600, p.width);
@@ -230,6 +231,7 @@ async function unsplash(search: string): Promise<{ url: string; width: number; h
     for (const [k, v] of Object.entries({ w: String(w), q: "80", fm: "jpg", fit: "max" })) url.searchParams.set(k, v);
     return { url: url.href, width: w, height: Math.round(p.height * (w / p.width)), alt: p.alt_description || p.description || "",
              credit: `${(p.user?.name ?? "").slice(0, 60) || "Photographer"}, Unsplash`,
+             creditUrl: p.user?.links?.html ? `${p.user.links.html}?utm_source=capital_kranti&utm_medium=referral` : undefined,
              used: () => { if (p.links?.download_location) void fetch(p.links.download_location, { headers: head, signal: AbortSignal.timeout(10_000) }).catch(() => null); } };
   });
 }
@@ -271,7 +273,7 @@ export async function freePhoto(sql: Sql, w: Written, storyId: string, note: (wh
       // Pexels' stock photos when its key is set, and free Commons photos of the kind of thing either way (4 Nov: a
       // Pennsylvania drug plant went up as a "file photo" beside an Indian drug maker's story; it is a symbolic picture)
       // two at most asked about (4 Nov: up to ten questions a story, for sixteen stories a round, used up the free models)
-      const stock: { url: string; width: number; height: number; alt: string; credit: string; used?: () => void }[] = [
+      const stock: { url: string; width: number; height: number; alt: string; credit: string; creditUrl?: string; used?: () => void }[] = [
         ...(await unsplash(symbolic.search)).slice(0, 2), ...(await pexels(symbolic.search)).slice(0, 2),
         ...(await commonsSearch(symbolic.search, 4, 1920)).sort((a, b) => Number(b.full >= 1200) - Number(a.full >= 1200)).slice(0, 2)
           .map((p) => ({ ...commonsAt(p, 1920), alt: p.alt, credit: p.credit }))];
@@ -280,7 +282,7 @@ export async function freePhoto(sql: Sql, w: Written, storyId: string, note: (wh
           (v) => (typeof (v as { fits?: unknown })?.fits === "boolean" ? (v as { fits: boolean }).fits : null));
         if (!ok.ok || !ok.value) continue;
         p.used?.();
-        return { photo: { url: p.url, width: p.width, height: p.height, credit: p.credit },
+        return { photo: { url: p.url, width: p.width, height: p.height, credit: p.credit, ...(p.creditUrl ? { creditUrl: p.creditUrl } : {}) },
                  caption: { gu: `પ્રતીકાત્મક તસવીર: ${symbolic.gu}`, en: `Representative image: ${symbolic.en}`, hi: `प्रतीकात्मक तस्वीर: ${symbolic.hi}` } };
       }
       note(file ? "no file or symbolic photo suited" : `no symbolic photo suited${process.env.UNSPLASH_ACCESS_KEY || process.env.PEXELS_API_KEY ? "" : " (the stock photos wait for their key)"}`);

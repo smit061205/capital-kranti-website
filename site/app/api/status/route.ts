@@ -94,5 +94,7 @@ export async function GET() {
       stories: r.details?.stories ?? null, done: r.details?.done, error: r.details?.error,
       ...(r.kind === "engine" ? { steps: r.details?.steps ?? null, log: (r.details?.log ?? []).slice(-40) } : {}),
     })),
-  }, { headers: { "cache-control": "no-store" } });
+  // kept a minute by the CDN (5 Nov: each look ran a dozen queries; the engine's rounds are 15 minutes apart, so a minute
+  // old is as good as now)
+  }, { headers: { "cache-control": "public, max-age=0, s-maxage=60, stale-while-revalidate=60" } });
 }

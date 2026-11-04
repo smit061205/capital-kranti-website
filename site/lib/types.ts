@@ -6,7 +6,9 @@ export type Genre = "farm" | "economy" | "tech" | "health" | "sport" | "educatio
 export type Lang = "gu" | "en" | "hi";
 
 /** credit: the photo's author and licence when it isn't the story's source's (a Wikimedia Commons file photo) */
-export interface Photo { url: string; width: number; height: number; credit?: string }
+export interface Photo { url: string; width: number; height: number; credit?: string;
+  /** the photographer's page, for an Unsplash photo (its rules ask the credit to link the photographer and Unsplash) */
+  creditUrl?: string }
 export interface Source { kind: "pib" | "cmo" | "air" | "gujinfo" | "other"; name: string; url: string; office?: string }
 export interface English { kicker: string; headline: string; deck: string; body: string; caption: string }
 export interface Correction { at: string; gu: string; en?: string }
@@ -43,6 +45,8 @@ export interface Story {
   gallery: Photo[];
   /** written by the editor on the editor's page, word for word (the rest are the engine's) */
   byEditor?: boolean;
+  /** the shared picture of a story without a photo (lib/share.ts), a /media address */
+  share?: string | null;
 }
 
 export interface IssuePage { number: number; url: string; width: number; height: number }

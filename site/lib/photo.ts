@@ -57,3 +57,22 @@ export const SIZES = {
   full: "(max-width: 800px) 70vw, 100vw",
   inside: "(max-width: 800px) 70vw, 760px",
 };
+
+/** A Commons author's name as a credit shows it: the field is free text ("This photo was taken by …. Please credit …",
+ *  a whole paragraph at times), so only the name is kept, about 50 letters at most (5 Nov: sentences showed under photos). */
+export function authorName(raw: string): string {
+  let a = raw.replace(/^\s*(?:this (?:photo(?:graph)?|image|picture) (?:was |is )?(?:taken|clicked|shot|made|created|captured) by|(?:photo(?:graph)?|picture|image)s? (?:taken )?(?:by|from)|(?:taken|clicked|shot|uploaded|captured) by|courtesy(?: of)?|©|\(c\)|copyright)\s*:?\s*/i, "");
+  a = a.split(/(?<=\p{L}{3})\. |\s[-–—|]\s|\s\(|;|,\s*(?:please|used|licen[cs]ed|all rights)/iu)[0].trim().replace(/[.,:]+$/, "");
+  if (a.length > 50) a = a.slice(0, 50).replace(/\s+\S*$/, "");
+  return a || "Wikimedia Commons";
+}
+
+/** A stored credit cleaned for showing: a Commons one is "<author>, <licence>, Wikimedia Commons", the author's part
+ *  cleaned (stories saved before 5 Nov kept the whole field). */
+export function creditText(credit: string): string {
+  const m = credit.match(/^([\s\S]*), ([^,]+), Wikimedia Commons$/);
+  return m ? `${authorName(m[1])}, ${m[2]}, Wikimedia Commons` : credit;
+}
+
+/** Unsplash's own page, as its rules ask a credit to link it (with the app's name, so it knows where readers came from) */
+export const UNSPLASH_HOME = "https://unsplash.com/?utm_source=capital_kranti&utm_medium=referral";

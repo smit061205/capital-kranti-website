@@ -32,6 +32,16 @@ export function applySize(n: string) {
   if (n === "2" || n === "3") r.setAttribute("data-size", n); else r.removeAttribute("data-size");
 }
 
+// a page's animation cut short (the first one as the page opens, a second tap, the tab hidden) rejects with "Transition
+// was aborted because of invalid state"; the page still shows, so it is no error (5 Nov: it was the only one in the
+// browser's console). Set up as the script loads: the first comes before React's own setup is done.
+if (typeof window !== "undefined") {
+  window.addEventListener("unhandledrejection", (e) => {
+    const r = e.reason as { name?: string; message?: string } | null;
+    if ((r?.name === "InvalidStateError" || r?.name === "AbortError") && /transition/i.test(r?.message ?? "")) e.preventDefault();
+  });
+}
+
 export default function Chrome(p: ChromeProps) {
   const [open, setOpen] = useState(false);
   const [size, setSize] = useState("1");

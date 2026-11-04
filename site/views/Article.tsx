@@ -10,7 +10,7 @@ import { href, t } from "../lib/i18n.ts";
 import { sectionName } from "../lib/sections.ts";
 import { dateText, minutes, num, paragraphs, timeText } from "../lib/format.ts";
 import { PAPER, SITE_URL } from "../lib/site.ts";
-import { Cmp, Head, MoreOn, Std, strong, words } from "../components/cards.tsx";
+import { Cmp, Credit, Head, MoreOn, Std, strong, words } from "../components/cards.tsx";
 import CountRead from "../components/CountRead.tsx";
 import { Flag } from "../components/icons.tsx";
 import ArticleTools from "../components/ArticleTools.tsx";
@@ -28,7 +28,7 @@ export async function articleMeta(id: string, lang: Lang) {
   if (!s) return pageMeta({ lang, path: "/" });
   const w = words(s, lang);
   return pageMeta({ lang, path: `/news/${s.id}`, title: w.headline, description: w.deck || w.body.slice(0, 160),
-                    image: s.photo && shareCopy(s.photo), article: s, langs: langsOf(s) });
+                    image: s.photo ? shareCopy(s.photo) : lang === "gu" && s.share ? `${SITE_URL}${s.share}` : null, article: s, langs: langsOf(s) });
 }
 
 /** NewsArticle and its breadcrumbs for Google; an untranslated copy describes the Gujarati page it shows. */
@@ -90,7 +90,7 @@ export default async function Article({ id, lang }: { id: string; lang: Lang }) 
                   <span className="phw"><img className="ph" {...pic(s.photo, SIZES.inside)} fetchPriority="high" width={s.photo.width} height={s.photo.height} alt={w.caption || w.headline} /></span>
                 </ViewTransition>
               </PhotoZoom>
-              {w.caption && <figcaption>{w.caption} ({t(lang, "photo")}: {s.photo?.credit ?? s.source?.name ?? "PIB"})</figcaption>}
+              {w.caption && <figcaption>{w.caption}<Credit s={s} lang={lang} /></figcaption>}
             </figure>
           )}
           <div className="body">
