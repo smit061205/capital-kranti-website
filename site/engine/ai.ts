@@ -397,41 +397,53 @@ async function askPaid<T>(sql: Sql, a: { system: string; user: string; temperatu
   const cap = WEBSITE.paidDailyRupees * (small ? 0.5 : 1);
   if ((await paidToday(sql)) >= cap) return null;
   if (left() < 10_000) return null;
-  await count(sql, "ai_paid");
-  usedThisRun++;
   const content = a.images?.length
     ? [{ type: "text", text: a.user }, ...a.images.flatMap((i) => [{ type: "text", text: i.label }, { type: "image_url", image_url: { url: `data:image/jpeg;base64,${i.jpeg}` } }])]
     : a.user;
-  const res = await call(WEBSITE.paidModel, {
-    // room for Gemma's thinking on top of the answer (4 Nov: the first paid answers came back cut off, "not the JSON";
-    // only the tokens it uses are paid for)
-    temperature: a.temperature, max_tokens: a.maxTokens + GOOGLE_THINKING_ROOM, response_format: { type: "json_object" },
-    reasoning: { effort: "low", exclude: true }, usage: { include: true },
-    // the cheapest providers only, never one asking more than the most set
-    provider: { sort: "price", max_price: WEBSITE.paidMaxPrice },
-    messages: [{ role: "system", content: a.system }, { role: "user", content }],
-  }, 120);
   const model = `paid:${WEBSITE.paidModel}`;
-  if (!res.ok) {
-    const why = `${model}: ${res.status} ${(await res.text()).slice(0, 160)}`;
-    // no credit left (402), or the key may not spend: no more paid asks this run
-    if (res.status === 401 || res.status === 402 || res.status === 403) paidOff = why;
-    return { ok: false, why };
+  // a second try on another provider when the first answered nothing or not in time (4 Nov: sorted by price, the
+  // cheapest provider sent back empty answers and others took over two minutes)
+  const avoid: string[] = [], whys: string[] = [];
+  for (let tries = 0; tries < 2 && left() > 30_000; tries++) {
+    await count(sql, "ai_paid");
+    usedThisRun++;
+    const res = await call(WEBSITE.paidModel, {
+      // room for Gemma's thinking on top of the answer; only the tokens it uses are paid for
+      temperature: a.temperature, max_tokens: a.maxTokens + GOOGLE_THINKING_ROOM, response_format: { type: "json_object" },
+      // its thinking sent back too, as some providers put the whole answer there
+      reasoning: { effort: "low" }, usage: { include: true },
+      // the fastest provider that asks no more than the most set, so the price stays capped
+      provider: { sort: "throughput", max_price: WEBSITE.paidMaxPrice, ...(avoid.length ? { ignore: avoid } : {}) },
+      messages: [{ role: "system", content: a.system }, { role: "user", content }],
+    }, 90);
+    if (!res.ok) {
+      const why = `${model}: ${res.status} ${(await res.text()).slice(0, 160)}`;
+      // no credit left (402), or the key may not spend: no more paid asks this run
+      if (res.status === 401 || res.status === 402 || res.status === 403) { paidOff = why; return { ok: false, why }; }
+      whys.push(why);
+      continue;
+    }
+    const answer = (await res.json().catch(() => ({}))) as { provider?: string;
+      choices?: { message?: { content?: string; reasoning?: string }; finish_reason?: string }[];
+      usage?: { cost?: number; prompt_tokens?: number; completion_tokens?: number } };
+    // its cost: OpenRouter's own figure, else the tokens at the most it may ask
+    const u = answer.usage ?? {};
+    const dollars = typeof u.cost === "number" ? u.cost
+      : ((u.prompt_tokens ?? 4000) * WEBSITE.paidMaxPrice.prompt + (u.completion_tokens ?? 1000) * WEBSITE.paidMaxPrice.completion) / 1e6;
+    await count(sql, PAID, Math.max(1, Math.ceil(dollars * WEBSITE.rupeesPerDollar * 100)));
+    const msg = answer.choices?.[0]?.message ?? {};
+    const text = msg.content?.trim() ? msg.content : (msg.reasoning ?? "");
+    const parsed = readJson(text);
+    const by = answer.provider ? ` (${answer.provider})` : "";
+    if (parsed === undefined) {
+      whys.push(`${model}${by}: not the JSON asked for (${text.length} chars, ${answer.choices?.[0]?.finish_reason ?? "?"}): ${text.slice(0, 80).replace(/\s+/g, " ")}`);
+      if (answer.provider) avoid.push(answer.provider);
+      continue;
+    }
+    const value = check(parsed);
+    return value === null ? { ok: false, why: `${model}${by}: JSON without what was asked for` } : { ok: true, value, model };
   }
-  const answer = (await res.json().catch(() => ({}))) as { choices?: { message?: { content?: string }; finish_reason?: string }[];
-    usage?: { cost?: number; prompt_tokens?: number; completion_tokens?: number } };
-  // its cost: OpenRouter's own figure, else the tokens at the most it may ask
-  const u = answer.usage ?? {};
-  const dollars = typeof u.cost === "number" ? u.cost
-    : ((u.prompt_tokens ?? 4000) * WEBSITE.paidMaxPrice.prompt + (u.completion_tokens ?? 1000) * WEBSITE.paidMaxPrice.completion) / 1e6;
-  await count(sql, PAID, Math.max(1, Math.ceil(dollars * WEBSITE.rupeesPerDollar * 100)));
-  const text = answer.choices?.[0]?.message?.content ?? "";
-  const parsed = readJson(text);
-  if (parsed === undefined) {
-    return { ok: false, why: `${model}: not the JSON asked for (${text.length} chars, ${answer.choices?.[0]?.finish_reason ?? "?"}): ${text.slice(0, 80).replace(/\s+/g, " ")}` };
-  }
-  const value = check(parsed);
-  return value === null ? { ok: false, why: `${model}: JSON without what was asked for` } : { ok: true, value, model };
+  return whys.length ? { ok: false, why: whys.join(" | ") } : null;
 }
 
 /** Free requests left today, over the routes this run has. */
