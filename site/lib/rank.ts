@@ -68,15 +68,17 @@ export function ranked(stories: Story[], now = Date.now(), size = 12): Story[] {
   return out.slice(0, size).map((x) => x.s);
 }
 
-/** The front page's top: the lead (a story with a wide photo when one is nearly as important as the first), a pair (with
- *  photos when two different ones are near the top), and a row of three. */
+/** The front page's top: the lead (a story with a wide photo when one is nearly as important as the first), a pair (the
+ *  best two with different good photos), and a row of three (the best of the rest). */
 export function frontTop(stories: Story[], has: { strong: (s: Story) => boolean; decent: (s: Story) => boolean }, now = Date.now()) {
-  const list = ranked(stories, now);
+  const list = ranked(stories, now, 24);
   if (!list.length) return { lead: undefined, pair: [] as Story[], three: [] as Story[], order: list };
   const best = topScore(list[0], now);
-  const lead = list.slice(0, 4).find((s) => has.strong(s) && topScore(s, now) >= best - 1.5) ?? list[0];
+  const lead = list.slice(0, 8).find((s) => has.strong(s) && topScore(s, now) >= best - 2.5) ?? list[0];
   const rest = list.filter((s) => s !== lead);
-  const pics = rest.slice(0, 5).filter(has.decent);
+  // the pair is the page's two pictures: the best two stories with a good wide photo, however far down (4 Nov: looked for
+  // only among the next five, it often found one and the pair showed without pictures)
+  const pics = rest.filter(has.decent);
   const second = pics.slice(1).find((s) => !sameStory(s, pics[0]));
   const pair = second ? [pics[0], second] : rest.slice(0, 2);
   const three = rest.filter((s) => !pair.includes(s)).slice(0, 3);
