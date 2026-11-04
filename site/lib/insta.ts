@@ -101,7 +101,10 @@ export async function instaLog(sql: Sql, who: string, line: string) {
     await prepared(sql);
     await sql.query(`insert into insta_log (who, line) values ($1, $2)`, [who.slice(0, 40), line.slice(0, 500)]);
     if (Math.random() < 0.02) await sql.query(`delete from insta_log where at < now() - interval '3 days'`);
-  } catch { /* the log is a help, not the work */ }
+  } catch (e) {
+    // the log is a help, not the work: its failure is told, not thrown
+    console.error(`instaLog: ${e instanceof Error ? e.message : e}`);
+  }
 }
 export async function instaLogs(sql: Sql, n = 80): Promise<InstaLogLine[]> {
   await prepared(sql);

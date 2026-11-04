@@ -7,6 +7,7 @@ import { approveInsta, captionInsta, dropInstaCard, makeInstaNow, moveInstaCard,
 import { editionName, MAX_TIMES, MIN_KEPT, timeName, type InstaAsk, type InstaLogLine, type InstaNews, type InstaProgress, type InstaSet, type InstaSettings } from "@/lib/insta.ts";
 import Renew from "./Renew.tsx";
 import Press from "./Press.tsx";
+import InstaLog from "./InstaLog.tsx";
 import { TIERS } from "@/lib/sections.ts";
 import { num } from "@/lib/format.ts";
 import { sectionName } from "@/lib/sections.ts";
@@ -30,8 +31,7 @@ const WORDS = {
     settings: "સમય અને વિભાગ બદલો", how: "સેટ કેવી રીતે બને", auto: "દરરોજ નક્કી સમયે જાતે", byHand: "ફક્ત હું માગું ત્યારે",
     times: "સમય (ભારતનો)", timesHelp: `${num(MAX_TIMES, "gu")} સુધી સમય. દરેક સમયના એક કલાક પહેલાં સેટ તૈયાર થાય છે; ખાલી રાખેલો સમય ગણાશે નહીં.`,
     tiers: "કયા વિભાગના સેટ", save: "સાચવો",
-    log: "શું થયું: દરેક પગલું (લોગ)", logNone: "હજી કંઈ નોંધાયું નથી.", logHelp: "નવું ઉપર. એન્જિન કામ કરતું હોય ત્યારે આ પાનું જાતે તાજું થાય છે.",
-    engine: "એન્જિન", instagram: "ઇન્સ્ટાગ્રામ",
+    log: "શું થયું: દરેક પગલું (લોગ)",
     working: "થઈ રહ્યું છે…", posting: "મુકાય છે…", asking: "માગી રહ્યા છીએ…", saving: "સચવાય છે…",
   },
   en: {
@@ -52,8 +52,7 @@ const WORDS = {
     settings: "Change the times and sections", how: "How sets are made", auto: "By themselves, every day at set times", byHand: "Only when I ask",
     times: "Times (India)", timesHelp: `Up to ${MAX_TIMES} times. A set is ready an hour before each; a time left empty doesn't count.`,
     tiers: "Sets for which sections", save: "Save",
-    log: "What happened: every step (log)", logNone: "Nothing yet.", logHelp: "Newest first. The page renews itself while the engine works.",
-    engine: "Engine", instagram: "Instagram",
+    log: "What happened: every step (log)",
     working: "Working…", posting: "Posting…", asking: "Asking…", saving: "Saving…",
   },
 };
@@ -68,7 +67,6 @@ export default function Insta({ lang, sets, settings, ask, news, progress, who, 
 }) {
   const w = WORDS[lang];
   const nn = (x: number) => (lang === "gu" ? num(x, "gu") : String(x));
-  const nn2 = (x: string) => (lang === "gu" ? num(x, "gu") : x);
   const current = sets.filter((x) => ["making", "waiting", "approved", "failed"].includes(x.state) && x.cards.length);
   const posted = sets.filter((x) => x.state === "posted").slice(0, 6);
   // the engine's progress, if it renewed it in the last five minutes (a run cut short leaves it behind)
@@ -184,17 +182,8 @@ export default function Insta({ lang, sets, settings, ask, news, progress, who, 
         </form>
       </details>
 
-      <details className={s.more} open={busy || undefined}><summary>{w.log}</summary>
-        <p className={s.help}>{w.logHelp}</p>
-        {logs.length ? (
-          <ol className={s.log}>{logs.map((l, i) => (
-            <li key={i}>
-              <time dateTime={l.at}>{nn2(new Date(new Date(l.at).getTime() + 5.5 * 3600_000).toISOString().slice(11, 19))}</time>
-              <b>{l.who === "engine" ? w.engine : l.who === "instagram" ? w.instagram : l.who}</b>
-              <span>{l.line}</span>
-            </li>
-          ))}</ol>
-        ) : <p className={s.help}>{w.logNone}</p>}
+      <details className={s.more} open><summary>{w.log}</summary>
+        <InstaLog lang={lang} first={logs} />
       </details>
     </section>
   );
