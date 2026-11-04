@@ -130,6 +130,13 @@ export async function askDone(sql: Sql, ask: InstaAsk) {
 export interface InstaNews { at: string; text: string }
 export const instaNews = async (sql: Sql) => (await stateOf(sql, "insta_news")) as InstaNews | null;
 export const putInstaNews = (sql: Sql, n: InstaNews) => putState(sql, "insta_news", n);
+/** how far the engine is with the sets it's making, for the editor page's bar: renewed at every story and picture */
+export interface InstaProgress { started: string; at: string; step: string; done: number; total: number }
+export const instaProgress = async (sql: Sql) => (await stateOf(sql, "insta_progress")) as InstaProgress | null;
+export async function putInstaProgress(sql: Sql, p: InstaProgress | null) {
+  if (p) await putState(sql, "insta_progress", p);
+  else await sql.query(`delete from state where key = 'insta_progress'`);
+}
 
 // ---- the sets in the database
 
