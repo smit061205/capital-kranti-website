@@ -1,7 +1,6 @@
 // How the website is doing, in public figures only: the hourly runs (how late
 // GitHub started them, whether the sources answered), today's use of the free
 // plans' ceilings, and the stories waiting for their English.
-import { get, head } from "@vercel/blob";
 import { db } from "@/lib/db.ts";
 import { engineRounds } from "@/lib/editor.ts";
 
@@ -44,12 +43,32 @@ export async function GET() {
   await sql.query(`select 1`).catch(() => null);
   await sql.query(`select 1`).catch(() => null);
   const dbMs = Math.round((Date.now() - dbT) / 2);
-  // can the site read its private photo store? (a yes/no and the library's message, never the key)
+  // which photo the site shows (4 Nov: no longer read from the photo store here: each look at this page cost two of the
+  // store's 10,000 free reads a month, and the reads were on course to run out in two weeks)
   const [one] = await sql.query(`select photo->>'url' as url from stories where photo is not null limit 1`).catch(() => []);
-  const name = (one?.url as string | undefined)?.replace(/^\/media\//, "");
-  const photos = { key: !!process.env.BLOB_READ_WRITE_TOKEN, name: name ?? null,
-    head: name ? await head(name).then((b) => `found (${b.size} bytes)`, (e) => `failed: ${e instanceof Error ? e.message : e}`) : null,
-    get: name ? await get(name, { access: "private" }).then((r) => (r ? "found" : "null"), (e) => `failed: ${e instanceof Error ? e.message : e}`) : null };
+  const photos = { key: !!process.env.BLOB_READ_WRITE_TOKEN, name: (one?.url as string | undefined)?.replace(/^\/media\//, "") ?? null };
+  // the last day's news, judged (4 Nov, the plan's measures): stories each hour (India's time), how many have a photo,
+  // how many are Gujarat's, and the minutes from the first report anywhere, and from our first sight of it, to our story
+  const [quality, perHour] = await Promise.all([
+    sql.query(`with s as (select s.published_at, s.tier, s.photo is not null as photo, c.first_seen,
+                 (select min(coalesce(i.published_at, i.seen_at)) from items i where i.cluster_id = c.id) as first_report
+               from stories s left join clusters c on c.story_id = s.id
+              where s.origin = 'live' and s.status = 'published' and s.published_at > now() - interval '24 hours')
+      select count(*)::int as stories, round(100.0 * avg(photo::int))::int as photo_pct, round(100.0 * avg((tier = 'gujarat')::int))::int as gujarat_pct,
+        round(extract(epoch from percentile_cont(0.5) within group (order by published_at - first_report)) / 60)::int as minutes_from_report,
+        round(extract(epoch from percentile_cont(0.5) within group (order by published_at - first_seen)) / 60)::int as minutes_from_seen
+      from s`).catch((e) => [{ error: String(e) }]),
+    sql.query(`select to_char(published_at at time zone 'Asia/Kolkata', 'DD HH24') as hour, count(*)::int as n from stories
+      where origin = 'live' and status = 'published' and published_at > now() - interval '24 hours' group by 1 order by 1`).catch(() => []),
+  ]);
+  // the database questions that send the most rows, to cut what the database sends out (4 Nov: Neon's free 5 GB a month
+  // ran out in four days); their wording is the code's own, with $1 for the values
+  const heavy = async () => (await sql.query(`select calls::int, rows::bigint::text as rows, round(mean_exec_time)::int as ms, left(regexp_replace(query, '\\s+', ' ', 'g'), 160) as query
+      from pg_stat_statements where dbid = (select oid from pg_database where datname = current_database()) order by rows desc limit 15`));
+  const reads = await heavy().catch(async () => {
+    await sql.query(`create extension if not exists pg_stat_statements`).catch(() => null);
+    return heavy().catch((e) => String(e));
+  });
   return Response.json({
     ...counts[0], photos, speed: { region: process.env.VERCEL_REGION ?? null, db_ms: dbMs },
     aavtikal: {
@@ -58,6 +77,8 @@ export async function GET() {
       desk: deskRuns.map((r) => ({ id: r.id, started_at: r.started_at, finished_at: r.finished_at, ok: r.ok,
         counts: Object.fromEntries(Object.entries(r.details ?? {}).filter(([, v]) => typeof v === "number")), error: r.details?.error ?? null, log: r.details?.log ?? [] })),
     },
+    last_day: { ...quality[0], per_hour: perHour },
+    database_reads: reads,
     stories_by_state: waiting,
     news_by_day: { items: itemsByDay, events: clustersByDay },
     engine_rounds: await engineRounds(sql).catch((e) => String(e)),

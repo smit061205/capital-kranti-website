@@ -20,7 +20,7 @@ import { pollUpdates, tell } from "../lib/telegram.ts";
 import { touched } from "../lib/write.ts";
 import { aiLeft, aiUsed, freeModels, groqModels } from "./ai.ts";
 import { collect } from "./collect.ts";
-import { gate, gather, importance, levelOf, needsTranslation, translate, writeChecked, type ClusterItem, type Debunk } from "./newsroom.ts";
+import { STALE_H, gate, gather, importance, levelOf, needsTranslation, translate, writeChecked, type ClusterItem, type Debunk } from "./newsroom.ts";
 import { indiaDate, photoOf, saveLive } from "./publish.ts";
 import { alertBreaking } from "../lib/push.ts";
 import { birthdays, leaders } from "../lib/leaders.ts";
@@ -76,9 +76,18 @@ async function advance() {
   const open = await sql.query(`select id, first_seen, state, reason from clusters where state = 'confirmed' or (state in ('new', 'waiting') and updated_at > now() - interval '48 hours')`);
   // every event's reports in one question, and saved only when something changed (31 Oct: one question each, for some 270
   // events, took up to three minutes of the round, time the writing needs)
+  // and only what the checks read (4 Nov: every report's text and sorting, for some 1,200 events each round, was most of
+  // what the database sent out, and Neon's free 5 GB a month ran out in four days): the source, the times, the keywords;
+  // a report too old to count isn't sent at all (the checks leave it out anyway)
   const items = new Map<string, ClusterItem[]>();
-  for (const r of await sql.query(`select ${ITEM} from items where cluster_id = any($1) order by seen_at`, [open.map((c) => c.id)])) {
-    items.set(r.cluster_id as string, [...(items.get(r.cluster_id as string) ?? []), itemOf(r)]);
+  const light = await sql.query(
+    `select cluster_id, source, published_at, seen_at, triage->'keys' as keys from items
+      where cluster_id = any($1) and coalesce(published_at, seen_at) > now() - make_interval(hours => $2)`, [open.map((c) => c.id), STALE_H]);
+  for (const r of light) {
+    const it: ClusterItem = { id: "", source: r.source, url: "", title: "", summary: "", lang: "en", image: null,
+      publishedAt: r.published_at ? new Date(r.published_at).toISOString() : null, seenAt: new Date(r.seen_at).toISOString(),
+      triage: { keys: (r.keys ?? []) as string[] } as Triage };
+    items.set(r.cluster_id as string, [...(items.get(r.cluster_id as string) ?? []), it]);
   }
   const known = await debunks();
   const tally: Record<string, number> = {};
@@ -104,8 +113,8 @@ async function write(until = deadline) {
   const can = Math.min(PER_RUN, Math.floor((left - RESERVE) / 5));
   if (can <= 0) { log(`  writing: waits (${left} free requests left today)`); return; }
   // today's news first: a day-old event goes after anything newer, however big it scored
-  const ready = await sql.query(`select * from clusters where state = 'confirmed'
-    order by write_tries, first_seen > now() - interval '12 hours' desc, score desc, first_seen asc limit 400`);
+  const ready = await sql.query(`select id, event, keys, tier, genres, sensitive, score, first_seen, write_tries from clusters where state = 'confirmed'
+    order by write_tries, first_seen > now() - interval '12 hours' desc, score desc, first_seen asc limit ${PER_RUN * 8}`);
   let next = 0, stopped = false;
   const writer = async () => {
     while (!stopped && wrote < can && Date.now() <= until && next < ready.length) {
@@ -375,11 +384,27 @@ async function birthdayNote() {
   await tell(`🎂 <b>આજે જન્મદિવસ:</b> ${today.map((l) => `${l.title} ${l.nameGu}`).join(", ")}\nશુભેચ્છા ફોટો અને ઈમેલનો મુસદ્દો સંપાદકના પાના પર તૈયાર છે: ${WEBSITE.url}/editor?tab=leaders`);
 }
 
+/** Once a day: the reports of more than three weeks ago go (4 Nov: kept for ever, they were most of the database, which is
+ *  to fit a free plan's 500 MB). Nothing reads them: the checks look back two days, refiling a week, the fact-checks a
+ *  month, so those are kept 45 days. A report without a date keeps its row, emptied, so the source listing it again
+ *  isn't taken for new: the collector notes a dated old one and never uses it. */
+async function prune() {
+  const day = indiaDate();
+  const [done] = await sql.query(`select value from state where key = 'pruned'`);
+  if (done?.value === day) return;
+  const old = `seen_at < now() - interval '21 days' and (cluster_id is distinct from 'factcheck' or seen_at < now() - interval '45 days')`;
+  const [gone] = await sql.query(`with d as (delete from items where ${old} and published_at is not null returning 1) select count(*)::int as n from d`);
+  await sql.query(`update items set summary = '', body = null where ${old} and published_at is null and (summary <> '' or body is not null)`);
+  await sql.query(`insert into state (key, value) values ('pruned', $1) on conflict (key) do update set value = excluded.value`, [day]);
+  log(`old reports deleted: ${gone?.n ?? 0}`);
+}
+
 /** Step 9: a published story's sources watched for 24 hours. */
 async function watch() {
   const live = await sql.query(
     `select c.id, c.story_id, s.sources, s.updated_at, s.status from clusters c join stories s on s.id = c.story_id
-      where c.state in ('published', 'held') and s.published_at > now() - interval '24 hours'`);
+      where c.state in ('published', 'held') and s.published_at > now() - interval '24 hours'
+        and exists (select 1 from items i where i.cluster_id = c.id and i.seen_at > s.updated_at)`);
   for (const c of live) {
     const fresh = await sql.query(`select source, url, title, summary from items where cluster_id = $1 and seen_at > $2`, [c.id, c.updated_at]);
     if (!fresh.length) continue;
@@ -476,6 +501,8 @@ try {
   await watch();
   await step("birthdays");
   await birthdayNote();
+  await step("old reports");
+  await prune();
 } catch (e) {
   ok = false;
   details.error = e instanceof Error ? `${e.message}\n${e.stack?.split("\n").slice(1, 4).join("\n")}` : String(e);
