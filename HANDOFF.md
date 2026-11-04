@@ -32,7 +32,9 @@ last rewrite.*
   when every Gemma fails), Groq's free models do the short jobs (sorting, "same event?", photo questions), and a
   **paid Gemma 4 26B on OpenRouter is the last backup, at most ₹30 a day and ₹1,000 a month** (the user, 4 Nov). Sources:
   PIB and `site/engine/sources.ts` (about 150, 30 added on 4 Nov). Official photos are shown from the government's own
-  site through `/official`; file photos come from Wikimedia Commons.
+  site through `/official`; file photos come from Wikimedia Commons; when neither has one, a symbolic stock photo from
+  Unsplash (`UNSPLASH_ACCESS_KEY`, a free developer key; added 4 Nov because Pexels gave the user no key), then Pexels
+  (`PEXELS_API_KEY`) and Commons. Every photo is checked by the AI against the story before it is used.
 - **Instagram and Facebook** (3–4 Nov): twice-a-day sets of cards (Gujarat, India, World; 5 to 8 cards each, in
   Gujarati), made by `engine/instawatch.ts` on its own runner (`site-insta.yml`), **approved by the editor** on the
   editor page's Instagram tab (the one exception to "no approvals"). The editor sets up to four times a day, the
@@ -52,7 +54,8 @@ last rewrite.*
    `live-c589c1c61d30`); if both are still up, withdraw `live-9b37374e98fe` on the editor page.
 3. **The user's own steps, not confirmed done:** the Google sign-in's redirect
    `https://www.capitalkranti.co.in/api/editor/callback` in Google Cloud (without it the editor can't sign in on the new
-   address); BigRock's auto-renew; `FACEBOOK_PAGE_ID` / `FACEBOOK_PAGE_TOKEN` in Vercel.
+   address); BigRock's auto-renew; `FACEBOOK_PAGE_ID` / `FACEBOOK_PAGE_TOKEN` in Vercel; `UNSPLASH_ACCESS_KEY` as a
+   GitHub secret (without it no stock photos: the engine's log says "the stock photos wait for their key").
 4. A story whose translation fails four times is no longer retried (4 Nov, so it doesn't starve the writing): it stays
    Gujarati on `/en` and `/hi`.
 
