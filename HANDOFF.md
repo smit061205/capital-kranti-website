@@ -6,7 +6,57 @@ The paper's website and its Aavtikal section, with their own news engine. Split 
 
 ## Where it stands
 
-### Where it stands now (30 Oct; read this first, then the older notes below)
+### Where it stands now (4 Nov; read this first)
+
+*Written for a new Claude Code account taking over (the first one hit its usage limit on 4 Nov). Where this block and
+the older notes below disagree, this block is right. The commit messages are written in plain words and are the
+fullest record of what changed and why: `git log --no-merges --since=2026-11-02` covers everything since this block's
+last rewrite.*
+
+- **Live:** https://www.capitalkranti.co.in (since 2 Nov). Vercel deploys `main`. The domain is registered at BigRock
+  (renews 19 Dec 2026) and its DNS is Vercel's (`ns1/ns2.vercel-dns.com`); `capitalkranti.co.in` forwards to `www`. The
+  old address `capital-kranti.vercel.app` sends pages to the same page on `www`, but not `/api/` (the engine and
+  Telegram may still call it there). Status and the engine's latest logs: `https://capital-kranti.vercel.app/api/status`.
+  **Don't poll the site from a script:** on 2 Nov a check every 20 seconds made Vercel put this Mac behind its "Security
+  Checkpoint" (even the browser) for about an hour. Check every 5 minutes at most.
+- **Working copy:** `/Users/smitthakkar/CapitalKranti_Website` (its own public repository,
+  `smit061205/capital-kranti-website`). `CLAUDE.md` has the rules, the checks and the merge steps.
+- **The look:** the Magazine look, chosen by eye on 2 Nov: warm paper, narrow heavy Anek headlines ("CK Cond"), one big
+  centred headline, a pair with pictures, latest / most read as blocks, Aavtikal as a dark band, a centred story page.
+  The side menu matches it; all motion shares one timing (0.3 s, one curve). **The fonts are final** (the user, 3 Nov):
+  don't propose trimming or swapping them. Serif Gujarati headlines and NYT-style grids read as dated to the user; for a
+  new look, show clearly different directions side by side.
+- **The engine** (`site/engine/run.ts`, GitHub Actions about every 15 minutes, a 13-minute round): since 4 Nov it writes
+  several stories at once, puts a story up as soon as its check passes and adds its English, Hindi and file photo a
+  minute later in the same round. Models: Google's Gemmas and Gemini Flash Lite write, a Gemma checks (Gemini Flash
+  when every Gemma fails), Groq's free models do the short jobs (sorting, "same event?", photo questions), and a
+  **paid Gemma 4 26B on OpenRouter is the last backup, at most ₹30 a day and ₹1,000 a month** (the user, 4 Nov). Sources:
+  PIB and `site/engine/sources.ts` (about 150, 30 added on 4 Nov). Official photos are shown from the government's own
+  site through `/official`; file photos come from Wikimedia Commons.
+- **Instagram and Facebook** (3–4 Nov): twice-a-day sets of cards (Gujarat, India, World; 5 to 8 cards each, in
+  Gujarati), made by `engine/instawatch.ts` on its own runner (`site-insta.yml`), **approved by the editor** on the
+  editor page's Instagram tab (the one exception to "no approvals"). The editor sets up to four times a day, the
+  sections, and can make a set now: don't hard-code the times. Card look: the photo fills the 1080×1350 card, headline
+  and a two-line summary on a soft fade at the bottom (look 1 on the test page `/cards`). Approved sets also go to the
+  paper's Facebook Page once `FACEBOOK_PAGE_ID` and `FACEBOOK_PAGE_TOKEN` are in Vercel. Instagram is `@capitalkranti`,
+  with an `EAA` token (`INSTAGRAM_API=https://graph.facebook.com/v23.0`); whether it expires wasn't known.
+- **The editor page** (`/editor`, Google sign-in) is in tabs: Today, Capital Kranti, Aavtikal, Instagram, birthdays, ads,
+  the engine. The editor, Parth Thakkar, is named under every news story.
+
+**Open, as of 4 Nov:**
+1. **Wrong file photos.** On 2 Nov the AI check that a file photo suits its story passed a fruit market in Hodeidah beside
+   a strike on Hodeidah's port (`live-8a857cfa3bfa`). 4 Nov added word rules (no war, wounds, death, arrests, disasters
+   or old archive scenes) and logos never as photos. Check whether a city's everyday scene still lands beside an attack
+   or disaster story; a firm rule (no place photo for such stories) may be needed.
+2. **A twin story:** the Rising Stars Asia Cup squad went up twice on 2 Nov (`live-9b37374e98fe` and
+   `live-c589c1c61d30`); if both are still up, withdraw `live-9b37374e98fe` on the editor page.
+3. **The user's own steps, not confirmed done:** the Google sign-in's redirect
+   `https://www.capitalkranti.co.in/api/editor/callback` in Google Cloud (without it the editor can't sign in on the new
+   address); BigRock's auto-renew; `FACEBOOK_PAGE_ID` / `FACEBOOK_PAGE_TOKEN` in Vercel.
+4. A story whose translation fails four times is no longer retried (4 Nov, so it doesn't starve the writing): it stays
+   Gujarati on `/en` and `/hi`.
+
+### Where it stands (30 Oct; older)
 
 *Written for a new Claude Code session or account taking over. Where this block and the
 older notes below disagree, this block is right.*
