@@ -12,11 +12,17 @@ export const langsOf = (x: { en: unknown; hi: unknown }): Lang[] => ["gu", ...(x
 export function pageMeta(o: { lang: Lang; path: string; title?: string; description?: string; image?: string | null;
                               article?: { publishedAt: string; updatedAt: string }; langs?: Lang[] }): Metadata {
   const name = PAPER[o.lang].name;
-  const title = o.title ? `${o.title} | ${name}` : `${name}: ${PAPER[o.lang].tagline}`;
+  // the home page's title names the paper as people type it into Google, in English letters too ("capital kranti news",
+  // 4 Nov: the Gujarati title alone didn't match and the paper's own site wasn't found by its name)
+  const title = o.title ? `${o.title} | ${name}` : {
+    gu: "Capital Kranti News | કેપિટલ ક્રાંતિ: ગાંધીનગરનું ગુજરાતી દૈનિક",
+    en: "Capital Kranti News: the Gujarati daily from Gandhinagar",
+    hi: "Capital Kranti News | कैपिटल क्रांति: गांधीनगर का गुजराती दैनिक",
+  }[o.lang];
   const description = o.description || {
-    gu: "ગાંધીનગરનું ગુજરાતી દૈનિક: ગુજરાત, દેશ અને વિશ્વના સમાચાર અને જૂના અંકો.",
-    en: "The Gujarati daily from Gandhinagar: news of Gujarat, India and the world, and past issues.",
-    hi: "गांधीनगर का गुजराती दैनिक: गुजरात, देश और विश्व के समाचार और पुराने अंक.",
+    gu: "Capital Kranti (કેપિટલ ક્રાંતિ), ગાંધીનગરનું ગુજરાતી દૈનિક: ગુજરાત, દેશ અને વિશ્વના તાજા સમાચાર અને જૂના અંકો.",
+    en: "Capital Kranti (કેપિટલ ક્રાંતિ), the Gujarati daily from Gandhinagar: the latest news of Gujarat, India and the world, and past issues.",
+    hi: "Capital Kranti (कैपिटल क्रांति), गांधीनगर का गुजराती दैनिक: गुजरात, देश और विश्व के ताज़ा समाचार और पुराने अंक.",
   }[o.lang];
   const at = (l: Lang) => `${SITE_URL}${href(l, o.path)}`;
   const langs = o.langs ?? ["gu", "en", "hi"];

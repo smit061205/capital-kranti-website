@@ -15,7 +15,7 @@ export function organization(lang: Lang) {
   const page = (p: string) => `${SITE_URL}${href(lang, p)}`;
   return {
     "@type": "NewsMediaOrganization", "@id": ORG_ID,
-    name: PAPER.en.name, alternateName: [PAPER.gu.name, PAPER.hi.name], url: `${SITE_URL}/`,
+    name: PAPER.en.name, alternateName: [PAPER.gu.name, PAPER.hi.name, "Capital Kranti News", "CapitalKranti"], url: `${SITE_URL}/`,
     logo: { "@type": "ImageObject", url: `${SITE_URL}/logo.png`, width: 600, height: 120 },
     foundingDate: String(PAPER.founded), foundingLocation: "Gandhinagar, Gujarat, India",
     email: PAPER.email, telephone: `+91 ${PAPER.phone}`,
