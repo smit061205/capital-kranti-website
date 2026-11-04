@@ -303,6 +303,9 @@ async function factsOf(sql: Sql, src: SourceText[]): Promise<string | null> {
 /** Write, check, and (once) rewrite with the problems named. */
 /** Flash Lite requests left for Aavtikal and the translations before the news goes back to writing with a Gemma */
 const LITE_KEPT = 300;
+/** below the 300, Flash Lite still writes when every Gemma is down, down to its last 100 (4 Nov: a busy afternoon left 287,
+ *  Google's Gemmas answered "500 Internal error" all evening, and no story went up for two hours) */
+const LITE_FLOOR = 100;
 
 export async function writeChecked(sql: Sql | null, src: SourceText[], level: Level, date: string, event: string) {
   const [lo, hi] = lengthFor(level, src);
@@ -316,7 +319,8 @@ export async function writeChecked(sql: Sql | null, src: SourceText[], level: Le
     // last of its day, which Aavtikal shares. A Gemma still does the checking, so the checker is never the writer.
     const res = lite
       ? await askGemini(sql, "lite", ask, checkWritten, { wait: false, timeoutMs: 90_000 }).then((r) => (r.ok ? r : askJson(sql, ask, checkWritten)))
-      : await askJson(sql, ask, checkWritten);
+      : await askJson(sql, ask, checkWritten).then(async (r) => (r.ok || !r.busy || !sql || (await geminiRemaining(sql, "lite")) <= LITE_FLOOR ? r
+        : askGemini(sql, "lite", ask, checkWritten, { wait: false, timeoutMs: 90_000 }).then((g) => (g.ok ? g : r))));
     if (!res.ok) return { ok: false as const, why: res.why, stop: res.stop, retry: res.busy };
     const w = await mendLetters(sql, { ...res.value, model: res.model });
     // far shorter than the sources allow (29 Oct: a £10 billion package told in two paragraphs): written again once, before checking
