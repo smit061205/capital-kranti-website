@@ -236,7 +236,8 @@ export async function check(sql: Sql | null, w: Written, src: SourceText[], date
   if (repeats(w.body)) problems.push("says the same thing twice");
   // letters from another script inside the Gujarati (29 Oct: Telugu letters mid-sentence) are a model's slip
   // and English letters after Gujarati ones in a word (1 Nov: "નini" for "નવ" reached a headline; "CCIની" is fine)
-  const stray = `${w.headline} ${w.deck} ${w.body}`.match(/[\u0900-\u097F\u0980-\u0A7F\u0B00-\u0DFF_]+|[\u0A80-\u0AFF]+[A-Za-z]+/g);
+  // and Russian, Greek, Arabic, Thai, Chinese, Japanese or Korean letters, or a stray accent (4 Nov: "виста́р" reached a headline)
+  const stray = `${w.headline} ${w.deck} ${w.body}`.match(new RegExp(`[${OTHER}_]+|[\u0A80-\u0AFF]+[A-Za-z]+`, "g"));
   if (stray) problems.push(`letters from another script: ${[...new Set(stray)].slice(0, 3).join(", ")}`);
   for (const s of src.filter((s) => s.source.lang === "gu")) {
     const share = copiedShare(w.body, s.text);
@@ -256,7 +257,9 @@ export async function check(sql: Sql | null, w: Written, src: SourceText[], date
   return { ok: problems.length === 0, problems, claims: res.value, model: res.model };
 }
 
-const STRAY = /[\u0900-\u097F\u0980-\u0A7F\u0B00-\u0DFF]|[\u0A80-\u0AFF][A-Za-z]/;
+/** letters no Gujarati story has: Indian scripts but Gujarati, and Russian, Greek, Arabic, Thai, East Asian, a loose accent */
+const OTHER = "\\u0300-\\u036F\\u0370-\\u03FF\\u0400-\\u04FF\\u0600-\\u06FF\\u0900-\\u097F\\u0980-\\u0A7F\\u0B00-\\u0DFF\\u0E00-\\u0E7F\\u3040-\\u30FF\\u4E00-\\u9FFF\\uAC00-\\uD7AF";
+export const STRAY = new RegExp(`[${OTHER}]|[\\u0A80-\\u0AFF][A-Za-z]`);
 const MEND = `You fix Gujarati spelling. You get a JSON list of words from a Gujarati news story that slipped into another script.
 Write each one in Gujarati letters, keeping its sound: names stay the same names. Change nothing else.
 Reply with JSON only: {"words":{"the word as given":"the word in Gujarati letters"}}`;
@@ -270,7 +273,7 @@ export const toGujarati = (s: string) => s.replace(/[\u0964\u0965]/g, ".").repla
 
 /** A few words in another script (1 Nov: Hindi names in a Gujarati story, one failure in four) put into Gujarati letters, at
  *  once, instead of the whole story being thrown away. The story is checked afterwards like any other. */
-async function mendLetters(sql: Sql | null, written: Written): Promise<Written> {
+export async function mendLetters(sql: Sql | null, written: Written): Promise<Written> {
   const w = { ...written, kicker: toGujarati(written.kicker), headline: toGujarati(written.headline), deck: toGujarati(written.deck), body: toGujarati(written.body), caption: toGujarati(written.caption) };
   const words = [...new Set([w.kicker, w.headline, w.deck, w.body, w.caption].join(" ").split(/[\s,.;:!?()'"‘’“”।—-]+/).filter((x) => STRAY.test(x)))];
   if (!sql || !words.length) return w;
