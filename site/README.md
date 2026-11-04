@@ -70,7 +70,8 @@ sets a busy one aside for 10 minutes rather than retrying it):
    rewrite doesn't go up; it's tried up to three times, then dropped. Photos from official
    sources; when there's none, a file photo of the story's subject (a public figure, place
    or thing) from Wikimedia Commons, free licence only, credited (`engine/wikiphoto.ts`);
-   the outlets' photos are never copied. Each run renews the pages.
+   failing that, a symbolic stock photo from Unsplash or Pexels, credited; each one checked
+   by the AI against the story; the outlets' photos are never copied. Each run renews the pages.
 6. **Watch after**: for 24 hours, a source correcting or withdrawing takes the story down
    (to the removed list) and tells the editor; new sources are added to its source box.
 7. **Breaking news** (`lib/push.ts`): a story scored 9.5 or more is breaking for three
