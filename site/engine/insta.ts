@@ -117,7 +117,7 @@ async function makeSet(sql: Sql, tier: Tier, edition: string, seen: (looked: num
   // a photo, so no set was made)
   const at = (s: Story) => new Date(s.publishedAt).getTime();
   const byWeight = (a: Story, b: Story) => (b.importance ?? 0) - (a.importance ?? 0) || b.publishedAt.localeCompare(a.publishedAt);
-  const all = (await storiesIn(tier, 80)).filter((s) => at(s) >= Date.now() - 24 * 3600_000);
+  const all = (await storiesIn(tier, 80, true)).filter((s) => at(s) >= Date.now() - 24 * 3600_000);
   const stories = [...all.filter((s) => at(s) >= Date.now() - 12 * 3600_000).sort(byWeight), ...all.filter((s) => at(s) < Date.now() - 12 * 3600_000).sort(byWeight)];
   const cards: Card[] = [];
   const looking = stories.slice(0, 20);

@@ -15,7 +15,9 @@ export default function Alerts({ lang, words }: { lang: Lang; words: { on: strin
       const ios = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
       const installed = matchMedia("(display-mode: standalone)").matches || (navigator as { standalone?: boolean }).standalone === true;
       if (!("serviceWorker" in navigator) || !("PushManager" in window) || !("Notification" in window)) { setState(ios && !installed ? "ios" : "none"); return; }
-      if (Notification.permission === "denied") { setState("denied"); return; }
+      // blocked before: the button shows as usual and says so only when tapped (5 Nov: the message stood on the front page
+      // for readers who had never asked for alerts)
+      if (Notification.permission === "denied") { setState("off"); return; }
       const reg = await navigator.serviceWorker.getRegistration();
       const sub = await reg?.pushManager.getSubscription();
       setState(sub ? "on" : "off");

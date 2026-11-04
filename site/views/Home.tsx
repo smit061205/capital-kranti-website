@@ -5,7 +5,7 @@ import type { Lang, Story } from "../lib/types.ts";
 import { elsewhere, latestStories, moreOnSubject, mostRead } from "../lib/db.ts";
 import { href, t } from "../lib/i18n.ts";
 import { sectionName } from "../lib/sections.ts";
-import { decent, ElsewhereRow, Join, Meta, MoreOn, strong, words } from "../components/cards.tsx";
+import { Credit, decent, ElsewhereRow, Join, Meta, MoreOn, strong, words } from "../components/cards.tsx";
 import { frontTop, topScore } from "../lib/rank.ts";
 import Link from "next/link";
 import { pic, SIZES } from "../lib/photo.ts";
@@ -148,7 +148,7 @@ export default async function Home({ lang }: { lang: Lang }) {
               <Meta s={lead} lang={lang} />
               {strong(lead) && <Photo s={lead} lang={lang} sizes={SIZES.full} eager />}
             </Link>
-            {strong(lead) && lw.caption && <p className="cap">{lw.caption} ({t(lang, "photo")}: {lead.photo?.credit ?? lead.source?.name ?? "PIB"})</p>}
+            {strong(lead) && lw.caption && <p className="cap">{lw.caption}<Credit s={lead} lang={lang} /></p>}
             {more.length > 0 && <MoreOn stories={more} lang={lang} />}
           </section>
           {pair.length === 2 && (

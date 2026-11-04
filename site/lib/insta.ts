@@ -9,6 +9,7 @@ import { dateText, num } from "./format.ts";
 import { sectionName, TIERS } from "./sections.ts";
 import type { Tier } from "./types.ts";
 import { prepared } from "./write.ts";
+import { creditText } from "./photo.ts";
 
 type Sql = NeonQueryFunction<false, false>;
 
@@ -203,7 +204,7 @@ const HEAD: Record<Tier, string> = { gujarat: "ગુજરાતના મુ�
 
 /** The post's words: the headlines in order (Instagram's links can't be tapped, so the profile's link page has them). */
 export function captionFor(tier: Tier, edition: string, cards: Card[]): string {
-  const credits = [...new Set(cards.map(photoOfCard).filter((p) => p.credit).map((p) => p.credit!.replace(/, Wikimedia Commons$/, "")))];
+  const credits = [...new Set(cards.map(photoOfCard).filter((p) => p.credit).map((p) => creditText(p.credit!).replace(/, Wikimedia Commons$/, "")))];
   return [
     `${HEAD[tier]} · ${editionName(edition)}`,
     "",
@@ -280,7 +281,7 @@ export function cardsHtml(set: { tier: Tier; edition: string; cards: Card[] }, s
   const top = (i: number) => `<div class="top"><span class="logo">કેપિટલ ક્રાંતિ</span><span class="n">${num(i, "gu")}/${num(total, "gu")}</span></div>`;
   const cards = set.cards.map((c, i) => {
     const p = photoOfCard(c);
-    const credit = p.credit ? `ફોટો: ${p.symbolic ? "પ્રતીકાત્મક · " : p.representative ? "ફાઇલ · " : ""}${p.credit.replace(/, Wikimedia Commons$/, "")}` : "capitalkranti.co.in";
+    const credit = p.credit ? `ફોટો: ${p.symbolic ? "પ્રતીકાત્મક · " : p.representative ? "ફાઇલ · " : ""}${creditText(p.credit).replace(/, Wikimedia Commons$/, "")}` : "capitalkranti.co.in";
     return `<section data-card="${i + 1}" class="c">${picture(p)}${top(i + 1)}
       <div class="body">${tag}<div class="hl${size(c.headline)}"><span>${esc(c.headline)}</span></div>${c.deck ? `<div class="dek"><span>${esc(c.deck)}</span></div>` : ""}
       <div class="foot"><span>${esc(date)}</span><span>${esc(credit)}</span></div></div></section>`;

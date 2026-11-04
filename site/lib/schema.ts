@@ -200,6 +200,10 @@ export const SCHEMA = [
   `alter table stories add column if not exists translate_fails int not null default 0`,
   // why a live story has no photo (engine/run.ts; 4 Nov: four in five had none, and no one could say why)
   `alter table stories add column if not exists photo_why text`,
+  // the picture a story without a photo shows when shared (engine/share.ts), a /media address
+  `alter table stories add column if not exists share text`,
+  // one count a reader a story a day for "most read" (app/api/read): a keyed fingerprint, kept two days (engine/run.ts prune)
+  `create table if not exists read_once (h text primary key, day date not null)`,
 ];
 
 // the schema's version, kept in the database: a reader checks it with one

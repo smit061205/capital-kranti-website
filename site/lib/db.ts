@@ -59,6 +59,7 @@ function storyOf(r: Row): Story {
     importance: (r.importance as number | null) ?? null,
     gallery: (r.gallery as Photo[] | null) ?? [],
     byEditor: r.by === "editor",
+    share: (r.share as string | null) ?? null,
   };
 }
 function issueOf(r: Row): Issue {
@@ -69,7 +70,11 @@ function issueOf(r: Row): Issue {
 }
 
 const COLUMNS = `id, issue_date, published_at, updated_at, tier, genres, kicker, headline, deck, body, caption, photo, source,
-                 checked, page, rank, en, en_status, hi, hi_status, corrections, origin, sources, importance, gallery, checks->>'by' as by`;
+                 checked, page, rank, en, en_status, hi, hi_status, corrections, origin, sources, importance, gallery, checks->>'by' as by, share`;
+/** A list's columns: no story's text, which no list shows (5 Nov: the front page read 200 whole stories, three languages
+ *  each, for their headlines). A story's own page and the engine read COLUMNS. */
+const LIST = COLUMNS.replace("deck, body,", "deck, '' as body,").replace("en, en_status, hi,", "en - 'body' as en, en_status, hi - 'body' as hi,")
+  .replace("corrections,", "'[]'::jsonb as corrections,").replace("gallery,", "'[]'::jsonb as gallery,");
 
 /** The newest stories, the latest day's paper first in its printed order. */
 export async function latestStories(limit = 60): Promise<Story[]> {
@@ -77,7 +82,7 @@ export async function latestStories(limit = 60): Promise<Story[]> {
   const sql = db();
   if (!sql) return [];
   const rows = await sql.query(
-    `select ${COLUMNS} from stories where status = 'published' order by issue_date desc, page asc nulls last, rank asc nulls last, published_at desc limit $1`, [limit]);
+    `select ${LIST} from stories where status = 'published' order by issue_date desc, page asc nulls last, rank asc nulls last, published_at desc limit $1`, [limit]);
   return rows.map(storyOf);
 }
 
@@ -91,7 +96,7 @@ export async function storyById(id: string): Promise<Story | null> {
 
 /** A section: a tier (gujarat, india, world), a place (Gujarat stories naming it in the headline, kicker or sub-heading;
  *  not only in the opening, where a government release's "Gandhinagar" dateline names it for news from anywhere) or a genre. */
-export async function storiesIn(key: string, limit = 40): Promise<Story[]> {
+export async function storiesIn(key: string, limit = 40, full = false): Promise<Story[]> {
   if (isPlace(key)) {
     const words = PLACE_WORDS[key];
     const names = (s: Story) => words.some((w) => [s.headline, s.kicker, s.deck].some((x) => x.includes(w)));
@@ -100,7 +105,7 @@ export async function storiesIn(key: string, limit = 40): Promise<Story[]> {
     if (!sql) return [];
     const like = words.map((w) => `%${w}%`);
     const rows = await sql.query(
-      `select ${COLUMNS} from stories where status = 'published' and tier = 'gujarat'
+      `select ${full ? COLUMNS : LIST} from stories where status = 'published' and tier = 'gujarat'
          and (headline ilike any($1) or kicker ilike any($1) or deck ilike any($1))
        order by issue_date desc, published_at desc, rank asc nulls last limit $2`, [like, limit]);
     return rows.map(storyOf);
@@ -109,7 +114,7 @@ export async function storiesIn(key: string, limit = 40): Promise<Story[]> {
   const sql = db();
   if (!sql) return [];
   const rows = await sql.query(
-    `select ${COLUMNS} from stories where status = 'published' and (tier = $1 or $1 = any(genres)) order by issue_date desc, published_at desc, rank asc nulls last limit $2`,
+    `select ${full ? COLUMNS : LIST} from stories where status = 'published' and (tier = $1 or $1 = any(genres)) order by issue_date desc, published_at desc, rank asc nulls last limit $2`,
     [key, limit]);
   return rows.map(storyOf);
 }
@@ -120,18 +125,21 @@ export async function storiesInBoth(tier: Tier, genre: Genre, limit = 40): Promi
   const sql = db();
   if (!sql) return [];
   const rows = await sql.query(
-    `select ${COLUMNS} from stories where status = 'published' and tier = $1 and $2 = any(genres) order by issue_date desc, published_at desc, rank asc nulls last limit $3`,
+    `select ${LIST} from stories where status = 'published' and tier = $1 and $2 = any(genres) order by issue_date desc, published_at desc, rank asc nulls last limit $3`,
     [tier, genre, limit]);
   return rows.map(storyOf);
 }
 
 /** One more opening of a published story today (India's day). */
-export async function countRead(id: string) {
+export async function countRead(id: string, reader: string) {
   const sql = db();
   if (!sql) return;
+  // once a reader a day: `reader` is a keyed fingerprint (app/api/read), kept two days
   await sql.query(
-    `insert into reads (story_id, day, n) select id, (now() at time zone 'Asia/Kolkata')::date, 1 from stories where id = $1 and status = 'published'
-     on conflict (story_id, day) do update set n = reads.n + 1`, [id]);
+    `with today as (select (now() at time zone 'Asia/Kolkata')::date as d),
+          first as (insert into read_once (h, day) select $2, d from today on conflict (h) do nothing returning 1)
+     insert into reads (story_id, day, n) select id, (select d from today), 1 from stories where id = $1 and status = 'published' and exists (select 1 from first)
+     on conflict (story_id, day) do update set n = reads.n + 1`, [id, reader]);
 }
 
 /** The stories opened most since yesterday morning (India's days). */
@@ -140,7 +148,7 @@ export async function mostRead(limit = 5): Promise<Story[]> {
   const sql = db();
   if (!sql) return [];
   const rows = await sql.query(
-    `select ${COLUMNS} from stories s
+    `select ${LIST} from stories s
        join (select story_id, sum(n) as total from reads where day >= (now() at time zone 'Asia/Kolkata')::date - 1 group by story_id) r on r.story_id = s.id
       where s.status = 'published' order by r.total desc, s.published_at desc limit $1`, [limit]);
   return rows.map(storyOf);
@@ -155,7 +163,7 @@ export async function moreOnSubject(id: string, limit = 3): Promise<Story[]> {
   if (!sql) return [];
   const rows = await sql.query(
     `with me as (select keys from clusters where story_id = $1 limit 1)
-     select ${COLUMNS} from (
+     select ${LIST} from (
        select s.*, cardinality(array(select unnest(c.keys) intersect select unnest(me.keys))) as shared
          from stories s join clusters c on c.story_id = s.id cross join me
         where s.id <> $1 and s.status = 'published' and s.published_at > now() - interval '7 days') x
@@ -167,7 +175,7 @@ export async function storiesOn(date: string): Promise<Story[]> {
   if (sampleOn()) return sample().stories.filter((s) => s.issueDate === date);
   const sql = db();
   if (!sql) return [];
-  const rows = await sql.query(`select ${COLUMNS} from stories where issue_date = $1 and status = 'published' order by page asc nulls last, rank asc nulls last`, [date]);
+  const rows = await sql.query(`select ${LIST} from stories where issue_date = $1 and status = 'published' order by page asc nulls last, rank asc nulls last`, [date]);
   return rows.map(storyOf);
 }
 
@@ -180,7 +188,7 @@ export async function search(q: string, limit = 30): Promise<Story[]> {
   if (!sql || !words.length) return [];
   const where = words.map((_, i) => `(headline || ' ' || deck || ' ' || body || ' ' || coalesce(en::text, '')) ilike $${i + 1}`).join(" and ");
   const rows = await sql.query(
-    `select ${COLUMNS} from stories where status = 'published' and ${where} order by issue_date desc, published_at desc limit ${Math.min(limit, 50)}`,
+    `select ${LIST} from stories where status = 'published' and ${where} order by issue_date desc, published_at desc limit ${Math.min(limit, 50)}`,
     words.map((w) => `%${w.replace(/[%_\\]/g, (c) => "\\" + c)}%`));
   return rows.map(storyOf);
 }
@@ -254,7 +262,7 @@ export async function breakingNow(): Promise<Story | null> {
   const sql = db();
   if (!sql) return null;
   const rows = await sql.query(
-    `select ${COLUMNS} from stories where status = 'published' and origin = 'live' and importance >= 9.5
+    `select ${LIST} from stories where status = 'published' and origin = 'live' and importance >= 9.5
        and published_at > now() - interval '3 hours' order by published_at desc limit 1`).catch(() => []);
   return rows[0] ? storyOf(rows[0]) : null;
 }

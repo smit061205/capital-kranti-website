@@ -167,6 +167,8 @@ main{padding-block:8px 48px}
 .mav a:hover h2,.mav li a:hover{text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:1px}
 .mjoin .join{max-width:560px;margin:0 auto;text-align:center;justify-items:center;padding:32px 24px;border-top:1px solid var(--rule-strong);border-bottom:1px solid var(--rule-strong)}
 .mjoin .join .wa{justify-self:center}
+/* with no WhatsApp channel yet and a browser that can't take alerts, the box has nothing to show */
+.mjoin:has(.join:empty){display:none}
 @media (max-width:739px){ .mhero .phw,.feat .phw{margin-inline:calc(-1 * var(--side));border-radius:0} }
 @media (min-width:740px){
   .mpair{grid-template-columns:minmax(0,7fr) minmax(0,5fr);gap:40px}

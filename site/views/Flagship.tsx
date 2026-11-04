@@ -11,7 +11,7 @@ import { SearchIcon, Chev } from "@/components/icons.tsx";
 import type { Lang } from "@/lib/types.ts";
 import { AUTHORS, BEATS, beatName, featureById as loadFeature, featureWords, features, flw, isAuthor, isBeat, readMinutes, searchFeatures, type Beat, type Figure, type L3 } from "@/lib/flagship.ts";
 import { dateText, num, paragraphs } from "@/lib/format.ts";
-import { SITE_URL } from "@/lib/site.ts";
+import { SITE_URL, WHATSAPP_CHANNEL } from "@/lib/site.ts";
 import { langsOf, pageMeta } from "@/lib/meta.ts";
 import { pic, shareCopy, SIZES } from "@/lib/photo.ts";
 import { article, breadcrumbs, JsonLd } from "@/lib/jsonld.tsx";
@@ -53,7 +53,7 @@ export async function FlFront({ lang }: { lang: Lang }) {
           <Writers lang={lang} />
         </>
       )}
-      <div className={s.band}><JoinBox lang={lang} /></div>
+      {WHATSAPP_CHANNEL && <div className={s.band}><JoinBox lang={lang} /></div>}
     </Frame>
   );
 }
@@ -88,7 +88,7 @@ export async function FlBeat({ lang, beat }: { lang: Lang; beat: string }) {
           <Grid items={rest} lang={lang} tag={false} />
         </section>
       )}
-      <div className={s.band}><JoinBox lang={lang} /></div>
+      {WHATSAPP_CHANNEL && <div className={s.band}><JoinBox lang={lang} /></div>}
     </Frame>
   );
 }

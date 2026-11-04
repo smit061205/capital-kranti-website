@@ -42,6 +42,10 @@ You get a numbered list of new items from news sources (Gujarati, Hindi or Engli
   for news from any other state or city (Mumbai, Delhi, Rajasthan... are "india", even when a Gujarati outlet reports them);
   "world" for other countries, or India abroad.
 - genres: up to 2 of "farm","economy","tech","health","sport","education","entertainment"; [] if none fit.
+  "economy" is money and business: banks, insurance, taxes, prices, markets, companies, jobs, trade, budgets.
+  "education" is schools, colleges, exams, textbooks, students and teachers.
+  "tech" is ONLY technology and science (computers, internet, AI, space, research), never a government website or an app launch for a scheme.
+  "health" is illness, hospitals, medicine, doctors; "farm" is crops, farmers, animals, irrigation, fishing.
 - sensitive: true for deaths, accidents, crime, violence, communal matters, sexual offences, allegations against named people, health scares; else false.
 - event: ONE short English line naming the specific event: who did what, where (e.g. "Gujarat cabinet approves ₹2,000 crore Narmada canal repair").
 - keys: 4-8 lowercase English keywords for that event: the people, places, organisations, numbers (e.g. ["gujarat","cabinet","narmada","canal","2000 crore"]).
@@ -54,9 +58,12 @@ Reply with JSON only: {"items":[{"i":1,"score":0,"tier":"india","genres":[],"sen
 // and none in it is national news.
 const GUJARAT = /\b(gujarat|ahmedabad|gandhinagar|surat|vadodara|baroda|rajkot|bhavnagar|jamnagar|junagadh|kutch|kachchh|bhuj|anand|nadiad|kheda|mehsana|patan|palanpur|banaskantha|sabarkantha|himmatnagar|panchmahal|godhra|dahod|bharuch|ankleshwar|valsad|vapi|navsari|tapi|dang|narmada|kevadia|ekta nagar|statue of unity|porbandar|dwarka|somnath|gir|amreli|botad|morbi|surendranagar|dholera|mundra|kandla|saurashtra|sabarmati|aravalli|modasa|mahisagar|chhota udepur|gift city|sanand|halol|diu|daman|bhupendra patel)\b|ગુજરાત|અમદાવાદ|ગાંધીનગર|સુરત|વડોદરા|રાજકોટ|ભાવનગર|જામનગર|જૂનાગઢ|કચ્છ|ભુજ|આણંદ|નડિયાદ|મહેસાણા|પાટણ|પાલનપુર|ગોધરા|દાહોદ|ભરૂચ|વલસાડ|વાપી|નવસારી|નર્મદા|કેવડિયા|એકતાનગર|પોરબંદર|દ્વારકા|સોમનાથ|અમરેલી|બોટાદ|મોરબી|સુરેન્દ્રનગર|સૌરાષ્ટ્ર|સાબરમતી|ભૂપેન્દ્ર પટેલ|गुजरात|अहमदाबाद|गांधीनगर|सूरत|वडोदरा|राजकोट/i;
 const ELSEWHERE = /\b(maharashtra|mumbai|pune|nagpur|thane|delhi|rajasthan|jaipur|udaipur|madhya pradesh|bhopal|indore|uttar pradesh|lucknow|noida|ayodhya|varanasi|bihar|patna|karnataka|bengaluru|bangalore|tamil nadu|chennai|kerala|kochi|west bengal|kolkata|telangana|hyderabad|andhra|punjab|chandigarh|haryana|gurugram|goa|odisha|assam|jharkhand|chhattisgarh|uttarakhand|himachal|kashmir|srinagar|ladakh|manipur|mizoram|nagaland|meghalaya|tripura|sikkim|arunachal|mial)\b|મુંબઈ|મુંબઇ|મહારાષ્ટ્ર|પુણે|દિલ્હી|રાજસ્થાન|જયપુર|મધ્યપ્રદેશ|ઉત્તરપ્રદેશ|બિહાર|કર્ણાટક|બેંગલુરુ|તમિલનાડુ|ચેન્નાઈ|કેરળ|બંગાળ|કોલકાતા|તેલંગાણા|હૈદરાબાદ|પંજાબ|હરિયાણા|ગોવા|ઓડિશા|આસામ|કાશ્મીર|मुंबई|महाराष्ट्र|दिल्ली|राजस्थान|जयपुर|मध्य प्रदेश|उत्तर प्रदेश|बिहार|कर्नाटक|बेंगलुरु|तमिलनाडु|केरल|बंगाल|कोलकाता|तेलंगाना|हैदराबाद|पंजाब|हरियाणा|गोवा|ओडिशा|असम|कश्मीर/i;
-export function placeTier(tier: Tier, sourceWords: string): Tier {
-  if (tier !== "gujarat") return tier;
-  return ELSEWHERE.test(sourceWords) && !GUJARAT.test(sourceWords) ? "india" : tier;
+// 5 Nov: national news from English and Hindi sources (an insurance scheme, a textbook) was filed under Gujarat with no
+// Gujarat place in its words; so a report not in Gujarati must name one (a Gujarati outlet's local news often names only a
+// village or a ward, which the list can't hold).
+export function placeTier(tier: Tier, sourceWords: string, lang?: string): Tier {
+  if (tier !== "gujarat" || GUJARAT.test(sourceWords)) return tier;
+  return ELSEWHERE.test(sourceWords) || (lang && lang !== "gu") ? "india" : tier;
 }
 
 function checkBatch(n: number) {
@@ -90,7 +97,7 @@ export async function triageBatch(sql: Sql | null, batch: TriageInput[], lite = 
   const res = lite && sql
     ? await askGemini(sql, "lite", ask, checkBatch(batch.length), { wait: false, timeoutMs: 90_000 }).then((r) => (r.ok ? r : askJson(sql, ask, checkBatch(batch.length))))
     : await askJson(sql, ask, checkBatch(batch.length));
-  if (res.ok) for (const [i, tr] of res.value) tr.tier = placeTier(tr.tier, `${batch[i - 1].title} ${batch[i - 1].summary}`);
+  if (res.ok) for (const [i, tr] of res.value) tr.tier = placeTier(tr.tier, `${batch[i - 1].title} ${batch[i - 1].summary}`, batch[i - 1].lang);
   return res;
 }
 
@@ -112,10 +119,9 @@ export async function triage(sql: Sql, log: (s: string) => void, maxBatches: num
         lang: r.lang as string, title: r.title as string, summary: r.summary as string, factcheck: sourceById.get(r.source as string)?.trust === "factcheck" }));
       const res = await triageBatch(sql, input, lite);
       if (!res.ok) { log(`  triage: ${res.why}`); return res; }
-      for (const [k, r] of rows.entries()) {
-        const t = res.value.get(k + 1) ?? { skipped: "no answer" };
-        await sql.query(`update items set triage = $2 where id = $1`, [r.id, JSON.stringify(t)]);
-      }
+      // the whole batch in one write (5 Nov: one a row, 40 round trips a batch)
+      await sql.query(`update items set triage = v.t::jsonb from unnest($1::text[], $2::text[]) as v(id, t) where items.id = v.id`,
+        [rows.map((r) => r.id), rows.map((_, k) => JSON.stringify(res.value.get(k + 1) ?? { skipped: "no answer" }))]);
       done += res.value.size;
       return res;
     }));

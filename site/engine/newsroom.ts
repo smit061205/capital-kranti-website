@@ -237,6 +237,18 @@ export function cutUnsupported(w: Written, claims: Claim[], least: number): { wr
   return { written: { ...w, body, kicker: at.includes("K") ? "" : w.kicker, caption: at.includes("C") ? "" : w.caption }, cut: drop.size };
 }
 
+// Gujarati doubles some words on purpose ("ધીમે ધીમે", "જુદા જુદા"); any other word twice in a row in a headline or
+// summary is a model's slip (5 Nov: "વિધિસર વિધિસર" reached a summary)
+const MEANT_TWICE = new Set(["ધીમે", "જુદા", "જુદી", "જુદાં", "અલગ", "અલગ-અલગ", "સાથે", "ઘર", "ગામ", "ઠેર", "વારે", "ક્યારે", "કોઈ", "જેમ",
+  "થોડા", "થોડું", "થોડી", "નવા", "નવી", "મોટા", "મોટી", "રોજ", "ફરી", "દૂર", "આગળ", "પાસે", "ઉપર", "નીચે", "હાથ", "જ્યાં", "ત્યાં", "બે", "એક"]);
+export function doubledWord(text: string): string | null {
+  for (const line of text.split("\n")) {
+    const ws = line.split(/\s+/).map((x) => x.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{M}\p{N}]+$/gu, "")).filter(Boolean);
+    for (let i = 1; i < ws.length; i++) if (ws[i] === ws[i - 1] && ws[i].length > 1 && !MEANT_TWICE.has(ws[i])) return ws[i];
+  }
+  return null;
+}
+
 /** Steps 5 and 7: the story's numbers by code, then every claim by a different free model. */
 export async function check(sql: Sql | null, w: Written, src: SourceText[], date: string): Promise<Checked> {
   const problems: string[] = [];
@@ -246,6 +258,8 @@ export async function check(sql: Sql | null, w: Written, src: SourceText[], date
   const wrong = numbersNotIn(text, `${all}\n\n${src.map((s) => s.source.name).join("\n")}`, date);
   if (wrong.length) problems.push(`numbers not in any source: ${wrong.join(", ")}`);
   if (repeats(w.body)) problems.push("says the same thing twice");
+  const doubled = doubledWord(`${w.headline}\n${w.deck}`);
+  if (doubled) problems.push(`the same word twice in a row in the headline or summary: "${doubled} ${doubled}"`);
   // letters from another script inside the Gujarati (29 Oct: Telugu letters mid-sentence) are a model's slip
   // and English letters after Gujarati ones in a word (1 Nov: "નini" for "નવ" reached a headline; "CCIની" is fine)
   // and Russian, Greek, Arabic, Thai, Chinese, Japanese or Korean letters, or a stray accent (4 Nov: "виста́р" reached a headline)

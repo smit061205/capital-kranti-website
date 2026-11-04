@@ -2,6 +2,9 @@
 // Vercel address forwards there, next.config.ts); a Vercel address is never indexed
 // by search engines (a preview's would compete with the real one).
 export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.capitalkranti.co.in").replace(/\/$/, "");
+/** The paper's WhatsApp channel, once it has one: until then no page offers it (5 Nov: a "coming soon" box sat on every
+ *  front page and Aavtikal page with nothing to join). */
+export const WHATSAPP_CHANNEL = "";
 export const INDEXABLE = !/\.vercel\.app$/.test(new URL(SITE_URL).hostname);
 export const PAPER = {
   gu: { name: "કેપિટલ ક્રાંતિ", tagline: "સમાજનો વિવેકપૂર્ણ દ્રષ્ટિકોણ", place: "ગાંધીનગર" },
