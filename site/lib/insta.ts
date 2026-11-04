@@ -38,11 +38,11 @@ export interface InstaSet {
 /** the last card's photo, one for each section: free photos from Wikimedia Commons, credited (the user picks them by eye) */
 export interface Landmark extends CardPhoto { title: string; short: string }
 export const LANDMARKS: Record<Tier, Landmark> = {
-  gujarat: { title: "ગુજરાતના આજના બધા સમાચાર", short: "capitalkranti.co.in/insta", credit: "Rahilarious, CC BY-SA 4.0", width: 1280, height: 1644,
+  gujarat: { title: "ગુજરાતના આજના બધા સમાચાર", short: "capitalkranti.co.in", credit: "Rahilarious, CC BY-SA 4.0", width: 1280, height: 1644,
              url: "https://upload.wikimedia.org/wikipedia/commons/thumb/8/8a/Foot_bridge_at_Ahmedabad_Sabarmati_Riverfront.jpg/1280px-Foot_bridge_at_Ahmedabad_Sabarmati_Riverfront.jpg" },
-  india: { title: "દેશના આજના બધા સમાચાર", short: "capitalkranti.co.in/insta", credit: "A.Savin, FAL", width: 1280, height: 1600,
+  india: { title: "દેશના આજના બધા સમાચાર", short: "capitalkranti.co.in", credit: "A.Savin, FAL", width: 1280, height: 1600,
            url: "https://upload.wikimedia.org/wikipedia/commons/thumb/0/09/India_Gate_in_New_Delhi_03-2016.jpg/1280px-India_Gate_in_New_Delhi_03-2016.jpg" },
-  world: { title: "વિશ્વના આજના બધા સમાચાર", short: "capitalkranti.co.in/insta", credit: "NASA, Apollo 17", width: 1280, height: 1281,
+  world: { title: "વિશ્વના આજના બધા સમાચાર", short: "capitalkranti.co.in", credit: "NASA, Apollo 17", width: 1280, height: 1281,
            url: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/1280px-The_Earth_seen_from_Apollo_17.jpg" },
 };
 
@@ -187,7 +187,7 @@ export function captionFor(tier: Tier, edition: string, cards: Card[]): string {
     "",
     ...cards.map((c, i) => `${num(i + 1, "gu")}. ${c.headline}`),
     "",
-    "દરેક સમાચાર વિગતે વાંચવા: પ્રોફાઇલમાંની લિંક (capitalkranti.co.in/insta)",
+    "દરેક સમાચાર વિગતે વાંચવા: પ્રોફાઇલમાંની લિંક (capitalkranti.co.in)",
     ...(credits.length ? ["", `ફોટો: ${credits.join("; ")}${credits.length ? " (Wikimedia Commons)" : ""}`] : []),
     "",
     `${TAGS[tier]} #ગુજરાતીસમાચાર #CapitalKranti #કેપિટલક્રાંતિ`,
