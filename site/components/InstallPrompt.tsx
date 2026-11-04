@@ -47,7 +47,9 @@ export default function InstallPrompt({ words: w }: { words: Words }) {
       <img src="/icon-192.png" alt="" width={48} height={48} />
       <div>
         <b>{w.installTitle}</b>
-        <p>{kind === "ios" ? w.installIos : kind === "steps" ? w.installSteps : w.installText}</p>
+        {/* the iPhone's share button sits below in Safari and above in Chrome, so the card draws it rather than saying where */}
+        <p>{kind === "ios" && <svg className="shareic" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M12 3v12M8 7l4-4 4 4M6 11v9h12v-9" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>}
+          {kind === "ios" ? w.installIos : kind === "steps" ? w.installSteps : w.installText}</p>
         <div className="installb">
           {kind === "android" && <button type="button" className="go" onClick={install}>{w.installBtn}</button>}
           <button type="button" onClick={close}>{w.later}</button>

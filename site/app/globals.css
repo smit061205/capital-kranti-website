@@ -419,6 +419,7 @@ footer .wm b{font-size:28px}
 .install b{font-size:var(--t2);color:var(--strong)}
 .install p{margin:2px 0 10px;font-size:var(--t1);color:var(--soft);line-height:1.45}
 .installb{display:flex;gap:8px}
+.install .shareic{vertical-align:-3px;margin-right:6px;color:var(--brand)}
 .installb button{min-height:40px;padding:0 16px;border-radius:999px;font-weight:600;font-size:var(--t1);color:var(--soft)}
 .installb .go{background:var(--brand);color:#fff}
 .installb button:only-child{padding-inline:0;text-decoration:underline;text-underline-offset:3px}
