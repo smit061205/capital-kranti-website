@@ -202,14 +202,17 @@ export async function issueDates(limit = 400): Promise<{ date: string; number: n
 }
 
 /** Every story's id and last change, for the sitemaps. */
-export async function sitemapEntries(sinceDays?: number): Promise<{ id: string; updatedAt: string; publishedAt: string; headline: string; en: boolean }[]> {
+/** The published stories for the sitemaps, newest first: sinceDays for the news sitemap (Google News reads two days). */
+export async function sitemapEntries(sinceDays?: number): Promise<{ id: string; updatedAt: string; publishedAt: string; headline: string; en: string | null; hi: string | null }[]> {
   const sql = db();
   if (!sql) return [];
+  const cols = `id, updated_at, published_at, headline, case when en_status = 'done' then en->>'headline' end as en_h, case when hi_status = 'done' then hi->>'headline' end as hi_h`;
   const rows = sinceDays
-    ? await sql.query(`select id, updated_at, published_at, headline, en_status from stories where status = 'published' and published_at > now() - make_interval(days => $1) order by published_at desc limit 1000`, [sinceDays])
-    : await sql.query(`select id, updated_at, published_at, headline, en_status from stories where status = 'published' order by published_at desc limit 50000`);
+    ? await sql.query(`select ${cols} from stories where status = 'published' and published_at > now() - make_interval(days => $1) order by published_at desc limit 1000`, [sinceDays])
+    : await sql.query(`select ${cols} from stories where status = 'published' order by published_at desc limit 15000`);
+  // the English and Hindi only when written (a copy not yet translated shows the Gujarati and isn't a version of its own)
   return rows.map((r) => ({ id: r.id as string, updatedAt: iso(r.updated_at), publishedAt: iso(r.published_at), headline: r.headline as string,
-                            en: r.en_status === "done" }));
+                            en: (r.en_h as string | null) || null, hi: (r.hi_h as string | null) || null }));
 }
 
 /** A headline elsewhere: another trusted outlet's item, linked to its own page (ROADMAP §4, "from other outlets"). */

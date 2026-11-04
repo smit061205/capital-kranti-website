@@ -2,8 +2,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Lang, Story } from "../lib/types.ts";
-import { largest, pic, SIZES } from "../lib/photo.ts";
-import { moreOnSubject, storiesIn, storyById } from "../lib/db.ts";
+import { largest, pic, shareCopy, SIZES } from "../lib/photo.ts";
+import { pageMeta, langsOf } from "../lib/meta.ts";
+import { article, breadcrumbs, JsonLd } from "../lib/jsonld.tsx";
+import { moreOnSubject, storiesIn, storyById as loadStory } from "../lib/db.ts";
 import { href, t } from "../lib/i18n.ts";
 import { sectionName } from "../lib/sections.ts";
 import { dateText, minutes, num, paragraphs, timeText } from "../lib/format.ts";
@@ -14,22 +16,31 @@ import { Flag } from "../components/icons.tsx";
 import ArticleTools from "../components/ArticleTools.tsx";
 import ReadProgress from "../components/ReadProgress.tsx";
 import PhotoZoom from "../components/PhotoZoom.tsx";
-import { ViewTransition } from "react";
+import { cache, ViewTransition } from "react";
 import Frame from "../components/Frame.tsx";
 
-export function articleJsonLd(s: Story, lang: Lang) {
+/** A story read once per page, though its title data and its page both ask for it */
+const storyById = cache(loadStory);
+
+/** A story page's title, description, language versions and share preview. */
+export async function articleMeta(id: string, lang: Lang) {
+  const s = await storyById(id);
+  if (!s) return pageMeta({ lang, path: "/" });
   const w = words(s, lang);
-  return {
-    "@context": "https://schema.org", "@type": "NewsArticle",
-    headline: w.headline.slice(0, 110), description: w.deck || undefined, inLanguage: lang !== "gu" && w.translated ? lang : "gu",
-    datePublished: s.publishedAt, dateModified: s.updatedAt,
-    image: s.photo ? [new URL(s.photo.url, SITE_URL).href] : undefined,
-    mainEntityOfPage: `${SITE_URL}${href(lang, `/news/${s.id}`)}`,
-    articleSection: sectionName(s.tier, lang),
-    author: { "@type": "Organization", name: PAPER[lang].name, url: SITE_URL },
-    publisher: { "@type": "NewsMediaOrganization", name: PAPER[lang].name, url: SITE_URL, logo: { "@type": "ImageObject", url: `${SITE_URL}/logo.png` } },
-    isBasedOn: s.source?.url,
-  };
+  return pageMeta({ lang, path: `/news/${s.id}`, title: w.headline, description: w.deck || w.body.slice(0, 160),
+                    image: s.photo && shareCopy(s.photo), article: s, langs: langsOf(s) });
+}
+
+/** NewsArticle and its breadcrumbs for Google; an untranslated copy describes the Gujarati page it shows. */
+function articleLd(s: Story, lang: Lang) {
+  const shown: Lang = langsOf(s).includes(lang) ? lang : "gu";
+  const w = words(s, shown);
+  return [
+    article({ url: `${SITE_URL}${href(shown, `/news/${s.id}`)}`, lang: shown, headline: w.headline, description: w.deck, section: sectionName(s.tier, shown),
+              publishedAt: s.publishedAt, updatedAt: s.updatedAt, image: s.photo && shareCopy(s.photo), basedOn: s.source?.url ?? s.sources[0]?.url,
+              words: w.body.split(/\s+/).filter(Boolean).length }),
+    breadcrumbs(shown, [{ name: PAPER[shown].name, path: "/" }, { name: sectionName(s.tier, shown), path: `/section/${s.tier}` }, { name: w.headline, path: `/news/${s.id}` }]),
+  ];
 }
 
 export default async function Article({ id, lang }: { id: string; lang: Lang }) {
@@ -52,7 +63,7 @@ export default async function Article({ id, lang }: { id: string; lang: Lang }) 
 
   return (
     <Frame lang={lang} path={`/news/${s.id}`} section={s.tier} bottomBar={false}>
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd(s, lang)).replace(/</g, "\\u003c") }} />
+      <JsonLd items={articleLd(s, lang)} />
       <ReadProgress target=".art" />
       <CountRead id={s.id} />
         <article className="art" lang={w.translated || lang === "gu" ? lang : "gu"}>

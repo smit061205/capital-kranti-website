@@ -1,10 +1,16 @@
 // Each page's title, description, language alternates and share preview.
 import type { Metadata } from "next";
-import type { Lang, Story } from "./types.ts";
+import type { Lang } from "./types.ts";
 import { href } from "./i18n.ts";
 import { INDEXABLE, PAPER, SITE_URL } from "./site.ts";
 
-export function pageMeta(o: { lang: Lang; path: string; title?: string; description?: string; image?: string | null; article?: Story }): Metadata {
+/** The languages a story or article really exists in: Gujarati always, English and Hindi once translated. */
+export const langsOf = (x: { en: unknown; hi: unknown }): Lang[] => ["gu", ...(x.en ? ["en" as const] : []), ...(x.hi ? ["hi" as const] : [])];
+
+/** langs: the languages the page exists in (all three unless said). A copy not yet translated shows the Gujarati,
+ *  so its canonical is the Gujarati page and search engines aren't told of it as a version of its own. */
+export function pageMeta(o: { lang: Lang; path: string; title?: string; description?: string; image?: string | null;
+                              article?: { publishedAt: string; updatedAt: string }; langs?: Lang[] }): Metadata {
   const name = PAPER[o.lang].name;
   const title = o.title ? `${o.title} | ${name}` : `${name}: ${PAPER[o.lang].tagline}`;
   const description = o.description || {
@@ -12,12 +18,14 @@ export function pageMeta(o: { lang: Lang; path: string; title?: string; descript
     en: "The Gujarati daily from Gandhinagar: news of Gujarat, India and the world, and past issues.",
     hi: "गांधीनगर का गुजराती दैनिक: गुजरात, देश और विश्व के समाचार और पुराने अंक.",
   }[o.lang];
-  const url = `${SITE_URL}${href(o.lang, o.path)}`;
+  const at = (l: Lang) => `${SITE_URL}${href(l, o.path)}`;
+  const langs = o.langs ?? ["gu", "en", "hi"];
+  const url = at(langs.includes(o.lang) ? o.lang : "gu");
   const image = o.image ?? `${SITE_URL}/og.png`;
   return {
     metadataBase: new URL(SITE_URL),
     title, description,
-    alternates: { canonical: url, languages: { gu: `${SITE_URL}${href("gu", o.path)}`, en: `${SITE_URL}${href("en", o.path)}`, hi: `${SITE_URL}${href("hi", o.path)}` },
+    alternates: { canonical: url, languages: { ...Object.fromEntries(langs.map((l) => [l, at(l)])), "x-default": at("gu") },
                   types: { "application/rss+xml": `${SITE_URL}${o.lang === "gu" ? "" : `/${o.lang}`}/rss.xml` } },
     robots: INDEXABLE ? { index: true, follow: true, "max-image-preview": "large" } : { index: false, follow: false },
     openGraph: {

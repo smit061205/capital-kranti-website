@@ -12,8 +12,9 @@ import type { Lang } from "@/lib/types.ts";
 import { AUTHORS, BEATS, beatName, featureById as loadFeature, featureWords, features, flw, isAuthor, isBeat, readMinutes, searchFeatures, type Beat, type Figure, type L3 } from "@/lib/flagship.ts";
 import { dateText, num, paragraphs } from "@/lib/format.ts";
 import { SITE_URL } from "@/lib/site.ts";
-import { pageMeta } from "@/lib/meta.ts";
-import { pic, SIZES } from "@/lib/photo.ts";
+import { langsOf, pageMeta } from "@/lib/meta.ts";
+import { pic, shareCopy, SIZES } from "@/lib/photo.ts";
+import { article, breadcrumbs, JsonLd } from "@/lib/jsonld.tsx";
 
 /** An article read once per page, though its title data and its page both ask for it */
 const featureById = cache(loadFeature);
@@ -191,8 +192,18 @@ export async function FlArticle({ lang, id }: { lang: Lang; id: string }) {
   const w = flw(lang);
   const t = featureWords(f, lang);
   const more = (await features({ beat: f.beat, limit: 4 })).filter((x) => x.id !== f.id).slice(0, 3);
+  // for Google: an untranslated copy describes the Gujarati page it shows
+  const shown: Lang = langsOf(f).includes(lang) ? lang : "gu";
+  const ts = featureWords(f, shown);
+  const ld = [
+    article({ type: "Article", url: `${SITE_URL}${featureHref(f, shown)}`, lang: shown, headline: ts.headline, description: ts.dek, section: beatName(f.beat, shown),
+              publishedAt: f.publishedAt, updatedAt: f.updatedAt, image: f.photo && shareCopy(f.photo),
+              author: { name: AUTHORS[f.author].name[shown], url: `${SITE_URL}${fl(shown, `/author/${f.author}`)}` }, words: ts.body.split(/\s+/).filter(Boolean).length }),
+    breadcrumbs(shown, [{ name: flw(shown).name, path: "/aavtikal" }, { name: beatName(f.beat, shown), path: `/aavtikal/${f.beat}` }, { name: ts.headline, path: `/aavtikal/p/${f.id}` }]),
+  ];
   return (
     <Frame lang={lang} beat={f.beat} path={`/p/${f.id}`}>
+      <JsonLd items={ld} />
       <article>
         <header className={s.artHead}>
           <h1 className={`${s.hl} ${s.artTitle}`} lang={gl(lang, t.translated)}>{t.headline}</h1>
@@ -239,10 +250,15 @@ export async function FlArticle({ lang, id }: { lang: Lang; id: string }) {
 /** A flagship page's title, description and share preview. */
 export async function flMeta(lang: Lang, path: string, o: { title?: string; description?: string; image?: string | null; id?: string } = {}) {
   const w = flw(lang);
+  let more: Pick<Parameters<typeof pageMeta>[0], "article" | "langs"> = {};
   if (o.id) {
     const f = await featureById(o.id);
-    if (f) { const t = featureWords(f, lang); o = { title: t.headline, description: t.dek || t.body.slice(0, 160), image: f.photo?.url }; }
+    if (f) {
+      const t = featureWords(f, lang);
+      o = { title: t.headline, description: t.dek || t.body.slice(0, 160), image: f.photo && shareCopy(f.photo) };
+      more = { article: f, langs: langsOf(f) };
+    }
   }
-  const m = pageMeta({ lang, path: `/aavtikal${path}`, title: o.title ? `${o.title} | ${w.name}` : w.name, description: o.description || w.tagline, image: o.image });
+  const m = pageMeta({ lang, path: `/aavtikal${path}`, title: o.title ? `${o.title} | ${w.name}` : w.name, description: o.description || w.tagline, image: o.image, ...more });
   return { ...m, alternates: { ...m.alternates, types: undefined } };
 }
