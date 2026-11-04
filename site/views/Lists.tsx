@@ -114,7 +114,7 @@ export function SavedPage({ lang }: { lang: Lang }) {
   return (
     <Frame lang={lang} path="/saved">
       <div className="sechead"><h1>{t(lang, "savedTitle")}</h1></div>
-      <Saved lang={lang} empty={t(lang, "noneSaved")} />
+      <Saved lang={lang} empty={t(lang, "noneSaved")} remove={t(lang, "remove")} count={t(lang, "savedCount")} />
     </Frame>
   );
 }

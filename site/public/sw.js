@@ -2,9 +2,9 @@
 // connection. Pages: the network first, else the copy from the last visit, else
 // a small offline page listing the stories this phone can still open.
 // Site files: kept once fetched (their names change with each release).
-// Photos: kept once fetched, the last 120.
+// Photos: kept once fetched, the last 120. Stories the reader saves: kept until taken off (components/ArticleTools.tsx).
 const V = "ck-v1";
-const PAGES = `${V}-pages`, FILES = `${V}-files`, PHOTOS = `${V}-photos`;
+const PAGES = `${V}-pages`, FILES = `${V}-files`, PHOTOS = `${V}-photos`, SAVED = `${V}-saved`;
 const MAX_PAGES = 40, MAX_PHOTOS = 120, WAIT = 4000;
 
 self.addEventListener("install", () => self.skipWaiting());
@@ -34,11 +34,14 @@ const unesc = (s) => s.replace(/&(#x?[0-9a-f]+|amp|lt|gt|quot|apos);/gi, (m, c) 
 const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
 
 async function offlinePage() {
-  const c = await caches.open(PAGES);
-  const links = [];
-  for (const req of (await c.keys()).reverse()) {
+  // the saved stories first, then the last ones read
+  const links = [], seen = new Set();
+  const all = [];
+  for (const name of [SAVED, PAGES]) { const c = await caches.open(name); for (const req of (await c.keys()).reverse()) all.push([c, req]); }
+  for (const [c, req] of all) {
     const u = new URL(req.url);
-    if (!/\/news\//.test(u.pathname)) continue;
+    if (!/\/news\//.test(u.pathname) || seen.has(u.pathname)) continue;
+    seen.add(u.pathname);
     const html = await (await c.match(req)).text();
     const title = (html.match(/<title>([^<]*)<\/title>/) || [])[1];
     if (title) links.push(`<li><a href="${esc(u.pathname)}">${esc(unesc(title).replace(/ [|·–-] [^|·–-]+$/, ""))}</a></li>`);
@@ -68,7 +71,7 @@ self.addEventListener("fetch", (e) => {
     const net = fetch(req).then((res) => { e.waitUntil(keep(PAGES, req, res.clone(), MAX_PAGES)); return res; });
     e.waitUntil(net.catch(() => {}));
     e.respondWith((async () => {
-      const copy = await caches.match(req, { cacheName: PAGES });
+      const copy = (await caches.match(req, { cacheName: PAGES })) || (await caches.match(req, { cacheName: SAVED }));
       if (!copy) return net.catch(offlinePage);
       const late = new Promise((r) => setTimeout(r, WAIT, null));
       return (await Promise.race([net.catch(() => null), late])) || copy;
@@ -84,6 +87,20 @@ self.addEventListener("fetch", (e) => {
     const res = await fetch(req);
     e.waitUntil(keep(kind, req, res.clone(), kind === PHOTOS ? MAX_PHOTOS : 400));
     return res;
+  })());
+});
+
+// A story the reader saves is kept whole for reading without internet; taken off, it goes (any language's copy)
+self.addEventListener("message", (e) => {
+  const m = e.data || {};
+  if (!m.id || !/^[a-z][a-z0-9-]{1,40}$/.test(m.id)) return;
+  e.waitUntil((async () => {
+    const c = await caches.open(SAVED);
+    if (m.type === "save" && typeof m.path === "string" && m.path.startsWith("/")) {
+      const res = await fetch(m.path, { credentials: "same-origin" }).catch(() => null);
+      if (res && res.ok) await c.put(new Request(new URL(m.path, self.location.origin).href), res);
+    }
+    if (m.type === "unsave") for (const k of await c.keys()) if (new URL(k.url).pathname.endsWith(`/news/${m.id}`)) await c.delete(k);
   })());
 });
 

@@ -401,6 +401,28 @@ footer .wm b{font-size:28px}
 .legal{font-size:var(--t1);color:var(--muted);margin-top:24px;line-height:1.6}
 
 .toast{animation:pop var(--move) var(--ease) both;position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--strong);color:var(--bg);padding:10px 18px;border-radius:var(--r);font-weight:600;font-size:var(--t2);z-index:60;max-width:calc(100vw - 32px);text-align:center}
+/* the saved note: what happened, that it reads offline, and the way to the saved stories */
+.toast.big{display:flex;gap:16px;align-items:center;text-align:left;padding:12px 12px 12px 18px;width:max-content}
+.toast small{display:block;font-weight:400;opacity:.8;font-size:var(--t1)}
+.toast a{color:inherit;font-weight:700;text-decoration:underline;text-underline-offset:3px;white-space:nowrap;padding:6px}
+.tool.save.on,.readbar .ib.on{color:var(--brand)}
+/* the saved stories: each with a way to take it off */
+.savedn{color:var(--muted);font-size:var(--t1);margin:-4px 0 12px}
+.saved{list-style:none;margin:0;padding:0}
+.saved li{border-bottom:1px solid var(--rule);padding-block:14px 10px}
+.saved .unsave{font-size:var(--t1);color:var(--muted);padding:6px 0;min-height:32px;text-decoration:underline;text-underline-offset:3px}
+.saved .unsave:hover{color:var(--strong)}
+/* "Capital Kranti on your phone" (components/InstallPrompt.tsx), above the phone's bottom bar */
+.install{position:fixed;left:12px;right:12px;bottom:calc(72px + env(safe-area-inset-bottom,0px));z-index:30;display:grid;grid-template-columns:48px 1fr;gap:12px;
+  background:var(--bg);border:1px solid var(--rule);border-radius:calc(var(--r) * 2);padding:14px;box-shadow:0 8px 28px rgb(0 0 0 / .14);animation:rise var(--move) var(--ease) both}
+.install img{border-radius:12px}
+.install b{font-size:var(--t2);color:var(--strong)}
+.install p{margin:2px 0 10px;font-size:var(--t1);color:var(--soft);line-height:1.45}
+.installb{display:flex;gap:8px}
+.installb button{min-height:40px;padding:0 16px;border-radius:999px;font-weight:600;font-size:var(--t1);color:var(--soft)}
+.installb .go{background:var(--brand);color:#fff}
+.installb button:only-child{padding-inline:0;text-decoration:underline;text-underline-offset:3px}
+@media (min-width:740px){ .install{display:none} }
 @keyframes rise{from{opacity:0;transform:translateY(10px)}}
 @keyframes pop{from{opacity:0;transform:translate(-50%,8px) scale(.96)}}
 /* links within a page glide; a new page opens at its top at once (Next does that only with data-scroll-behavior="smooth" on <html>,

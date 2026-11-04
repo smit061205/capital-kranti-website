@@ -51,7 +51,7 @@ export default async function Article({ id, lang }: { id: string; lang: Lang }) 
   const w = words(s, lang);
   const url = `${SITE_URL}${href(lang, `/news/${s.id}`)}`;
   const changed = s.updatedAt && Date.parse(s.updatedAt) - Date.parse(s.publishedAt) > 5 * 60_000;
-  const toolWords = Object.fromEntries((["share", "shareShort", "copy", "copied", "save", "saved", "savedToast", "unsavedToast", "size"] as const)
+  const toolWords = Object.fromEntries((["share", "shareShort", "copy", "copied", "save", "saved", "savedToast", "unsavedToast", "size", "seeSaved", "savedOffline"] as const)
     .map((k) => [k, t(lang, k)])) as Parameters<typeof ArticleTools>[0]["words"];
   const others = related.filter((x) => x.id !== s.id && !more.some((m) => m.id === x.id));
   const paras = paragraphs(w.body);
@@ -81,7 +81,7 @@ export default async function Article({ id, lang }: { id: string; lang: Lang }) 
           <p className="byt">{dateText(s.publishedAt, lang)}, {timeText(s.publishedAt, lang)}
             {changed && <> · {t(lang, "updatedAt")} {timeText(s.updatedAt, lang)}</>}
             {" · "}{num(minutes(w.body), lang)} {t(lang, "min")}</p>
-          <ArticleTools id={s.id} url={url} headline={w.headline} words={toolWords} />
+          <ArticleTools id={s.id} url={url} headline={w.headline} savedHref={href(lang, "/saved")} words={toolWords} />
           {s.photo && (
             <figure className={strong(s) ? "wide-ph" : "in-ph"}>
               <PhotoZoom src={largest(s.photo)} width={s.photo.width} height={s.photo.height} alt={w.caption || w.headline}
