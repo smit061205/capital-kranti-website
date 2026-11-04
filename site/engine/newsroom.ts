@@ -65,7 +65,9 @@ const WORDS: Record<Level, [number, number]> = { lead: [450, 700], top: [400, 60
 
 // ---- gathering the facts ----
 
-export interface SourceText { source: SourceDef; url: string; title: string; text: string; image: string | null; official: boolean }
+export interface SourceText { source: SourceDef; url: string; title: string; text: string; image: string | null; official: boolean;
+  /** Wikipedia's lines on the story's subject: background only, never the news (engine/wikiphoto.ts background()) */
+  background?: boolean }
 
 /** Each report's text: an official page in full; an outlet's article as facts
  * only (its summary, and its page where robots.txt allows). At most 5. */
@@ -103,8 +105,9 @@ export async function gather(items: ClusterItem[]): Promise<SourceText[]> {
   return out.map((s, i) => (i === longest ? s : { ...s, text: s.text.slice(0, rest) }));
 }
 
-const sourcesBlock = (src: SourceText[]) => src.map((s, k) =>
-  `SOURCE ${k + 1} (${s.source.name}, ${s.official ? "official" : "news outlet"}, ${s.source.lang}):\n${s.title}\n${s.text}`).join("\n\n---\n\n");
+const sourcesBlock = (src: SourceText[]) => src.map((s, k) => s.background
+  ? `SOURCE ${k + 1} (BACKGROUND from Wikipedia, about ${s.title}: for one short paragraph of who or what this is; never today's news):\n${s.text}`
+  : `SOURCE ${k + 1} (${s.source.name}, ${s.official ? "official" : "news outlet"}, ${s.source.lang}):\n${s.title}\n${s.text}`).join("\n\n---\n\n");
 
 // ---- step 5: the Gujarati story ----
 
@@ -112,13 +115,22 @@ export interface Written { kicker: string; headline: string; deck: string; body:
 
 /** How long the story is: at least as long as its longest source (the user, 29 Oct), never shorter than its
  *  level asks, and up to 1,200 words (as much as a free model writes well in one answer). */
+const wordsIn = (s: SourceText) => s.text.split(/\s+/).filter(Boolean).length;
+/** the news sources' longest, in words (the background isn't news) */
+const longestNews = (src: SourceText[]) => Math.max(0, ...src.filter((s) => !s.background).map(wordsIn));
+/** Its sources are shorter than its level's story (a feed's few lines): more is looked for before it's written (engine/run.ts). */
+export const thin = (level: Level, src: SourceText[]) => longestNews(src) < WORDS[level][0];
+
 export function lengthFor(level: Level, src: SourceText[]): [number, number] {
-  const longest = Math.max(0, ...src.map((s) => s.text.split(/\s+/).filter(Boolean).length));
+  const longest = longestNews(src);
+  // a paragraph of background, when Wikipedia gave some (4 Nov: a story from a feed's three lines was two short paragraphs)
+  const bg = src.find((s) => s.background);
+  const extra = bg ? Math.min(120, Math.round(wordsIn(bg) * 0.5)) : 0;
   // sources shorter than the level's length (a feed's three-line summary): the story as long as they are, not padded out to
   // the level's (4 Nov: 250 words asked from 60, the writer filled them with lines no source said and the check failed
   // over half the stories)
   if (longest < WORDS[level][0]) {
-    const lo = Math.max(WORDS.brief[0] * 0.8, Math.round(longest * 0.9));
+    const lo = Math.max(WORDS.brief[0] * 0.8, Math.round(longest * 0.9) + extra);
     return [lo, Math.round(lo * 1.4)];
   }
   const lo = Math.min(1200, longest);
@@ -135,6 +147,8 @@ Rules:
 - Body: ${lo}-${hi} words, the most important fact first, short paragraphs separated by a blank line. Plain, clear Gujarati.
   Tell the whole story the sources tell, at least as fully as the longest source: every fact, the background they give,
   what happens next, who said what. A reader should not need to open the sources. Never pad with anything not in them.
+- A BACKGROUND source (Wikipedia) is for one short paragraph near the end on who or what the subject is (their role, past
+  record), in the past tense. Never present it as today's news, and never mix its facts into the news itself.
 - kicker: 1-3 words naming the topic or place, or "".
 - caption: one line for the photo if a source has an official photo, else "".
 - Numbers in Gujarati digits (૦-૯) as the paper prints them, with ₹, કરોડ and લાખ as Indian papers write them. Keep every number exactly as the source has it.

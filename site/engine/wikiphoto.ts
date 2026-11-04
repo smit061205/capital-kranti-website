@@ -8,7 +8,7 @@
 import type { NeonQueryFunction } from "@neondatabase/serverless";
 import type { Photo } from "../lib/types.ts";
 import { askJson } from "./ai.ts";
-import type { Written } from "./newsroom.ts";
+import type { SourceText, Written } from "./newsroom.ts";
 import { storePhoto } from "./publish.ts";
 
 type Sql = NeonQueryFunction<false, false>;
@@ -38,6 +38,21 @@ export async function subjectOf(sql: Sql, w: Written): Promise<Subject | null> {
     return { title: x.title.trim(), gu: (x.gu ?? "").trim(), en: (x.en ?? "").trim(), hi: (x.hi ?? "").trim() };
   });
   return res.ok && res.value.title && res.value.gu ? res.value : null;
+}
+
+/** Wikipedia's opening lines on the story's subject, for a paragraph of background when the reports are only a few lines
+ *  (4 Nov: a story from a feed's three lines came out two short paragraphs). Checked like any source, so nothing in the
+ *  story is from nowhere. Null when there's no clear subject or no article. */
+export async function background(sql: Sql, event: string, reports: string): Promise<SourceText | null> {
+  const subject = await subjectOf(sql, { kicker: "", headline: event, deck: "", body: reports, caption: "", model: "" });
+  if (!subject) return null;
+  const r = await fetch(`https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(subject.title.replace(/ /g, "_"))}`,
+    { headers: { "user-agent": UA }, signal: AbortSignal.timeout(15_000) }).catch(() => null);
+  const page = r?.ok ? ((await r.json().catch(() => null)) as { type?: string; title?: string; extract?: string; content_urls?: { desktop?: { page?: string } } } | null) : null;
+  if (page?.type !== "standard" || !page.extract || page.extract.split(/\s+/).length < 25) return null;
+  return { source: { id: "wikipedia", name: "Wikipedia", url: "", trust: "outlet", group: "wikipedia", lang: "en", tier: "world", hosts: ["en.wikipedia.org"] },
+           url: page.content_urls?.desktop?.page ?? `https://en.wikipedia.org/wiki/${encodeURIComponent(subject.title)}`,
+           title: page.title ?? subject.title, text: page.extract, image: null, official: false, background: true };
 }
 
 export const plain = (html: string) => html.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, " ").trim();

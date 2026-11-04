@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { readJson } from "./ai.ts";
 import { ownItem } from "./collect.ts";
 import { parseFeed, pageText } from "./feed.ts";
-import { copiedShare, cutUnsupported, gate, importance, lengthFor, levelOf, sentencesOf, toGujarati, type ClusterItem, type SourceText } from "./newsroom.ts";
+import { copiedShare, cutUnsupported, gate, importance, lengthFor, levelOf, sentencesOf, thin, toGujarati, type ClusterItem, type SourceText } from "./newsroom.ts";
 import { SOURCES, sourceById } from "./sources.ts";
 import { numbersNotIn } from "./text.ts";
 import { keySet, placeTier, similarity, SAME_EVENT } from "./triage.ts";
@@ -141,6 +141,9 @@ test("a story from a short source is short, and unsupported lines are cut, not t
   const src = (words: number) => [{ text: Array(words).fill("w").join(" ") } as SourceText];
   assert.deepEqual(lengthFor("normal", src(60)), [80, 112]);
   assert.equal(lengthFor("normal", src(500))[0], 500);
+  // Wikipedia's background adds a paragraph, and doesn't count as the news
+  assert.deepEqual(lengthFor("normal", [...src(60), { text: Array(200).fill("w").join(" "), background: true } as SourceText]), [154, 216]);
+  assert.ok(thin("normal", [...src(60), { text: Array(900).fill("w").join(" "), background: true } as SourceText]));
   const body = "ડૉ. શાહે આજે નવી યોજના જાહેર કરી. તેમાં ૫૦ ગામ જોડાશે.\n\nઆ યોજના રાજ્યને નવી ઊંચાઈએ લઈ જશે. કામ જાન્યુઆરીમાં શરૂ થશે.";
   assert.equal(sentencesOf(body).length, 4);
   assert.ok(sentencesOf(body)[0].text.startsWith("ડૉ. શાહે"));
