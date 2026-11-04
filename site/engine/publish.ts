@@ -9,6 +9,7 @@ import { WEBSITE } from "../lib/config.ts";
 import type { English, Photo, Tier } from "../lib/types.ts";
 import { count } from "../lib/write.ts";
 import { UA } from "./fetch.ts";
+import { officialHost } from "./sources.ts";
 import type { Checked, SourceText, Written } from "./newsroom.ts";
 
 type Sql = NeonQueryFunction<false, false>;
@@ -16,10 +17,34 @@ type Sql = NeonQueryFunction<false, false>;
 /** India's date now (a live story belongs to the day it went up, India time). */
 export const indiaDate = () => new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
 
-/** An official photo, made 1200 px wide, into the private photo store (the site serves it at /media/...). */
-export async function photoOf(sql: Sql, src: SourceText[], storyId: string): Promise<Photo | null> {
-  const url = src.find((s) => s.official && s.image)?.image;
-  return url ? storePhoto(sql, url, storyId) : null;
+/** An official photo, shown from the government's own site through the site's /official address (app/official), which
+ *  makes it smaller and keeps it (4 Nov: copied into the photo store, it took one of the day's 50 uploads, and after the
+ *  fiftieth every official photo was thrown away). Each of the story's official photos is tried, the first good one kept:
+ *  a real photo, 600 by 300 or larger. */
+export async function photoOf(_sql: Sql, src: SourceText[], _storyId: string): Promise<Photo | null> {
+  for (const url of [...new Set(src.filter((s) => s.official && s.image).map((s) => s.image!))]) {
+    const p = await linkPhoto(url);
+    if (p) return p;
+  }
+  return null;
+}
+
+/** An official photo's /official address and size, when it's a real photo large enough to show. */
+export async function linkPhoto(url: string): Promise<Photo | null> {
+  try {
+    const abs = new URL(url);
+    // only from an official source's own site, which app/official fetches from (a photo on a CDN elsewhere isn't shown)
+    if (!/^https?:$/.test(abs.protocol) || !officialHost(abs.hostname) || /\.(svg|gif)(\?|$)/i.test(abs.pathname) || /logo|emblem|icon|placeholder/i.test(abs.pathname)) return null;
+    const res = await fetch(abs, { headers: { "user-agent": UA }, signal: AbortSignal.timeout(20_000) });
+    if (!res.ok || !/^image\//.test(res.headers.get("content-type") ?? "")) return null;
+    const meta = await sharp(Buffer.from(await res.arrayBuffer())).metadata();
+    const [w, h] = (meta.orientation ?? 1) >= 5 ? [meta.height ?? 0, meta.width ?? 0] : [meta.width ?? 0, meta.height ?? 0];
+    if (w < 600 || h < 300 || w / h > 3) return null; // an icon, a banner strip, or too small to show large
+    const width = Math.min(w, 1200);
+    return { url: `/official/${Buffer.from(abs.href).toString("base64url")}.jpg`, width, height: Math.round((h * width) / w) };
+  } catch {
+    return null;
+  }
 }
 
 /** A photo fetched, made 1200 px wide (an Aavtikal cover 1920, 30 Oct) and kept in the photo store; null when it's too

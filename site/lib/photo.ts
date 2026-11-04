@@ -1,5 +1,5 @@
 // Pictures at the size the reader needs (the user, 30 Oct: the site was slow; a 1920-wide file went to every small card).
-// The site's own photos are made smaller by app/media, Wikimedia Commons' by app/commons (3 Nov: one took 35 seconds to
+// The site's own photos are made smaller by app/media, official ones by app/official, Wikimedia Commons' by app/commons (3 Nov: one took 35 seconds to
 // come from Commons, and its copies weighed two to four times ours), once each, then kept by the CDN; Pexels' by Pexels. Anything else stays as it is.
 const STEPS = [500, 720, 960, 1920] as const;
 
@@ -13,6 +13,8 @@ function commons(url: string): string | null {
 function at(url: string, w: number): string | null {
   const plain = url.replace(/\?.*$/, "");
   if (/^\/media\/.*\.(jpe?g|png)$/.test(plain)) return `${plain}?w=${w}`;
+  // official photos, made smaller by app/official from the government's own site
+  if (/^\/official\/[A-Za-z0-9_-]+\.jpg$/.test(plain)) return `${plain}?w=${Math.min(w, 1200)}`;
   // Pexels' symbolic photos (engine/wikiphoto.ts) are made smaller by Pexels itself, which asks to be shown from its servers
   if (/^https:\/\/images\.pexels\.com\/photos\//.test(plain)) return `${plain}?auto=compress&cs=tinysrgb&w=${w}`;
   const c = commons(plain);

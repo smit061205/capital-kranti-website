@@ -20,8 +20,9 @@ import { pollUpdates, tell } from "../lib/telegram.ts";
 import { touched } from "../lib/write.ts";
 import { aiLeft, aiUsed, freeModels, groqModels, stopAiAt } from "./ai.ts";
 import { collect } from "./collect.ts";
-import { STALE_H, STRAY, gate, gather, importance, levelOf, mendLetters, needsTranslation, thin, translate, writeChecked, type ClusterItem, type Debunk } from "./newsroom.ts";
-import { indiaDate, photoOf, saveLive } from "./publish.ts";
+import { STALE_H, STRAY, gate, gather, importance, levelOf, mendLetters, thin, translate, writeChecked, type ClusterItem, type Debunk } from "./newsroom.ts";
+import { indiaDate, linkPhoto, photoOf, saveLive } from "./publish.ts";
+import { sourceById } from "./sources.ts";
 import { alertBreaking } from "../lib/push.ts";
 import { birthdays, leaders } from "../lib/leaders.ts";
 import { background, fitsStory, freePhoto, leadPhoto, UNFIT } from "./wikiphoto.ts";
@@ -52,7 +53,7 @@ const RESERVE = 120;
 /** at most this many stories written in one run (each takes ~3-5 requests) */
 const PER_RUN = 12;
 /** stories written side by side */
-const WRITERS = 3;
+const WRITERS = 5;
 
 const CORRECTION = /\b(corrigendum|correction|corrected|withdrawn|retracted|clarification|erratum)\b|સુધારો|સ્પષ્ટતા|शुद्धिपत्र|संशोधन|स्पष्टीकरण/i;
 
@@ -124,6 +125,9 @@ async function write(until = deadline) {
       const mine = { event: c.event as string, keys: (c.keys ?? []) as string[] };
       // another writer has its twin: it waits for the next pass, when the twin is up and sameEvent finds it
       if (writing.some((x) => nearEvent(x, mine))) continue;
+      // the other writing pass, side by side, may have put it up already
+      const [now] = await sql.query(`select state from clusters where id = $1`, [c.id]);
+      if (now?.state !== "confirmed") continue;
       writing.push(mine);
       try {
         const r = await writeOne(c);
@@ -197,39 +201,21 @@ async function writeOne(c: Record<string, any>): Promise<"stop" | "busy" | void>
   let w = res.written;
   const checked = res.checked;
   const id = `live-${c.id.slice(1)}`;
-  // past the round's time: the story goes up now and its English and Hindi come with a later round (translations())
-  const translated = needsTranslation(c.tier) && Date.now() < deadline;
-  // both at once: neither needs the other's answer
-  let [en, hi] = translated ? await Promise.all([translate(sql, w, "en", indiaDate()), translate(sql, w, "hi", indiaDate())]) : [null, null];
-  let photo = await photoOf(sql, src, id);
+  // the story goes up as soon as it's checked, with its official photo when it has one; its English and Hindi, and a file
+  // or symbolic photo, come a minute or two later from the round's own steps (translations(), photos()), so a writer is
+  // free for the next story (4 Nov: done here first, a story took five to nine minutes, and a round wrote three)
+  const photo = await photoOf(sql, src, id);
   // why it has none, for the status page (4 Nov: four stories in five went up without a photo, and no one knew why)
-  let photoWhy: string | null = photo ? null : src.some((s) => s.official && s.image) ? "the official photo couldn't be kept (too small, or the day's 50 uploads used)" : null;
-  let fitted = false;
-  // no official photo: a file photo or a symbolic one (wikiphoto.ts freePhoto; not for sensitive news)
-  if (!photo && c.sensitive) photoWhy = "sensitive news: no file or symbolic photo";
-  if (!photo && !c.sensitive) {
-    const free = await freePhoto(sql, w, id, (why) => { photoWhy = why; });
-    if (free) {
-      photo = free.photo;
-      photoWhy = null;
-      fitted = true;
-      w = { ...w, caption: free.caption.gu };
-      if (en) en = { ...en, caption: free.caption.en };
-      if (hi) hi = { ...hi, caption: free.caption.hi };
-      log(`    photo: ${free.caption.en} (${free.photo.credit})`);
-    }
-  }
-  if (!photo && !photoWhy) photoWhy = "no official photo";
+  const photoWhy = photo ? null : c.sensitive ? "sensitive news: no file or symbolic photo" : src.some((s) => s.official && s.image) ? "the official photo couldn't be kept" : null;
   await saveLive(sql, { id, tier: c.tier, genres: c.genres, written: w, checked, src, importance: imp, status: "published",
-                        holdReason: null, en, hi, translated, photo });
-  // a photo checked against the story already isn't checked again (photoFit)
-  await sql.query(`update stories set photo_tried = true, photo_why = $2, checks = case when $3 then coalesce(checks, '{}'::jsonb) || '{"photo_fit": true}' else checks end where id = $1`,
-    [id, photoWhy, fitted]);
+                        holdReason: null, en: null, hi: null, translated: false, photo });
+  // no photo: photos() looks for one (not for sensitive news)
+  await sql.query(`update stories set photo_tried = $3, photo_why = $2 where id = $1`, [id, photoWhy, !!photo || !!c.sensitive]);
   await sql.query(`update clusters set state = $2, story_id = $3, reason = $4 where id = $1`, [c.id, "published", id, null]);
   await touched(sql);
   log(`    published${checked.cut ? ` (${checked.cut} unsupported line(s) cut)` : ""}: ${w.headline}`);
   // breaking news: an alert to the phones that asked (lib/push.ts)
-  await alertBreaking(sql, { id, importance: imp, publishedAt: new Date().toISOString(), headline: { gu: w.headline, en: en?.headline ?? null, hi: hi?.headline ?? null } }, log)
+  await alertBreaking(sql, { id, importance: imp, publishedAt: new Date().toISOString(), headline: { gu: w.headline, en: null, hi: null } }, log)
     .catch((e) => log(`    no alert: ${e instanceof Error ? e.message : e}`));
 }
 
@@ -260,6 +246,13 @@ async function photos(until = finish, most = 4) {
     log(`    unfit photos taken off: ${off.join(", ") || "none"}`);
     await sql.query(`insert into state (key, value) values ('photo_unfit_off', '1') on conflict (key) do nothing`);
   }
+  // once (4 Nov): the stories whose official photo was thrown away past the day's 50 uploads are looked at again
+  const [kept] = await sql.query(`select value from state where key = 'photo_official_again'`);
+  if (!kept) {
+    await sql.query(`update stories set photo_tried = false where origin = 'live' and photo is null and published_at > now() - interval '36 hours'
+      and coalesce(photo_why, '') like 'the official photo couldn%'`);
+    await sql.query(`insert into state (key, value) values ('photo_official_again', '1') on conflict (key) do nothing`);
+  }
   // once (4 Nov): a logo that went up as a file photo comes off, and the story is looked at again
   const [logos] = await sql.query(`select value from state where key = 'photo_logo_off'`);
   if (!logos) {
@@ -275,6 +268,17 @@ async function photos(until = finish, most = 4) {
   let added = 0;
   for (const r of rows) {
     if (Date.now() > until) break;
+    // first an official photo from its own reports (4 Nov: those past the day's 50 uploads had been thrown away)
+    const own = (await sql.query(`select i.image, i.source from items i join clusters c on c.id = i.cluster_id
+        where c.story_id = $1 and i.image is not null limit 6`, [r.id])).filter((x) => sourceById.get(x.source)?.trust === "official");
+    let official: Awaited<ReturnType<typeof linkPhoto>> = null;
+    for (const x of own) if (!official) official = await linkPhoto(x.image);
+    if (official) {
+      await sql.query(`update stories set photo_tried = true, photo = $2::jsonb, photo_why = null, updated_at = now() where id = $1`, [r.id, JSON.stringify(official)]);
+      added++;
+      log(`    ${r.id}: its official photo`);
+      continue;
+    }
     let why: string | null = null;
     const free = await freePhoto(sql, { kicker: r.kicker, headline: r.headline, deck: r.deck, body: r.body, caption: "", model: "" }, r.id, (x) => { why = x; });
     await sql.query(
@@ -566,18 +570,30 @@ try {
       details.translated = await translations(Date.now() + 60_000, true);
       await step("duplicates");
       details.deduped = await dedupe(Date.now() + 90_000);
+      // the stories put up this round get their English and Hindi as they come, till the tenth minute
+      while (Date.now() < started + 10 * 60_000) {
+        const n = await translations(started + 10 * 60_000);
+        details.translated = (details.translated as number) + n;
+        if (!n) await new Promise((r) => setTimeout(r, 20_000));
+      }
     })(),
     (async () => {
       await step("photo check");
       details.photosOff = await photoFit(Date.now() + 60_000);
       // stories without a photo looked at again early too, beside the writing (4 Nov: at the round's end the time was
       // always gone, and a hundred stories waited); it asks the quick models, not the writers'
-      details.photosEarly = await photos(started + 7 * 60_000);
+      // and those put up this round without an official photo, as they come, till the tenth minute
+      details.photosEarly = 0;
+      while (Date.now() < started + 10 * 60_000) {
+        const n = await photos(started + 10 * 60_000, 6);
+        details.photosEarly = (details.photosEarly as number) + n;
+        if (!n) await new Promise((r) => setTimeout(r, 20_000));
+      }
     })(),
     (async () => {
       log("writing:");
       await step("writing");
-      await write(started + 5 * 60_000);
+      await write();
     })(),
     (async () => {
       log("triage:");
@@ -588,11 +604,13 @@ try {
       log("checks:");
       await step("checks");
       await advance();
+      // what was just confirmed is written now, beside the first pass (4 Nov: written after every other step, it began
+      // after the ninth minute and wrote nothing)
+      log("writing what was confirmed:");
+      await step("writing again");
+      await write();
     })(),
   ]);
-  log("writing what was confirmed:");
-  await step("writing again");
-  await write();
   log("photos:");
   await step("refiling");
   details.refiled = await refile();

@@ -139,6 +139,8 @@ export const SOURCES: SourceDef[] = [
   // more of them (4 Nov: the user asked for the news widened; each checked from here, none refusing programs)
   n("sandesh-india", "સંદેશ (દેશ)", "https://sandesh.com/rss/india.xml", "gu", "india", ["sandesh.com", "www.sandesh.com"], "sandesh"),
   n("sandesh-world", "સંદેશ (વિદેશ)", "https://sandesh.com/rss/world.xml", "gu", "world", ["sandesh.com", "www.sandesh.com"], "sandesh"),
+  n("sandesh-business", "સંદેશ (બિઝનેસ)", "https://sandesh.com/rss/business.xml", "gu", "india", ["sandesh.com", "www.sandesh.com"], "sandesh"),
+  n("sandesh-sport", "સંદેશ (રમતગમત)", "https://sandesh.com/rss/sports.xml", "gu", "india", ["sandesh.com", "www.sandesh.com"], "sandesh"),
   n("ie-gujarati", "ઇન્ડિયન એક્સપ્રેસ ગુજરાતી", "https://gujarati.indianexpress.com/feed/", "gu", "gujarat", ["gujarati.indianexpress.com"], "indian-express"),
 
   // ---- Hindi outlets ----
@@ -201,6 +203,32 @@ export const SOURCES: SourceDef[] = [
   n("cbs", "CBS News", "https://www.cbsnews.com/latest/rss/world", "en", "world", ["www.cbsnews.com"], "cbs"),
   n("sky", "Sky News", "https://feeds.skynews.com/feeds/rss/world.xml", "en", "world", ["news.sky.com"], "sky"),
   n("euronews", "Euronews", "https://www.euronews.com/rss?level=theme&name=news", "en", "world", ["www.euronews.com"], "euronews"),
+  // more of the world (4 Nov: the user, "add more world news sources, it is a big bottleneck"; each checked from here)
+  n("bbc-asia", "BBC News (Asia)", "https://feeds.bbci.co.uk/news/world/asia/rss.xml", "en", "world", ["www.bbc.com", "www.bbc.co.uk"], "bbc"),
+  n("bbc-mideast", "BBC News (Middle East)", "https://feeds.bbci.co.uk/news/world/middle_east/rss.xml", "en", "world", ["www.bbc.com", "www.bbc.co.uk"], "bbc"),
+  n("bbc-europe", "BBC News (Europe)", "https://feeds.bbci.co.uk/news/world/europe/rss.xml", "en", "world", ["www.bbc.com", "www.bbc.co.uk"], "bbc"),
+  n("bbc-us", "BBC News (US & Canada)", "https://feeds.bbci.co.uk/news/world/us_and_canada/rss.xml", "en", "world", ["www.bbc.com", "www.bbc.co.uk"], "bbc"),
+  n("bbc-africa", "BBC News (Africa)", "https://feeds.bbci.co.uk/news/world/africa/rss.xml", "en", "world", ["www.bbc.com", "www.bbc.co.uk"], "bbc"),
+  n("bbc-sport", "BBC Sport", "https://feeds.bbci.co.uk/sport/rss.xml", "en", "world", ["www.bbc.com", "www.bbc.co.uk"], "bbc"),
+  n("guardian-asia", "The Guardian (Asia)", "https://www.theguardian.com/world/asia-pacific/rss", "en", "world", ["www.theguardian.com"], "guardian"),
+  n("guardian-mideast", "The Guardian (Middle East)", "https://www.theguardian.com/world/middleeast/rss", "en", "world", ["www.theguardian.com"], "guardian"),
+  n("guardian-americas", "The Guardian (Americas)", "https://www.theguardian.com/world/americas/rss", "en", "world", ["www.theguardian.com"], "guardian"),
+  n("guardian-africa", "The Guardian (Africa)", "https://www.theguardian.com/world/africa/rss", "en", "world", ["www.theguardian.com"], "guardian"),
+  n("guardian-env", "The Guardian (environment)", "https://www.theguardian.com/environment/rss", "en", "world", ["www.theguardian.com"], "guardian"),
+  n("guardian-science", "The Guardian (science)", "https://www.theguardian.com/science/rss", "en", "world", ["www.theguardian.com"], "guardian"),
+  n("guardian-tech", "The Guardian (technology)", "https://www.theguardian.com/technology/rss", "en", "world", ["www.theguardian.com"], "guardian"),
+  n("independent", "The Independent", "https://www.independent.co.uk/news/world/rss", "en", "world", ["www.independent.co.uk"], "independent"),
+  n("latimes", "Los Angeles Times", "https://www.latimes.com/world-nation/rss2.0.xml", "en", "world", ["www.latimes.com"], "latimes"),
+  n("toi-world", "The Times of India (world)", "https://timesofindia.indiatimes.com/rssfeeds/296589292.cms", "en", "world", ["timesofindia.indiatimes.com"], "times-group"),
+  n("kyiv-independent", "The Kyiv Independent", "https://kyivindependent.com/news-archive/rss/", "en", "world", ["kyivindependent.com"], "kyiv-independent"),
+  n("moscow-times", "The Moscow Times", "https://www.themoscowtimes.com/rss/news", "en", "world", ["www.themoscowtimes.com"], "moscow-times"),
+  n("kathmandu-post", "The Kathmandu Post", "https://kathmandupost.com/rss", "en", "world", ["kathmandupost.com"], "kathmandu-post"),
+  n("korea-herald", "The Korea Herald", "https://www.koreaherald.com/rss/newsAll", "en", "world", ["www.koreaherald.com"], "korea-herald"),
+  n("bangkok-post", "Bangkok Post", "https://www.bangkokpost.com/rss/data/world.xml", "en", "world", ["www.bangkokpost.com"], "bangkok-post"),
+  n("taipei-times", "Taipei Times", "https://www.taipeitimes.com/xml/index.rss", "en", "world", ["www.taipeitimes.com"], "taipei-times"),
+  n("rappler", "Rappler", "https://www.rappler.com/feed/", "en", "world", ["www.rappler.com"], "rappler"),
+  n("rnz", "RNZ", "https://www.rnz.co.nz/rss/world.xml", "en", "world", ["www.rnz.co.nz"], "rnz"),
+  n("africanews", "Africanews", "https://www.africanews.com/feed/rss", "en", "world", ["www.africanews.com"], "africanews"),
   n("politico-eu", "Politico Europe", "https://www.politico.eu/feed/", "en", "world", ["www.politico.eu"], "politico"),
   n("rfi", "RFI", "https://www.rfi.fr/en/rss", "en", "world", ["www.rfi.fr"], "france-medias-monde"),
   n("japan-times", "The Japan Times", "https://www.japantimes.co.jp/feed/", "en", "world", ["www.japantimes.co.jp"], "japan-times"),
@@ -209,6 +237,8 @@ export const SOURCES: SourceDef[] = [
   n("the-national", "The National (UAE)", "https://www.thenationalnews.com/arc/outboundfeeds/rss/?outputType=xml", "en", "world", ["www.thenationalnews.com"], "the-national"),
   n("gulf-news", "Gulf News", "https://gulfnews.com/feed", "en", "world", ["gulfnews.com"], "gulf-news"),
 
+  // (left out, 4 Nov: Arab News and The Times of Israel refuse programs; CNN, VOA and The Daily Star feeds not updated in
+  //  years; Dawn, The Washington Post and WION didn't answer; ABC News and Xinhua link elsewhere)
   // (left out, 25 Oct: feeds not updated in weeks -- Live Hindustan, the US CDC, Kenya's
 //  president, Zee 24 Kalak)
 
@@ -223,3 +253,8 @@ export const SOURCES: SourceDef[] = [
 ];
 
 export const sourceById = new Map(SOURCES.map((s) => [s.id, s]));
+
+/** the official sources' sites and their own subdomains (PIB's photos are on static.pib.gov.in): the only places an
+ *  official photo is shown from (engine/publish.ts linkPhoto, app/official) */
+const OFFICIAL_HOSTS = [...new Set(SOURCES.filter((s) => s.trust === "official").flatMap((s) => s.hosts.map((h) => h.replace(/^www\./, ""))))];
+export const officialHost = (host: string) => OFFICIAL_HOSTS.some((h) => host === h || host.endsWith(`.${h}`));

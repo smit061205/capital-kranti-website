@@ -34,6 +34,9 @@ const counter = (m: string) => (isGoogle(m) ? "ai_google" : isGroq(m) ? "ai_groq
 const ceiling = (m: string) => (isGoogle(m) ? WEBSITE.dailyGoogleRequests : isGroq(m) ? WEBSITE.dailyGroqRequests : WEBSITE.dailyFreeRequests);
 /** the free routes allow 20-30 requests a minute, each its own */
 const GAP_MS = 2500;
+/** how long a Gemma has to answer before the next model is asked (4 Nov: 200 seconds, and a story's check sat three
+ *  minutes on a Gemma that never answered while the round's time went) */
+const GEMMA_S = 90;
 
 let models: string[] | null = null;
 const last: Record<string, number> = {};
@@ -225,7 +228,7 @@ async function askFree<T>(sql: Sql | null, a: Ask, check: (v: unknown) => T | nu
     usedThisRun++;
     if (sql) await count(sql, counter(model));
     let res = isGoogle(model)
-      ? await callGoogle(model, { system: a.system, user: a.user, temperature: a.temperature ?? 0.2, maxTokens: a.maxTokens ?? 3000 }, 200)
+      ? await callGoogle(model, { system: a.system, user: a.user, temperature: a.temperature ?? 0.2, maxTokens: a.maxTokens ?? 3000 }, GEMMA_S)
       : await call(model, {
       temperature: a.temperature ?? 0.2, max_tokens: a.maxTokens ?? 3000, response_format: { type: "json_object" },
       // thinking models spend their tokens thinking first: keep it short so the answer fits (Groq names it its own way,
@@ -238,7 +241,7 @@ async function askFree<T>(sql: Sql | null, a: Ask, check: (v: unknown) => T | nu
       await new Promise((r) => setTimeout(r, 4000));
       if (sql) await count(sql, counter(model));
       usedThisRun++;
-      res = await callGoogle(model, { system: a.system, user: a.user, temperature: a.temperature ?? 0.2, maxTokens: a.maxTokens ?? 3000 }, 200);
+      res = await callGoogle(model, { system: a.system, user: a.user, temperature: a.temperature ?? 0.2, maxTokens: a.maxTokens ?? 3000 }, GEMMA_S);
     }
     if (!res.ok) {
       const said = await res.text();
