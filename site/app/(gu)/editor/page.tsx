@@ -21,6 +21,9 @@ import { instagramWho } from "@/lib/instagram.ts";
 import { dateText, num, timeText, shortDate, todayIst } from "@/lib/format.ts";
 
 export const dynamic = "force-dynamic";
+// a minute for the buttons (server actions take the page's limit): approving a set puts it up on Instagram, which waits
+// for Instagram to take each card
+export const maxDuration = 60;
 
 /** the page's tabs (3 Nov: everything was on one long page): an overview first, then each thing the editor looks after */
 const TABS = ["today", "news", "aavtikal", "insta", "leaders", "ads", "engine"] as const;
