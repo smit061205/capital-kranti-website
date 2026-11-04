@@ -452,12 +452,12 @@ async function askPaid<T>(sql: Sql, a: { system: string; user: string; temperatu
       temperature: a.temperature, max_tokens: a.maxTokens + PAID_THINKING_ROOM, response_format: { type: "json_object" },
       // its thinking sent back too, as some providers put the whole answer there
       reasoning: { effort: "minimal" }, usage: { include: true },
-      // the cheap full-quality providers in the settings' order, then any other under the price cap (5 Nov: the fastest at up
-      // to $0.15 and $0.40 cost twice what these ask; the cheapest of all sent back empty answers)
-      provider: { order: WEBSITE.paidProviders, allow_fallbacks: true, max_price: WEBSITE.paidMaxPrice,
-                  ignore: [...WEBSITE.paidAvoid, ...avoid] },
+      // the fastest of the providers under the price cap (5 Nov: the fastest at up to $0.15 and $0.40 cost twice what the
+      // cheap ones ask; the cheapest of all sent back empty answers; the cheap ones asked in a fixed order left the stories'
+      // writing unanswered after a minute, five times in a round)
+      provider: { sort: "throughput", max_price: WEBSITE.paidMaxPrice, ignore: [...WEBSITE.paidAvoid, ...avoid] },
       messages: [{ role: "system", content: a.system }, { role: "user", content }],
-    }, a.maxTokens > 4000 ? 60 : 30);
+    }, a.maxTokens > 4000 ? 90 : 30);
     if (!res.ok) {
       const why = `${model}: ${res.status} ${(await res.text()).slice(0, 160)}`;
       // no credit left (402), or the key may not spend: no more paid asks this run

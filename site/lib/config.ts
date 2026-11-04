@@ -26,9 +26,6 @@ export const WEBSITE = {
   /** OpenRouter's most per million tokens, in US dollars (5 Nov: the full-quality providers below ask $0.07 to $0.10 and
    *  $0.30 to $0.34) */
   paidMaxPrice: { prompt: 0.1, completion: 0.34 },
-  /** the providers asked first, in order (OpenRouter's names; 5 Nov: NextBit and CoreWeave serve the full model, DeepInfra
-   *  a lightly shrunk one, all reliable that day) */
-  paidProviders: ["nextbit/bf16", "deepinfra/fp8", "coreweave/bf16"],
   /** never asked: empty answers (Darkbloom, 4 Nov), a quarter of requests failing (Makora), a heavily shrunk model (AkashML) */
   paidAvoid: ["darkbloom", "makora", "akashml"],
   /** OpenRouter bills in US dollars: shown in rupees (CLAUDE.md) */
