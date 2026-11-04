@@ -1,0 +1,64 @@
+# Instagram's sets (site/engine/insta.ts), on their own runner, apart from the news engine (the user, 4 Nov: the sets
+# waited behind the news's 15-minute rounds, which ran their full time when the free AI was busy). The watcher
+# (engine/instawatch.ts) looks every 20 seconds for a set the editor asked for or changed, or an edition due at the
+# editor's times, and makes it at once. Like the engine (site-engine.yml), one run keeps going for almost six hours,
+# taking main's latest code every ten minutes, and queues the next one before it ends; the hourly schedule only revives
+# it if a run died, since GitHub starts scheduled runs late or not at all when it's busy.
+name: site-insta
+on:
+  schedule: [{ cron: "34 * * * *" }]
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/site-insta.yml]
+
+permissions:
+  contents: read
+  actions: write
+
+concurrency:
+  group: site-insta
+  cancel-in-progress: false
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 355
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            site/package-lock.json
+      - name: Watch for Instagram's work, for almost six hours
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GOOGLE_AI_KEY: ${{ secrets.GOOGLE_AI_KEY }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+          BLOB_READ_WRITE_TOKEN: ${{ secrets.BLOB_READ_WRITE_TOKEN }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_IDS: ${{ secrets.TELEGRAM_CHAT_IDS }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          end=$(( $(date +%s) + 340 * 60 ))
+          installed=""
+          while [ "$(date +%s)" -lt "$end" ]; do
+            # main's latest code; installs again only when a lockfile changed
+            git fetch -q --depth 1 origin main && git reset -q --hard origin/main
+            locks=$(sha256sum site/package-lock.json)
+            if [ "$locks" != "$installed" ]; then
+              npm ci --prefix site --no-audit --no-fund && installed=$locks
+            fi
+            left=$(( end - $(date +%s) )); [ "$left" -gt 600 ] && left=600
+            node --experimental-strip-types --no-warnings site/engine/instawatch.ts "$left" || echo "::warning::the watcher stopped"
+            sleep 5
+          done
+          # the next watcher, queued to start as this one ends
+          curl -fsS -X POST -H "Authorization: Bearer $GH_TOKEN" -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/$GITHUB_REPOSITORY/actions/workflows/site-insta.yml/dispatches" -d '{"ref":"main"}' \
+            || echo "::warning::couldn't queue the next watcher; the hourly schedule will"
