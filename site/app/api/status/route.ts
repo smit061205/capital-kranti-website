@@ -49,7 +49,7 @@ export async function GET() {
   const photos = { key: !!process.env.BLOB_READ_WRITE_TOKEN, name: (one?.url as string | undefined)?.replace(/^\/media\//, "") ?? null };
   // the last day's news, judged (4 Nov, the plan's measures): stories each hour (India's time), how many have a photo,
   // how many are Gujarat's, and the minutes from the first report anywhere, and from our first sight of it, to our story
-  const [quality, perHour] = await Promise.all([
+  const [quality, perHour, photoWhy] = await Promise.all([
     sql.query(`with s as (select s.published_at, s.tier, s.photo is not null as photo, c.first_seen,
                  (select min(coalesce(i.published_at, i.seen_at)) from items i where i.cluster_id = c.id) as first_report
                from stories s left join clusters c on c.story_id = s.id
@@ -60,6 +60,10 @@ export async function GET() {
       from s`).catch((e) => [{ error: String(e) }]),
     sql.query(`select to_char(published_at at time zone 'Asia/Kolkata', 'DD HH24') as hour, count(*)::int as n from stories
       where origin = 'live' and status = 'published' and published_at > now() - interval '24 hours' group by 1 order by 1`).catch(() => []),
+    // what kind of photo the day's stories have, and why the others have none
+    sql.query(`select case when photo is null then coalesce(photo_why, 'not looked for yet') when photo->>'credit' like '%Pexels%' then 'symbolic photo'
+        when photo->>'credit' like '%Wikimedia Commons%' then 'file photo' else 'official photo' end as what, count(*)::int as n from stories
+      where origin = 'live' and status = 'published' and published_at > now() - interval '24 hours' group by 1 order by 2 desc`).catch(() => []),
   ]);
   // the database questions that send the most rows, to cut what the database sends out (4 Nov: Neon's free 5 GB a month
   // ran out in four days); their wording is the code's own, with $1 for the values
@@ -77,7 +81,7 @@ export async function GET() {
       desk: deskRuns.map((r) => ({ id: r.id, started_at: r.started_at, finished_at: r.finished_at, ok: r.ok,
         counts: Object.fromEntries(Object.entries(r.details ?? {}).filter(([, v]) => typeof v === "number")), error: r.details?.error ?? null, log: r.details?.log ?? [] })),
     },
-    last_day: { ...quality[0], per_hour: perHour },
+    last_day: { ...quality[0], photos: photoWhy, per_hour: perHour },
     database_reads: reads,
     stories_by_state: waiting,
     news_by_day: { items: itemsByDay, events: clustersByDay },
