@@ -68,19 +68,13 @@ jobs:
               npm ci --prefix site --no-audit --no-fund && installed=$locks
             fi
             rounds=$((rounds + 1))
-            # a set of Instagram cards the editor asked for goes first, not after the news's quarter of an hour
-            timeout 12m node --experimental-strip-types --no-warnings site/engine/insta.ts --asked || echo "::warning::Instagram's run failed"
             echo "::group::Round $rounds, $(date -u +%H:%M) UTC"
             if node --experimental-strip-types --no-warnings site/engine/selftest.ts \
                && timeout 14m node --experimental-strip-types --no-warnings site/engine/run.ts; then :; else
               failed=$((failed + 1)); echo "::warning::Round $rounds failed"
             fi
             echo "::endgroup::"
-            # Instagram's sets (site/engine/insta.ts): an edition when one is due, and pictures made again for a set the
-            # editor changed; a quick look otherwise. Never holds up the news: a failure is only a warning.
-            echo "::group::Instagram"
-            timeout 12m node --experimental-strip-types --no-warnings site/engine/insta.ts || echo "::warning::Instagram's run failed"
-            echo "::endgroup::"
+            # Instagram has its own runner since 4 Nov (site-insta.yml), so the news's rounds never hold it up
             # the hourly run (site-run: sections and English for the stories, the sources' check), started from here once an
             # hour, since GitHub's schedule left it unstarted for six hours on 29 Oct
             if [ $(( rounds % 4 )) -eq 1 ]; then

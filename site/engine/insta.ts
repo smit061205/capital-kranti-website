@@ -1,5 +1,5 @@
-// Instagram's sets (lib/insta.ts), run after each engine round (site-engine.yml), and between rounds when the editor asks
-// for a set or changed one (engine/listen.ts): when an edition is due (at the editor's times, India time, made an hour
+// Instagram's sets (lib/insta.ts), run by their own watcher (engine/instawatch.ts, site-insta.yml) the moment there's
+// work: when an edition is due (at the editor's times, India time, made an hour
 // ahead) or the editor asked for one, it picks each section's most important stories of the last
 // 12 hours, finds each a good photo, makes the cards' pictures with a real browser and tells the editor on Telegram;
 // a set the editor changed on the editor page gets its pictures made again. A set left unapproved goes when a newer one of
@@ -182,9 +182,14 @@ if (!sql) { console.log("no DATABASE_URL"); process.exit(0); }
 if (!process.env.BLOB_READ_WRITE_TOKEN) { console.log("no BLOB_READ_WRITE_TOKEN: the pictures can't be kept"); process.exit(0); }
 
 const settings = await instaSettings(sql);
+// one run at a time (the watcher, engine/instawatch.ts, and until 4 Nov's change reaches it the engine's round too): a
+// run that died leaves its mark for at most 16 minutes, the longest a run is given
+const [lock] = await sql.query(`insert into state (key, value) values ('insta_lock', $1) on conflict (key) do update set value = excluded.value
+  where state.value < $2 returning key`, [new Date().toISOString(), new Date(Date.now() - 16 * 60_000).toISOString()]);
+if (!lock) { console.log("another Instagram run is at work"); process.exit(0); }
 const ask = await instaAsk(sql);
 // --asked: only a set the editor asked for (the round's first step); nothing else when there's none
-if (process.argv.includes("--asked") && !ask) process.exit(0);
+if (process.argv.includes("--asked") && !ask) { await sql.query(`delete from state where key = 'insta_lock'`); process.exit(0); }
 const recent = await recentSets(sql, 40);
 
 // the pictures of sets more than four days old leave the store (Instagram keeps its own copies)
@@ -270,3 +275,4 @@ for (const { made, left } of told.filter((r) => r.made.length)) {
     `${left.length ? `\n(${left.join(", ")}: સારા ફોટાવાળા પૂરતા સમાચાર નથી)` : ""}\n\nજોઈને મંજૂર કરો: ${SITE}/editor?tab=insta`);
 }
 await putInstaProgress(sql, null).catch(() => {});
+await sql.query(`delete from state where key = 'insta_lock'`);
