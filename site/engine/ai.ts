@@ -1,5 +1,6 @@
-// The engine's AI: free Gemma models only (decided 25 Oct: free, ₹0, and Gemma;
-// never Anthropic, CLAUDE.md), by two routes, best first:
+// The engine's AI: free Gemma models first (decided 25 Oct: free, ₹0, and Gemma;
+// never Anthropic, CLAUDE.md), and a paid Gemma only when every free one has failed (the user, 4 Nov: at most ₹30 a
+// day, askPaid below); by two free routes, best first:
 //   1. Google's own Gemini API with the paper's free AI Studio key (GOOGLE_AI_KEY):
 //      its own free quota, so not the crowd's (added 26 Oct, after OpenRouter's
 //      shared free Gemma was "rate-limited upstream" for five hours straight);
@@ -177,8 +178,17 @@ export interface Ask {
 }
 export type AiResult<T> = { ok: true; value: T; model: string } | { ok: false; why: string; stop?: boolean; busy?: boolean };
 
-/** One JSON answer from the free models, tried in order until one gives valid JSON that `check` accepts. */
+/** One JSON answer: from the free models, tried in order until one gives valid JSON that `check` accepts; when none
+ *  does, from the paid backup, within its day's rupees. */
 export async function askJson<T>(sql: Sql | null, a: Ask, check: (v: unknown) => T | null): Promise<AiResult<T>> {
+  const free = await askFree(sql, a, check);
+  if (free.ok || a.only || !sql) return free;
+  const paid = await askPaid(sql, { system: a.system, user: a.user, temperature: a.temperature ?? 0.2, maxTokens: a.maxTokens ?? 3000 }, check, a.small);
+  if (!paid) return free;
+  return paid.ok ? paid : { ...free, why: `${free.why} | ${paid.why}` };
+}
+
+async function askFree<T>(sql: Sql | null, a: Ask, check: (v: unknown) => T | null): Promise<AiResult<T>> {
   if (!KEY && !GOOGLE_KEY && !GROQ_KEY) return { ok: false, why: "no GOOGLE_AI_KEY or OPENROUTER_API_KEY", stop: true };
   const list = await freeModels();
   const fast = await groqModels();
@@ -306,6 +316,17 @@ export interface GeminiImage { label: string; jpeg: string }
 
 export async function askGemini<T>(sql: Sql, pool: GeminiPool, a: { system: string; user: string; maxTokens?: number; temperature?: number; images?: GeminiImage[] }, check: (v: unknown) => T | null,
   o: { wait?: boolean; timeoutMs?: number } = {}): Promise<AiResult<T>> {
+  const free = await askGeminiFree(sql, pool, a, check, o);
+  // the photo questions (Instagram's cards, Aavtikal's covers) go to the paid Gemma, which sees pictures too, when Gemini
+  // is busy or its day is used up; the long writing doesn't
+  if (free.ok || !a.images?.length || !(free.busy || free.stop)) return free;
+  const paid = await askPaid(sql, { system: a.system, user: a.user, temperature: a.temperature ?? 0.2, maxTokens: Math.min(a.maxTokens ?? 2000, 4000), images: a.images }, check);
+  if (!paid) return free;
+  return paid.ok ? paid : { ...free, why: `${free.why} | ${paid.why}` };
+}
+
+async function askGeminiFree<T>(sql: Sql, pool: GeminiPool, a: { system: string; user: string; maxTokens?: number; temperature?: number; images?: GeminiImage[] }, check: (v: unknown) => T | null,
+  o: { wait?: boolean; timeoutMs?: number } = {}): Promise<AiResult<T>> {
   if (!(await geminiModels(pool)).length) return { ok: false, why: `no Gemini ${pool} model for this key`, stop: true };
   // a model Google says is too busy right now ("high demand", 29 Oct) is set aside for this request and the next one
   // asked; when all are busy, once more after a minute
@@ -355,6 +376,55 @@ export async function askGemini<T>(sql: Sql, pool: GeminiPool, a: { system: stri
       lastBusy = `${lastBusy.startsWith("waited") ? "waited; " : ""}${model}: ${e instanceof Error ? e.message : e}`;
     }
   }
+}
+
+// ---- the paid backup (the user, 4 Nov): Gemma 4 26B on OpenRouter, the same model as the free ones, asked only when
+// every free one has failed. What each answer cost (OpenRouter says, in dollars) is added up in paise by the day; at the
+// day's rupees it stops till midnight, and the short sorting jobs stop at half, so the stories' writing and checking and
+// Instagram's photos have the rest. OpenRouter's credit is paid ahead, so it can't spend more than is there.
+
+const PAID = "paid_paise";
+/** the paid backup's rupees spent today */
+export const paidToday = async (sql: Sql) => (await count(sql, PAID, 0)) / 100;
+let paidOff = "";
+
+async function askPaid<T>(sql: Sql, a: { system: string; user: string; temperature: number; maxTokens: number; images?: GeminiImage[] },
+  check: (v: unknown) => T | null, small = false): Promise<AiResult<T> | null> {
+  if (!KEY || paidOff) return null;
+  const cap = WEBSITE.paidDailyRupees * (small ? 0.5 : 1);
+  if ((await paidToday(sql)) >= cap) return null;
+  if (left() < 10_000) return null;
+  await count(sql, "ai_paid");
+  usedThisRun++;
+  const content = a.images?.length
+    ? [{ type: "text", text: a.user }, ...a.images.flatMap((i) => [{ type: "text", text: i.label }, { type: "image_url", image_url: { url: `data:image/jpeg;base64,${i.jpeg}` } }])]
+    : a.user;
+  const res = await call(WEBSITE.paidModel, {
+    temperature: a.temperature, max_tokens: a.maxTokens, response_format: { type: "json_object" },
+    reasoning: { effort: "low", exclude: true }, usage: { include: true },
+    // the cheapest providers only, never one asking more than the most set
+    provider: { sort: "price", max_price: WEBSITE.paidMaxPrice },
+    messages: [{ role: "system", content: a.system }, { role: "user", content }],
+  }, 120);
+  const model = `paid:${WEBSITE.paidModel}`;
+  if (!res.ok) {
+    const why = `${model}: ${res.status} ${(await res.text()).slice(0, 160)}`;
+    // no credit left (402), or the key may not spend: no more paid asks this run
+    if (res.status === 401 || res.status === 402 || res.status === 403) paidOff = why;
+    return { ok: false, why };
+  }
+  const answer = (await res.json().catch(() => ({}))) as { choices?: { message?: { content?: string } }[];
+    usage?: { cost?: number; prompt_tokens?: number; completion_tokens?: number } };
+  // its cost: OpenRouter's own figure, else the tokens at the most it may ask
+  const u = answer.usage ?? {};
+  const dollars = typeof u.cost === "number" ? u.cost
+    : ((u.prompt_tokens ?? 4000) * WEBSITE.paidMaxPrice.prompt + (u.completion_tokens ?? 1000) * WEBSITE.paidMaxPrice.completion) / 1e6;
+  await count(sql, PAID, Math.max(1, Math.ceil(dollars * WEBSITE.rupeesPerDollar * 100)));
+  const text = answer.choices?.[0]?.message?.content ?? "";
+  const parsed = readJson(text);
+  if (parsed === undefined) return { ok: false, why: `${model}: not the JSON asked for (${text.length} chars)` };
+  const value = check(parsed);
+  return value === null ? { ok: false, why: `${model}: JSON without what was asked for` } : { ok: true, value, model };
 }
 
 /** Free requests left today, over the routes this run has. */

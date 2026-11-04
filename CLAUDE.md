@@ -11,7 +11,7 @@ you know: read `site/node_modules/next/dist/docs` before changing Next code (`si
 - **No approvals (30 Oct):** news and Aavtikal publish by themselves; what fails the fact check isn't published.
 - **Aavtikal covers are real photos**, accurate and good quality; never drawn or AI-looking.
 - **Show every cost in rupees (₹)**, converted from USD at display time (₹88 per US$ by default).
-- **No Anthropic models for the site's AI** (cost): free models only.
+- **No Anthropic models for the site's AI** (cost). Free models first; paid Gemma 4 26B on OpenRouter only as a backup when they all fail, at most ₹30 a day (₹1,000 a month, 4 Nov).
 - **Don't get around any website's bot blocking.** News comes from PIB and the sources in `site/engine/sources.ts`.
 - The repository is **public**. Never commit `.env` files, keys or tokens, and never print or ask for the user's keys.
 - **The look is chosen by eye.** Show the user a redesign early. Copying the New York Times was tried and dropped (31 Oct).

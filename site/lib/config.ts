@@ -18,6 +18,15 @@ export const WEBSITE = {
   groqModels: ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "meta-llama/llama-4-scout-17b-16e-instruct", "openai/gpt-oss-20b", "llama-3.1-8b-instant"],
   dailyGroqRequests: 8000,
   dailyUploads: 50,
+  // a paid backup for when every free model has failed (the user, 4 Nov: at most ₹1,000 a month, already in OpenRouter):
+  // Gemma 4 26B on OpenRouter, the same model as the free ones, so the same Gujarati and the same checks; at most ₹30 a
+  // day, the stories' writing and checking and Instagram first, the short sorting jobs only in the day's first ₹15
+  paidModel: "google/gemma-4-26b-a4b-it",
+  paidDailyRupees: 30,
+  /** OpenRouter's most per million tokens, in US dollars (its cheapest providers ask $0.07 and $0.21, 4 Nov) */
+  paidMaxPrice: { prompt: 0.15, completion: 0.4 },
+  /** OpenRouter bills in US dollars: shown in rupees (CLAUDE.md) */
+  rupeesPerDollar: 88,
   // Aavtikal's desk (engine/desk.ts; the user, 29 Oct): deep explainers for AI, Tech and Science (never Politics),
   // written by Gemini Flash on Google's free tier, 15 a day (the user, 30 Oct; 10 before); more on the days named
   deskBeats: ["ai", "tech", "science"] as const,
