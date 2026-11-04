@@ -238,7 +238,7 @@ export async function freePhoto(sql: Sql, w: Written, storyId: string, note: (wh
       const found = await commonsSearch(file.search, 6, 1920);
       // the widest first: from 1200, Google shows a story's photo large
       for (const p of found.filter((p) => !UNFIT.test(`${p.url.replace(/%[0-9a-f]{2}|[_/]/gi, " ")} ${p.alt}`))
-        .sort((a, b) => Number(b.full >= 1200) - Number(a.full >= 1200)).slice(0, 3)) {
+        .sort((a, b) => Number(b.full >= 1200) - Number(a.full >= 1200)).slice(0, 2)) {
         if ((await fitsStory(sql, story, file.en, `${p.alt} (file: ${(p.url.split("/").pop() ?? "").replace(/%[0-9a-f]{2}|_/gi, " ")})`, true)) !== true) continue;
         const big = commonsAt(p, 1920);
         return { photo: { url: big.url, width: big.width, height: big.height, credit: p.credit },
@@ -248,10 +248,11 @@ export async function freePhoto(sql: Sql, w: Written, storyId: string, note: (wh
     if (symbolic) {
       // Pexels' stock photos when its key is set, and free Commons photos of the kind of thing either way (4 Nov: a
       // Pennsylvania drug plant went up as a "file photo" beside an Indian drug maker's story; it is a symbolic picture)
-      const stock = [...(await pexels(symbolic.search)).slice(0, 3),
+      // two at most asked about (4 Nov: up to ten questions a story, for sixteen stories a round, used up the free models)
+      const stock = [...(await pexels(symbolic.search)).slice(0, 2),
         ...(await commonsSearch(symbolic.search, 4, 1920)).sort((a, b) => Number(b.full >= 1200) - Number(a.full >= 1200)).slice(0, 2)
           .map((p) => ({ ...commonsAt(p, 1920), alt: p.alt, credit: p.credit }))];
-      for (const p of stock.filter((p) => !UNFIT.test(`${p.url.replace(/%[0-9a-f]{2}|[_/]/gi, " ")} ${p.alt}`))) {
+      for (const p of stock.filter((p) => !UNFIT.test(`${p.url.replace(/%[0-9a-f]{2}|[_/]/gi, " ")} ${p.alt}`)).slice(0, 2)) {
         const ok = await askJson(sql, { system: SYMBOLIC_FIT + SEARCHED, user: `STORY: ${w.headline}\n${w.deck}\n\nPHOTO: ${p.alt || symbolic.en}`, maxTokens: 40, small: true },
           (v) => (typeof (v as { fits?: unknown })?.fits === "boolean" ? (v as { fits: boolean }).fits : null));
         if (!ok.ok || !ok.value) continue;
