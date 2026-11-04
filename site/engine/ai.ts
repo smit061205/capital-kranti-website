@@ -42,6 +42,14 @@ export const aiUsed = () => usedThisRun;
  * rate-limited upstream", 25 Oct: both Gemma models for half an hour) is set
  * aside for the rest of the run, not retried, and the next one is asked. */
 const resting = new Map<string, number>();
+/** When the round's time is up (engine/run.ts sets it): no request runs past it, and none starts within five seconds of
+ *  it (4 Nov: a story begun before the writing's deadline waited 200 seconds on a slow Gemma, the round ran past its
+ *  13-minute stop, and its last steps were lost). */
+let stopAt = Infinity;
+export const stopAiAt = (t: number) => { stopAt = t; };
+const left = () => stopAt - Date.now();
+const within = (seconds: number) => Math.max(1, Math.min(seconds, Math.floor(left() / 1000)));
+const late = () => new Response("the round's time is up", { status: 504 });
 const REST_MS = 3 * 60_000;
 export const restingModels = () => [...resting.keys()];
 
@@ -49,6 +57,8 @@ export const restingModels = () => [...resting.keys()];
  * on the Gemini API takes no system instruction and no JSON mode, so the
  * instructions lead the prompt and the JSON is read from the text. */
 async function callGoogle(model: string, a: { system: string; user: string; temperature: number; maxTokens: number }, seconds: number): Promise<Response> {
+  if (left() < 5000) return late();
+  seconds = within(seconds);
   try {
     const res = await fetch(`${GOOGLE}/models/${model.slice(7)}:generateContent`, {
       method: "POST", signal: AbortSignal.timeout(seconds * 1000),
@@ -75,6 +85,8 @@ async function callGoogle(model: string, a: { system: string; user: string; temp
 
 /** One request, once: no retrying here (the caller moves to the next model). OpenRouter's, or Groq's (the same shape). */
 async function call(model: string, body: Record<string, unknown>, seconds: number): Promise<Response> {
+  if (left() < 5000) return late();
+  seconds = within(seconds);
   try {
     const res = isGroq(model)
       ? await fetch(`${GROQ}/chat/completions`, {
@@ -178,7 +190,7 @@ export async function askJson<T>(sql: Sql | null, a: Ask, check: (v: unknown) =>
   let why = "no free model answered";
   // every Gemma busy: wait for the first to rest (up to 90 s), else give up for this run
   const soonest = Math.min(...order.map((m) => resting.get(m) ?? 0));
-  if (soonest > Date.now() && soonest - Date.now() <= 90_000 && order.every((m) => (resting.get(m) ?? 0) > Date.now())) {
+  if (soonest > Date.now() && soonest - Date.now() <= 90_000 && soonest < stopAt - 30_000 && order.every((m) => (resting.get(m) ?? 0) > Date.now())) {
     await new Promise((r) => setTimeout(r, soonest - Date.now()));
   }
   const awake = order.filter((m) => (resting.get(m) ?? 0) < Date.now());
@@ -301,7 +313,7 @@ export async function askGemini<T>(sql: Sql, pool: GeminiPool, a: { system: stri
   let lastBusy = "";
   for (;;) {
     let model = await geminiNext(sql, pool, busy);
-    if (!model && busy.size && o.wait !== false && !lastBusy.startsWith("waited")) {
+    if (!model && busy.size && o.wait !== false && !lastBusy.startsWith("waited") && left() > 120_000) {
       lastBusy = `waited; ${lastBusy}`;
       busy.clear();
       await new Promise((r) => setTimeout(r, 60_000));
@@ -309,11 +321,12 @@ export async function askGemini<T>(sql: Sql, pool: GeminiPool, a: { system: stri
     }
     if (!model && busy.size) return { ok: false, why: `every Gemini ${pool} model is busy (${lastBusy.slice(0, 160)})`, busy: true };
     if (!model) return { ok: false, why: `Gemini's free ${pool} requests for today are used up`, stop: true };
+    if (left() < 5000) return { ok: false, why: "the round's time is up", busy: true };
     await count(sql, geminiCounter(model));
     usedThisRun++;
     try {
       const res = await fetch(`${GOOGLE}/models/${model}:generateContent`, {
-        method: "POST", signal: AbortSignal.timeout(o.timeoutMs ?? 300_000),
+        method: "POST", signal: AbortSignal.timeout(Math.max(1000, Math.min(o.timeoutMs ?? 300_000, left()))),
         headers: { "x-goog-api-key": GOOGLE_KEY, "content-type": "application/json" },
         body: JSON.stringify({
           systemInstruction: { parts: [{ text: a.system }] },

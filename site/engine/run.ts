@@ -18,7 +18,7 @@ import { WEBSITE } from "../lib/config.ts";
 import { ensureSchema } from "../lib/schema.ts";
 import { pollUpdates, tell } from "../lib/telegram.ts";
 import { touched } from "../lib/write.ts";
-import { aiLeft, aiUsed, freeModels, groqModels } from "./ai.ts";
+import { aiLeft, aiUsed, freeModels, groqModels, stopAiAt } from "./ai.ts";
 import { collect } from "./collect.ts";
 import { STALE_H, STRAY, gate, gather, importance, levelOf, mendLetters, needsTranslation, thin, translate, writeChecked, type ClusterItem, type Debunk } from "./newsroom.ts";
 import { indiaDate, photoOf, saveLive } from "./publish.ts";
@@ -45,6 +45,8 @@ const log = (s: string) => {
 const deadline = started + 9 * 60_000;
 /** the round's last steps (photos, translations) begin nothing after this */
 const finish = started + 12 * 60_000;
+// no AI request runs past twelve and a quarter minutes, so the round's last steps always have their time (ai.ts)
+stopAiAt(started + 12.25 * 60_000);
 /** free requests kept back each day for the hourly run's English (site/pipeline/run.ts) */
 const RESERVE = 120;
 /** at most this many stories written in one run (each takes ~3-5 requests) */
@@ -233,7 +235,7 @@ async function writeOne(c: Record<string, any>): Promise<"stop" | "busy" | void>
 
 /** Step 8: the last day and a half's stories that went up without a photo get a file photo,
  *  the most important first, each looked for once (engine/wikiphoto.ts). */
-async function photos(until = finish) {
+async function photos(until = finish, most = 4) {
   // once: the stories looked for before the lookup read Wikipedia's resized-copy addresses
   // and India's open licence (29 Oct) are looked for again
   // and again on 4 Nov, when file photos of things and places and symbolic photos came in (wikiphoto.ts freePhoto)
@@ -269,7 +271,7 @@ async function photos(until = finish) {
   const rows = await sql.query(
     `select s.id, s.kicker, s.headline, s.deck, s.body from stories s left join clusters c on c.story_id = s.id
       where s.origin = 'live' and s.status = 'published' and s.photo is null and not s.photo_tried and not coalesce(c.sensitive, false)
-       and s.published_at > now() - interval '36 hours' order by s.importance desc nulls last, s.published_at desc limit 8`);
+       and s.published_at > now() - interval '36 hours' order by s.importance desc nulls last, s.published_at desc limit $1`, [most]);
   let added = 0;
   for (const r of rows) {
     if (Date.now() > until) break;
