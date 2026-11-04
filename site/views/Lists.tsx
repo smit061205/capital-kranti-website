@@ -8,6 +8,7 @@ import { GENRES, isPlace, isSection, sectionName, TIERS } from "../lib/sections.
 import { dateText, num } from "../lib/format.ts";
 import { Lead, River, Std } from "../components/cards.tsx";
 import Frame from "../components/Frame.tsx";
+import { topScore } from "../lib/rank.ts";
 import Saved from "../components/Saved.tsx";
 
 /** A section, or a region on one subject (`sub`: "ગુજરાત › ખેતી", /section/gujarat/farm; ROADMAP §4), with chips to the
@@ -25,9 +26,10 @@ export async function Section({ k, sub, lang }: { k: string; sub?: string; lang:
     : TIERS.filter((t) => all.some((s) => s.tier === t)).map((t) => ({ key: t, href: `/section/${t}/${k}`, on: false }));
   // the lead is the day's news (the user, 29 Oct: an old story never heads a section): the most important of
   // the last 24 hours, one with a photo first; only a section with nothing new leads with its newest
-  const fresh = list.filter((s) => Date.now() - Date.parse(s.publishedAt) < 24 * 3600_000)
-    .sort((a, b) => (b.importance ?? 0) - (a.importance ?? 0) || b.publishedAt.localeCompare(a.publishedAt));
-  const top = fresh.find((s) => s.photo) ?? fresh[0] ?? list[0];
+  // (4 Nov: ranked as the front page ranks, lib/rank.ts, so a big story of the morning gives way by evening; one with a
+  // photo when it is nearly as important)
+  const fresh = list.filter((s) => Date.now() - Date.parse(s.publishedAt) < 24 * 3600_000).sort((a, b) => topScore(b) - topScore(a));
+  const top = fresh.slice(0, 4).find((s) => s.photo && topScore(s) >= topScore(fresh[0]) - 1.5) ?? fresh[0] ?? list[0];
   return (
     <Frame lang={lang} path={sub ? `/section/${k}/${sub}` : `/section/${k}`} section={k}>
       <div className="sechead">

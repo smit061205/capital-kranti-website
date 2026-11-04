@@ -13,6 +13,8 @@ import { numbersNotIn } from "./text.ts";
 import { keySet, placeTier, similarity, SAME_EVENT } from "./triage.ts";
 import { coverTier } from "./cover.ts";
 import { commonsAt } from "./wikiphoto.ts";
+import { frontTop, ranked, sameStory, topScore } from "../lib/rank.ts";
+import type { Story } from "../lib/types.ts";
 
 let n = 0;
 const test = (name: string, fn: () => void) => { fn(); n++; console.log(`ok  ${name}`); };
@@ -153,5 +155,34 @@ test("a story from a short source is short, and unsupported lines are cut, not t
   assert.equal(cutUnsupported(w, [{ claim: "x", supported: false, where: "", sentence: "H" }], 5), null);
   assert.equal(cutUnsupported(w, [{ claim: "x", supported: false, where: "", sentence: "" }], 5), null);
   assert.equal(cutUnsupported(w, [{ claim: "x", supported: false, where: "", sentence: "S1" }], 50), null);
+});
+test("the front page's top: important and fresh first, one story of an event, no desk crowding the rest", () => {
+  const now = Date.parse("2026-11-04T12:00:00Z");
+  const st = (id: string, imp: number, hoursAgo: number, more: Partial<Story> = {}): Story => ({
+    id, issueDate: "2026-11-04", publishedAt: new Date(now - hoursAgo * 3600_000).toISOString(), updatedAt: "", tier: "india", genres: [],
+    kicker: "", headline: id, deck: "", body: "", caption: "", photo: null, source: null, checked: true, page: null, rank: null,
+    en: { kicker: "", headline: id, deck: "", body: "", caption: "" }, hi: null, corrections: [], origin: "live", sources: [], importance: imp, gallery: [], ...more });
+  // four deaths in Manipur an hour ago above a car launch just now (4 Nov: the newest with a photo filled the pair)
+  assert.ok(topScore(st("Manipur violence four dead", 8, 1), now) > topScore(st("Toyota Innova launch date", 7, 0), now));
+  // a morning's big story gives way to a fresh ordinary one by evening
+  assert.ok(topScore(st("a", 9.5, 9), now) < topScore(st("b", 7, 0), now));
+  // more outlets reporting it count for a little
+  assert.ok(topScore(st("c", 7, 1, { sources: [{ name: "A", url: "" }, { name: "B", url: "" }, { name: "C", url: "" }, { name: "D", url: "" }] }), now) > topScore(st("c", 7, 1), now));
+  // one person's one day is one story at the top
+  const kohli = { photo: { url: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Virat_Kohli.jpg/1920px-Virat_Kohli.jpg", width: 1920, height: 1280 } };
+  assert.ok(sameStory(st("Kohli breaks chase record", 7, 1, kohli), st("Kohli first to 13,000 runs", 7, 1, kohli)));
+  assert.ok(!sameStory(st("Cabinet approves cattle insurance scheme", 7, 1), st("Manipur violence four dead", 7, 1)));
+  // no more than two of one desk among the first six, and Gujarat's best brought in when it's near
+  const sport = ["Kohli century Rajkot", "Neeraj javelin Doha", "Sindhu badminton title", "Mumbai Indians auction"].map((h) => st(h, 9, 0, { genres: ["sport"] }));
+  const list = ranked([...sport, st("budget numbers economy", 7, 0, { genres: ["economy"] }), st("world summit talks", 7, 0, { tier: "world" }),
+    st("monsoon rain districts", 6.5, 0, { tier: "gujarat" }), st("school exam forms", 6, 0, { genres: ["education"] })], now);
+  assert.equal(list.slice(0, 6).filter((s) => s.genres[0] === "sport").length, 2);
+  assert.ok(list.slice(0, 6).some((s) => s.tier === "gujarat"));
+  // the lead has a wide photo when one is nearly as important as the first
+  const wide = { photo: { url: "/media/live/x.jpg", width: 1200, height: 800 } };
+  const t = frontTop([st("top story no photo", 9, 0), st("nearly as big with photo", 8.5, 0, wide), st("third", 6, 0), st("fourth", 5, 0)],
+    { strong: (s) => !!s.photo, decent: (s) => !!s.photo }, now);
+  assert.equal(t.lead?.id, "nearly as big with photo");
+  assert.equal(t.pair.length, 2);
 });
 console.log(`\n${n} checks passed (${SOURCES.length} sources listed)`);
