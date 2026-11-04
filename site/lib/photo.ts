@@ -1,6 +1,6 @@
 // Pictures at the size the reader needs (the user, 30 Oct: the site was slow; a 1920-wide file went to every small card).
 // The site's own photos are made smaller by app/media, official ones by app/official, Wikimedia Commons' by app/commons (3 Nov: one took 35 seconds to
-// come from Commons, and its copies weighed two to four times ours), once each, then kept by the CDN; Pexels' by Pexels. Anything else stays as it is.
+// come from Commons, and its copies weighed two to four times ours), once each, then kept by the CDN; Pexels' and Unsplash's by themselves. Anything else stays as it is.
 const STEPS = [500, 720, 960, 1920] as const;
 
 /** a Commons photo's place there ("a/ab/File.jpg"), from its address or one of its copies' */
@@ -17,6 +17,8 @@ function at(url: string, w: number): string | null {
   if (/^\/official\/[A-Za-z0-9_-]+\.jpg$/.test(plain)) return `${plain}?w=${Math.min(w, 1200)}`;
   // Pexels' symbolic photos (engine/wikiphoto.ts) are made smaller by Pexels itself, which asks to be shown from its servers
   if (/^https:\/\/images\.pexels\.com\/photos\//.test(plain)) return `${plain}?auto=compress&cs=tinysrgb&w=${w}`;
+  // Unsplash's, by Unsplash itself, keeping its own marks in the address
+  if (/^https:\/\/images\.unsplash\.com\//.test(plain)) { const u = new URL(url); u.searchParams.set("w", String(w)); return u.href; }
   const c = commons(plain);
   return c ? `/commons/${c}?w=${Math.min(w, 1200)}` : null;
 }
