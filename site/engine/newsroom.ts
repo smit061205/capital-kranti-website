@@ -245,12 +245,17 @@ export async function check(sql: Sql | null, w: Written, src: SourceText[], date
   }
   // the code's own checks failed: the story goes back now, without a model's minutes on a version that can't go up
   if (problems.length) return { ok: false, problems, claims: [] };
-  const res = await askJson(sql, { system: CHECKER, user: `STORY:\n${labelled(w)}\n\n===\n\n${sourcesBlock(src)}`, role: "checker", avoid: w.model, maxTokens: 6000 },
-    (v) => {
-      const x = v as { claims?: Claim[] };
-      if (!Array.isArray(x?.claims) || !x.claims.length) return null;
-      return x.claims.map((c) => ({ claim: String(c.claim ?? ""), supported: c.supported === true, where: String(c.where ?? ""), sentence: String(c.sentence ?? "") }));
-    });
+  const ask = { system: CHECKER, user: `STORY:\n${labelled(w)}\n\n===\n\n${sourcesBlock(src)}`, role: "checker" as const, avoid: w.model, maxTokens: 6000 };
+  const read = (v: unknown) => {
+    const x = v as { claims?: Claim[] };
+    if (!Array.isArray(x?.claims) || !x.claims.length) return null;
+    return x.claims.map((c) => ({ claim: String(c.claim ?? ""), supported: c.supported === true, where: String(c.where ?? ""), sentence: String(c.sentence ?? "") }));
+  };
+  // every Gemma down or its day used up: Gemini Flash checks, before the paid Gemma, a different model from the Flash Lite that writes, keeping
+  // Aavtikal's last ten (4 Nov: Google's Gemmas said "exceeded your current quota" in the evening, and stories written by
+  // Flash Lite waited for a check that no model gave)
+  const res = await askJson(sql, ask, read, async () => (sql && (await geminiRemaining(sql, "writer")) > WRITER_KEPT
+    ? askGemini(sql, "writer", ask, read, { wait: false, timeoutMs: 90_000 }) : null));
   if (!res.ok) return { ok: false, problems: [...problems, `the second check didn't answer (${res.why})`], claims: [], busy: res.busy || /busy/.test(res.why) };
   const unsupported = res.value.filter((c) => !c.supported);
   for (const c of unsupported) problems.push(`not in the sources: ${c.claim}`);
@@ -306,6 +311,8 @@ const LITE_KEPT = 300;
 /** below the 300, Flash Lite still writes when every Gemma is down, down to its last 100 (4 Nov: a busy afternoon left 287,
  *  Google's Gemmas answered "500 Internal error" all evening, and no story went up for two hours) */
 const LITE_FLOOR = 100;
+/** Gemini Flash requests kept for Aavtikal's articles when it checks the news */
+const WRITER_KEPT = 10;
 
 export async function writeChecked(sql: Sql | null, src: SourceText[], level: Level, date: string, event: string) {
   const [lo, hi] = lengthFor(level, src);
@@ -319,8 +326,8 @@ export async function writeChecked(sql: Sql | null, src: SourceText[], level: Le
     // last of its day, which Aavtikal shares. A Gemma still does the checking, so the checker is never the writer.
     const res = lite
       ? await askGemini(sql, "lite", ask, checkWritten, { wait: false, timeoutMs: 90_000 }).then((r) => (r.ok ? r : askJson(sql, ask, checkWritten)))
-      : await askJson(sql, ask, checkWritten).then(async (r) => (r.ok || !r.busy || !sql || (await geminiRemaining(sql, "lite")) <= LITE_FLOOR ? r
-        : askGemini(sql, "lite", ask, checkWritten, { wait: false, timeoutMs: 90_000 }).then((g) => (g.ok ? g : r))));
+      : await askJson(sql, ask, checkWritten, async () => (sql && (await geminiRemaining(sql, "lite")) > LITE_FLOOR
+        ? askGemini(sql, "lite", ask, checkWritten, { wait: false, timeoutMs: 90_000 }) : null));
     if (!res.ok) return { ok: false as const, why: res.why, stop: res.stop, retry: res.busy };
     const w = await mendLetters(sql, { ...res.value, model: res.model });
     // far shorter than the sources allow (29 Oct: a £10 billion package told in two paragraphs): written again once, before checking

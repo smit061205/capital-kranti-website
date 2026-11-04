@@ -180,9 +180,13 @@ export type AiResult<T> = { ok: true; value: T; model: string } | { ok: false; w
 
 /** One JSON answer: from the free models, tried in order until one gives valid JSON that `check` accepts; when none
  *  does, from the paid backup, within its day's rupees. */
-export async function askJson<T>(sql: Sql | null, a: Ask, check: (v: unknown) => T | null): Promise<AiResult<T>> {
+export async function askJson<T>(sql: Sql | null, a: Ask, check: (v: unknown) => T | null,
+  /** another free try when every free model has failed, before the paid one (Gemini, for the news's writing and checking) */
+  also?: (failed: AiResult<T>) => Promise<AiResult<T> | null>): Promise<AiResult<T>> {
   const free = await askFree(sql, a, check);
   if (free.ok || a.only || !sql) return free;
+  const more = also && await also(free);
+  if (more?.ok) return more;
   const paid = await askPaid(sql, { system: a.system, user: a.user, temperature: a.temperature ?? 0.2, maxTokens: a.maxTokens ?? 3000 }, check, a.small);
   if (!paid) return free;
   return paid.ok ? paid : { ...free, why: `${free.why} | ${paid.why}` };
