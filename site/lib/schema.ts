@@ -188,6 +188,10 @@ export const SCHEMA = [
      post_url text,
      note text not null default ''
    )`,
+  // what happened with Instagram, step by step, for the editor page's log (lib/insta.ts; the user, 4 Nov: "give logs for
+  // every process so i can see what is happening")
+  `create table if not exists insta_log (id bigserial primary key, at timestamptz not null default now(), who text not null, line text not null)`,
+  `create index if not exists insta_log_at on insta_log (at desc)`,
   `create index if not exists insta_sets_edition on insta_sets (edition)`,
   // how many times a story's English or Hindi failed (engine/run.ts translations(): 4 Nov, two that kept failing took
   // five minutes of every round and no news was written)

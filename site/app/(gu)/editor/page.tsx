@@ -16,7 +16,7 @@ import { COOKIE, desk, editorOf, findFeatures, findStories, PAGE, signInReady, t
 import { beatName, isBeat } from "@/lib/flagship.ts";
 import { birthdays, draftEmail, leaders } from "@/lib/leaders.ts";
 import { ads, DAYS, KINDS, KIND_NAMES } from "@/lib/classifieds.ts";
-import { DEFAULT_SETTINGS, instaAsk, instaNews, instaProgress, instaSettings, recentSets } from "@/lib/insta.ts";
+import { DEFAULT_SETTINGS, instaAsk, instaLogs, instaNews, instaProgress, instaSettings, recentSets } from "@/lib/insta.ts";
 import { instagramWho } from "@/lib/instagram.ts";
 import { dateText, num, timeText, shortDate, todayIst } from "@/lib/format.ts";
 
@@ -36,9 +36,9 @@ type Q = { lang?: string; signin?: string; q?: string; show?: string; n?: string
 
 /** the Instagram tab's settings, the editor's ask, what it came to and the account the site reaches: only on that tab */
 async function instaExtra(sql: ReturnType<typeof db>) {
-  const [settings, ask, news, progress, who] = await Promise.all([sql ? instaSettings(sql) : DEFAULT_SETTINGS, sql ? instaAsk(sql) : null,
-    sql ? instaNews(sql) : null, sql ? instaProgress(sql) : null, instagramWho()]);
-  return { settings, ask, news, progress, who };
+  const [settings, ask, news, progress, who, logs] = await Promise.all([sql ? instaSettings(sql) : DEFAULT_SETTINGS, sql ? instaAsk(sql) : null,
+    sql ? instaNews(sql) : null, sql ? instaProgress(sql) : null, instagramWho(), sql ? instaLogs(sql).catch(() => []) : []]);
+  return { settings, ask, news, progress, who, logs };
 }
 
 export default async function Editor({ searchParams }: { searchParams: Promise<Q> }) {

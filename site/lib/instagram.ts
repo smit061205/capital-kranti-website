@@ -29,28 +29,35 @@ const ready = async (id: string) => {
 };
 
 /** Puts the set up as one carousel: its address on Instagram. */
-export async function postSet(set: InstaSet): Promise<string> {
+export async function postSet(set: InstaSet, say: (line: string) => Promise<void> = async () => {}): Promise<string> {
   if (!instagramOn()) throw new Error("Instagram isn't connected yet");
   if (!set.image) throw new Error("the set has no pictures");
   const user = process.env.INSTAGRAM_USER_ID!;
   // all the cards at once, not one after another: the editor's button has a minute (4 Nov: one by one, a set of six
   // ran past it and stayed "approved, not up yet")
+  await say(`${set.cards.length + 1} કાર્ડ ઇન્સ્ટાગ્રામને આપ્યાં: ઇન્સ્ટાગ્રામ એ ચિત્રો લે છે`);
   const children = await Promise.all(Array.from({ length: set.cards.length + 1 }, async (_, i) =>
     (await call("POST", `${user}/media`, { image_url: `${SITE}${set.image}?card=${i + 1}`, is_carousel_item: "true" })).id as string));
   await Promise.all(children.map(ready));
+  await say("ઇન્સ્ટાગ્રામે બધાં ચિત્રો લીધાં: કેરોસેલ બને છે");
   const carousel = await call("POST", `${user}/media`, { media_type: "CAROUSEL", children: children.join(","), caption: set.caption });
   await ready(carousel.id as string);
+  await say("કેરોસેલ તૈયાર: પ્રકાશિત થાય છે");
   const posted = await call("POST", `${user}/media_publish`, { creation_id: carousel.id as string });
   const link = await call("GET", posted.id as string, { fields: "permalink" }).catch(() => ({ permalink: "" }));
   return (link.permalink as string) || "https://www.instagram.com/";
 }
 
 /** The account the settings reach, for the editor page: its name, or Instagram's reason it can't be reached. */
+// kept ten minutes when reached, so every button press doesn't wait on Instagram to show the page again
+let known: { name: string; at: number } | null = null;
 export async function instagramWho(): Promise<{ name: string } | { why: string } | null> {
   if (!instagramOn()) return null;
+  if (known && Date.now() - known.at < 10 * 60_000) return { name: known.name };
   try {
     const me = await call("GET", process.env.INSTAGRAM_USER_ID!, { fields: "username" });
-    return { name: String(me.username ?? "") };
+    known = { name: String(me.username ?? ""), at: Date.now() };
+    return { name: known.name };
   } catch (e) {
     return { why: e instanceof Error ? e.message : String(e) };
   }

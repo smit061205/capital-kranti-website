@@ -4,8 +4,9 @@
 // The last few posted, with their links; and the editor's times, sections and whether sets come by themselves.
 import s from "./editor.module.css";
 import { approveInsta, captionInsta, dropInstaCard, makeInstaNow, moveInstaCard, nextInstaPhoto, saveInstaTimes, skipInsta } from "./actions.ts";
-import { editionName, MAX_TIMES, MIN_KEPT, timeName, type InstaAsk, type InstaNews, type InstaProgress, type InstaSet, type InstaSettings } from "@/lib/insta.ts";
+import { editionName, MAX_TIMES, MIN_KEPT, timeName, type InstaAsk, type InstaLogLine, type InstaNews, type InstaProgress, type InstaSet, type InstaSettings } from "@/lib/insta.ts";
 import Renew from "./Renew.tsx";
+import Press from "./Press.tsx";
 import { TIERS } from "@/lib/sections.ts";
 import { num } from "@/lib/format.ts";
 import { sectionName } from "@/lib/sections.ts";
@@ -29,6 +30,9 @@ const WORDS = {
     settings: "સમય અને વિભાગ બદલો", how: "સેટ કેવી રીતે બને", auto: "દરરોજ નક્કી સમયે જાતે", byHand: "ફક્ત હું માગું ત્યારે",
     times: "સમય (ભારતનો)", timesHelp: `${num(MAX_TIMES, "gu")} સુધી સમય. દરેક સમયના એક કલાક પહેલાં સેટ તૈયાર થાય છે; ખાલી રાખેલો સમય ગણાશે નહીં.`,
     tiers: "કયા વિભાગના સેટ", save: "સાચવો",
+    log: "શું થયું: દરેક પગલું (લોગ)", logNone: "હજી કંઈ નોંધાયું નથી.", logHelp: "નવું ઉપર. એન્જિન કામ કરતું હોય ત્યારે આ પાનું જાતે તાજું થાય છે.",
+    engine: "એન્જિન", instagram: "ઇન્સ્ટાગ્રામ",
+    working: "થઈ રહ્યું છે…", posting: "મુકાય છે…", asking: "માગી રહ્યા છીએ…", saving: "સચવાય છે…",
   },
   en: {
     title: "Instagram",
@@ -48,6 +52,9 @@ const WORDS = {
     settings: "Change the times and sections", how: "How sets are made", auto: "By themselves, every day at set times", byHand: "Only when I ask",
     times: "Times (India)", timesHelp: `Up to ${MAX_TIMES} times. A set is ready an hour before each; a time left empty doesn't count.`,
     tiers: "Sets for which sections", save: "Save",
+    log: "What happened: every step (log)", logNone: "Nothing yet.", logHelp: "Newest first. The page renews itself while the engine works.",
+    engine: "Engine", instagram: "Instagram",
+    working: "Working…", posting: "Posting…", asking: "Asking…", saving: "Saving…",
   },
 };
 
@@ -55,12 +62,13 @@ const WORDS = {
 const clock = (iso: string, lang: "gu" | "en") => timeName(new Date(new Date(iso).getTime() + 5.5 * 3600_000).toISOString().slice(11, 16), lang);
 const list = (xs: string[], and: string) => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")}${and}${xs.at(-1)}` : xs[0] ?? "");
 
-export default function Insta({ lang, sets, settings, ask, news, progress, who }: {
+export default function Insta({ lang, sets, settings, ask, news, progress, who, logs }: {
   lang: "gu" | "en"; sets: InstaSet[]; settings: InstaSettings; ask: InstaAsk | null; news: InstaNews | null; progress: InstaProgress | null;
-  who: { name: string } | { why: string } | null;
+  who: { name: string } | { why: string } | null; logs: InstaLogLine[];
 }) {
   const w = WORDS[lang];
   const nn = (x: number) => (lang === "gu" ? num(x, "gu") : String(x));
+  const nn2 = (x: string) => (lang === "gu" ? num(x, "gu") : x);
   const current = sets.filter((x) => ["making", "waiting", "approved", "failed"].includes(x.state) && x.cards.length);
   const posted = sets.filter((x) => x.state === "posted").slice(0, 6);
   // the engine's progress, if it renewed it in the last five minutes (a run cut short leaves it behind)
@@ -102,7 +110,7 @@ export default function Insta({ lang, sets, settings, ask, news, progress, who }
           <form className={s.form} action={makeInstaNow}>
             <p className={s.help}>{w.nowHelp}</p>
             {tierPills(settings.tiers)}
-            <button className={s.yes} style={{ alignSelf: "flex-start" }}>{w.nowBtn}</button>
+            <Press className={s.yes} style={{ alignSelf: "flex-start" }} busy={w.asking}>{w.nowBtn}</Press>
           </form>
         )}
         {news && !ask && Date.now() - new Date(news.at).getTime() < 6 * 3600_000 && <p className={s.when}>{w.lastAsk(clock(news.at, lang))} {news.text}</p>}
@@ -124,10 +132,10 @@ export default function Insta({ lang, sets, settings, ask, news, progress, who }
                   <img src={`${set.image}?card=${i + 1}&w=360`} width={360} height={450} alt={c.headline} loading="lazy" />
                   {set.state === "waiting" && (
                     <figcaption>
-                      {i > 0 && <form action={moveInstaCard.bind(null, set.id, i, -1)}><button className={s.small}>{w.earlier}</button></form>}
-                      {i < set.cards.length - 1 && <form action={moveInstaCard.bind(null, set.id, i, 1)}><button className={s.small}>{w.later}</button></form>}
-                      {c.options.length > 1 && <form action={nextInstaPhoto.bind(null, set.id, i)}><button className={s.small}>{w.next} ({nn(c.pick + 1)}/{nn(c.options.length)})</button></form>}
-                      {set.cards.length > MIN_KEPT && <form action={dropInstaCard.bind(null, set.id, i)}><button className={s.small}>{w.drop}</button></form>}
+                      {i > 0 && <form action={moveInstaCard.bind(null, set.id, i, -1)}><Press className={s.small} busy={w.working}>{w.earlier}</Press></form>}
+                      {i < set.cards.length - 1 && <form action={moveInstaCard.bind(null, set.id, i, 1)}><Press className={s.small} busy={w.working}>{w.later}</Press></form>}
+                      {c.options.length > 1 && <form action={nextInstaPhoto.bind(null, set.id, i)}><Press className={s.small} busy={w.working}>{w.next} ({nn(c.pick + 1)}/{nn(c.options.length)})</Press></form>}
+                      {set.cards.length > MIN_KEPT && <form action={dropInstaCard.bind(null, set.id, i)}><Press className={s.small} busy={w.working}>{w.drop}</Press></form>}
                     </figcaption>
                   )}
                 </figure>
@@ -141,14 +149,14 @@ export default function Insta({ lang, sets, settings, ask, news, progress, who }
             <details className={s.more}><summary>{w.caption}</summary>
               <form className={s.form} action={captionInsta.bind(null, set.id)}>
                 <textarea name="caption" rows={12} maxLength={2200} defaultValue={set.caption} aria-label={w.caption} />
-                <button className={s.small}>{w.saveCaption}</button>
+                <Press className={s.small} busy={w.saving}>{w.saveCaption}</Press>
               </form>
             </details>
           )}
           <div className={s.buttons}>
-            {set.image && set.state !== "making" && !going(set) && <form action={approveInsta.bind(null, set.id)}><button className={s.yes}>{set.state === "waiting" ? w.approve : w.again}</button></form>}
+            {set.image && set.state !== "making" && !going(set) && <form action={approveInsta.bind(null, set.id)}><Press className={s.yes} busy={w.posting}>{set.state === "waiting" ? w.approve : w.again}</Press></form>}
             <details className={s.confirm}><summary>{w.skip}</summary>
-              <form action={skipInsta.bind(null, set.id)}><button className={s.no}>{w.sure}</button></form></details>
+              <form action={skipInsta.bind(null, set.id)}><Press className={s.no} busy={w.working}>{w.sure}</Press></form></details>
           </div>
         </article>
       )) : <p className={s.empty}>{w.none}</p>}
@@ -172,8 +180,21 @@ export default function Insta({ lang, sets, settings, ask, news, progress, who }
             <span className={s.help}>{w.timesHelp}</span>
           </fieldset>
           <fieldset className={s.pick}><legend>{w.tiers}</legend>{tierPills(settings.tiers)}</fieldset>
-          <button className={s.yes} style={{ alignSelf: "flex-start" }}>{w.save}</button>
+          <Press className={s.yes} style={{ alignSelf: "flex-start" }} busy={w.saving}>{w.save}</Press>
         </form>
+      </details>
+
+      <details className={s.more} open={busy || undefined}><summary>{w.log}</summary>
+        <p className={s.help}>{w.logHelp}</p>
+        {logs.length ? (
+          <ol className={s.log}>{logs.map((l, i) => (
+            <li key={i}>
+              <time dateTime={l.at}>{nn2(new Date(new Date(l.at).getTime() + 5.5 * 3600_000).toISOString().slice(11, 19))}</time>
+              <b>{l.who === "engine" ? w.engine : l.who === "instagram" ? w.instagram : l.who}</b>
+              <span>{l.line}</span>
+            </li>
+          ))}</ol>
+        ) : <p className={s.help}>{w.logNone}</p>}
       </details>
     </section>
   );

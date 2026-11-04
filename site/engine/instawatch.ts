@@ -6,7 +6,7 @@
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { db } from "../lib/db.ts";
-import { editionNow, instaSettings } from "../lib/insta.ts";
+import { editionNow, instaLog, instaSettings } from "../lib/insta.ts";
 
 const sql = db();
 if (!sql) { console.log("no DATABASE_URL"); process.exit(0); }
@@ -35,7 +35,9 @@ while (Date.now() < until - 20_000) {
     if (w === "ask" || (w === "more" && Date.now() - lastRun > 5 * 60_000)) {
       lastRun = Date.now();
       console.log(`${new Date().toISOString().slice(11, 16)} UTC: ${w === "ask" ? "a set the editor asked for" : "a changed set or a due edition"}`);
-      spawnSync(process.execPath, ["--experimental-strip-types", "--no-warnings", INSTA], { stdio: "inherit", timeout: 15 * 60_000 });
+      const run = spawnSync(process.execPath, ["--experimental-strip-types", "--no-warnings", INSTA], { stdio: "inherit", timeout: 15 * 60_000 });
+      if (run.signal) await instaLog(sql, "engine", "કામ ૧૫ મિનિટમાં પૂરું ન થયું, અટકાવ્યું; થોડી વારમાં ફરી પ્રયાસ થશે");
+      else if (run.status) await instaLog(sql, "engine", `કામ ભૂલથી અટક્યું (કોડ ${run.status}); થોડી વારમાં ફરી પ્રયાસ થશે`);
       continue;
     }
   } catch (e) {

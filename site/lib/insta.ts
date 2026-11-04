@@ -92,6 +92,23 @@ export function editionName(edition: string): string {
   return `${date}, ${timeName(`${end.slice(0, 2)}:${end.slice(2, 4)}`)}`;
 }
 
+// ---- the log: each step of making and posting a set, newest first on the editor page; kept three days
+
+export interface InstaLogLine { at: string; who: string; line: string }
+/** a line in the log; "who" is what did it: the editor's name, "engine" or "instagram". Never fails what it's logging. */
+export async function instaLog(sql: Sql, who: string, line: string) {
+  try {
+    await prepared(sql);
+    await sql.query(`insert into insta_log (who, line) values ($1, $2)`, [who.slice(0, 40), line.slice(0, 500)]);
+    if (Math.random() < 0.02) await sql.query(`delete from insta_log where at < now() - interval '3 days'`);
+  } catch { /* the log is a help, not the work */ }
+}
+export async function instaLogs(sql: Sql, n = 80): Promise<InstaLogLine[]> {
+  await prepared(sql);
+  const rows = await sql.query(`select at, who, line from insta_log order by id desc limit $1`, [n]);
+  return rows.map((r) => ({ at: new Date(r.at as string).toISOString(), who: r.who as string, line: r.line as string }));
+}
+
 // ---- the editor's choices and asks, in the state table
 
 async function stateOf(sql: Sql, key: string): Promise<unknown> {
