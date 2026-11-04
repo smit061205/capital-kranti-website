@@ -16,8 +16,8 @@ import { COOKIE, desk, editorOf, findFeatures, findStories, PAGE, signInReady, t
 import { beatName, isBeat } from "@/lib/flagship.ts";
 import { birthdays, draftEmail, leaders } from "@/lib/leaders.ts";
 import { ads, DAYS, KINDS, KIND_NAMES } from "@/lib/classifieds.ts";
-import { recentSets } from "@/lib/insta.ts";
-import { instagramOn } from "@/lib/instagram.ts";
+import { DEFAULT_SETTINGS, instaAsk, instaNews, instaSettings, recentSets } from "@/lib/insta.ts";
+import { instagramWho } from "@/lib/instagram.ts";
 import { dateText, num, timeText, shortDate, todayIst } from "@/lib/format.ts";
 
 export const dynamic = "force-dynamic";
@@ -30,6 +30,12 @@ if(m[h]&&!/[?&]tab=/.test(location.search)){var u=new URL(location.href);u.searc
 export const metadata: Metadata = { title: "સંપાદક | કેપિટલ ક્રાંતિ", robots: { index: false, follow: false } };
 
 type Q = { lang?: string; signin?: string; q?: string; show?: string; n?: string; fq?: string; fshow?: string; fn?: string; saved?: string; written?: string; wrote?: string; ad?: string; tab?: string };
+
+/** the Instagram tab's settings, the editor's ask, what it came to and the account the site reaches: only on that tab */
+async function instaExtra(sql: ReturnType<typeof db>) {
+  const [settings, ask, news, who] = await Promise.all([sql ? instaSettings(sql) : DEFAULT_SETTINGS, sql ? instaAsk(sql) : null, sql ? instaNews(sql) : null, instagramWho()]);
+  return { settings, ask, news, who };
+}
 
 export default async function Editor({ searchParams }: { searchParams: Promise<Q> }) {
   const q = await searchParams;
@@ -210,7 +216,7 @@ export default async function Editor({ searchParams }: { searchParams: Promise<Q
         </section>
       )}
 
-      {tab === "insta" && <Insta lang={lang} sets={instaSets} on={instagramOn()} />}
+      {tab === "insta" && <Insta lang={lang} sets={instaSets} {...await instaExtra(sql)} />}
 
       {tab === "leaders" && (
         <section className={s.block} aria-labelledby="leaders">

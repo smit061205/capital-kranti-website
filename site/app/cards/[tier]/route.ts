@@ -2,7 +2,7 @@
 // have a big enough photo of their own (the engine also finds file photos: engine/insta.ts). `?small` shows them at a
 // quarter, `?look=3` in one of the looks to choose from (/cards).
 import { db, storiesIn } from "@/lib/db.ts";
-import { cardsHtml, editionNow, LOOK, LOOKS, MAX_STORIES, MIN_WIDTH, recentSets, type Card } from "@/lib/insta.ts";
+import { cardsHtml, editionAt, LOOK, LOOKS, MAX_STORIES, MIN_WIDTH, recentSets, type Card } from "@/lib/insta.ts";
 import { TIERS } from "@/lib/sections.ts";
 import type { Tier } from "@/lib/types.ts";
 
@@ -16,9 +16,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ tier: st
   const look = q.has("look") && Number(q.get("look")) in LOOKS ? Number(q.get("look")) : LOOK;
   const sql = db();
   const made = sql ? (await recentSets(sql, 30)).find((s) => s.tier === tier && s.cards.length) : undefined;
-  const t = new Date(Date.now() + 5.5 * 3600_000);
   const set = made ?? {
-    tier, edition: editionNow() ?? `${t.toISOString().slice(0, 10)}-${t.getUTCHours() < 13 ? "am" : "pm"}`,
+    tier, edition: editionAt(),
     cards: (await storiesIn(tier, 80)).filter((s) => s.photo && s.photo.width >= MIN_WIDTH).slice(0, MAX_STORIES)
       .map((s): Card => ({ storyId: s.id, headline: s.headline, deck: s.deck, pick: 0, options: [{ ...s.photo!, representative: !!s.photo!.credit }] })),
   };

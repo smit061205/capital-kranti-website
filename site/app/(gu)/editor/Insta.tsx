@@ -1,43 +1,92 @@
-// The editor page's Instagram block (lib/insta.ts): each section's set for this edition, its cards as they will go up;
-// a card can be taken out or given another photo (the pictures are made again within a quarter of an hour), the words
-// changed, and the set approved, which puts it up at once. The last few posted, with their links.
+// The editor page's Instagram block (lib/insta.ts): whether the account is reached; a set made now, for the sections the
+// editor picks; each section's latest set, its cards as they will go up: a card can be taken out, moved or given another
+// photo (the pictures are made again within minutes), the words changed, and the set approved, which puts it up at once.
+// The last few posted, with their links; and the editor's times, sections and whether sets come by themselves.
 import s from "./editor.module.css";
-import { approveInsta, captionInsta, dropInstaCard, nextInstaPhoto, skipInsta } from "./actions.ts";
-import { editionName, MIN_KEPT, type InstaSet } from "@/lib/insta.ts";
+import { approveInsta, captionInsta, dropInstaCard, makeInstaNow, moveInstaCard, nextInstaPhoto, saveInstaTimes, skipInsta } from "./actions.ts";
+import { editionName, MAX_TIMES, MIN_KEPT, timeName, type InstaAsk, type InstaNews, type InstaSet, type InstaSettings } from "@/lib/insta.ts";
+import { TIERS } from "@/lib/sections.ts";
 import { num } from "@/lib/format.ts";
 import { sectionName } from "@/lib/sections.ts";
 
 const WORDS = {
   gu: {
-    title: "ઇન્સ્ટાગ્રામ", note: "દરરોજ સવારે ૮ અને સાંજે ૭ વાગ્યે ગુજરાત, દેશ અને વિશ્વના મુખ્ય સમાચારના સેટ, એક કલાક પહેલાં અહીં તૈયાર થાય છે. મંજૂર કરશો ત્યારે જ મુકાશે; મંજૂર ન થયેલો સેટ આગલા સેટ વખતે જાતે જતો રહેશે.",
+    title: "ઇન્સ્ટાગ્રામ",
+    note: (times: string, tiers: string) => `દરરોજ ${times} વાગ્યે ${tiers}ના મુખ્ય સમાચારના સેટ, એક કલાક પહેલાં અહીં તૈયાર થાય છે. મંજૂર કરશો ત્યારે જ મુકાશે; મંજૂર ન થયેલો સેટ એ વિભાગનો નવો સેટ બને ત્યારે (કે ૧૨ કલાકે) જાતે જતો રહેશે.`,
+    manual: "સેટ જાતે બનતા નથી: જ્યારે જોઈએ ત્યારે નીચેથી બનાવો.", and: " અને ",
     off: "ઇન્સ્ટાગ્રામ ખાતું હજી જોડાયેલું નથી: મંજૂર કરેલો સેટ ખાતું જોડાયા પછી “હવે મૂકો” દબાવવાથી મુકાશે.",
-    none: "આ વખતનો કોઈ સેટ નથી.", making: "ચિત્રો બની રહ્યાં છે: ૧૫ મિનિટમાં અહીં દેખાશે.", waiting: "મંજૂરીની રાહ", approved: "મંજૂર: મુકાવાનું બાકી",
+    on: (n: string) => `ઇન્સ્ટાગ્રામ જોડાયેલું છે: @${n}`, broken: "ઇન્સ્ટાગ્રામ સુધી પહોંચાતું નથી. ઇન્સ્ટાગ્રામનું કારણ:",
+    now: "હમણાં નવો સેટ બનાવો", nowHelp: "છેલ્લા ૧૨ કલાકના સૌથી મહત્ત્વના સમાચારમાંથી, જે વિભાગ પસંદ કરો તેના. ૫ થી ૧૫ મિનિટમાં અહીં દેખાશે; મુકાતાં પહેલાં તમે જોઈ શકશો.",
+    nowBtn: "સેટ બનાવો", asked: (t: string) => `${t} વાગ્યે માગેલો સેટ બની રહ્યો છે: ૫ થી ૧૫ મિનિટમાં અહીં દેખાશે.`, lastAsk: (t: string) => `${t} વાગ્યે માગેલો સેટ:`,
+    none: "આ વખતનો કોઈ સેટ નથી.", making: "ચિત્રો બની રહ્યાં છે: ૫ થી ૧૫ મિનિટમાં અહીં દેખાશે.", waiting: "મંજૂરીની રાહ", approved: "મંજૂર: મુકાવાનું બાકી",
     posted: "મુકાયો", failed: "મુકાયો નહીં", expired: "સમય ગયો",
-    drop: "આ કાર્ડ હટાવો", next: "બીજો ફોટો", caption: "ઇન્સ્ટાગ્રામ પરના શબ્દો", saveCaption: "શબ્દો સાચવો",
+    drop: "આ કાર્ડ હટાવો", next: "બીજો ફોટો", earlier: "← આગળ", later: "પાછળ →", caption: "ઇન્સ્ટાગ્રામ પરના શબ્દો", saveCaption: "શબ્દો સાચવો",
     approve: "મંજૂર કરો અને મૂકો", again: "હવે મૂકો", skip: "આ સેટ ન મૂકો", sure: "હા, ન મૂકો", see: "ઇન્સ્ટાગ્રામ પર જુઓ", last: "છેલ્લે મુકાયેલા",
     lastCard: "છેલ્લું કાર્ડ: વિભાગની લિંક",
+    settings: "સમય અને વિભાગ બદલો", how: "સેટ કેવી રીતે બને", auto: "દરરોજ નક્કી સમયે જાતે", byHand: "ફક્ત હું માગું ત્યારે",
+    times: "સમય (ભારતનો)", timesHelp: `${num(MAX_TIMES, "gu")} સુધી સમય. દરેક સમયના એક કલાક પહેલાં સેટ તૈયાર થાય છે; ખાલી રાખેલો સમય ગણાશે નહીં.`,
+    tiers: "કયા વિભાગના સેટ", save: "સાચવો",
   },
   en: {
-    title: "Instagram", note: "Every day at 8 in the morning and 7 in the evening, sets of the main Gujarat, India and world news are ready here an hour ahead. Nothing goes up until you approve it; a set not approved goes by itself at the next one.",
+    title: "Instagram",
+    note: (times: string, tiers: string) => `Every day at ${times}, sets of the main ${tiers} news are ready here an hour ahead. Nothing goes up until you approve it; a set not approved goes by itself when a newer one of its section is made (or after 12 hours).`,
+    manual: "Sets aren't made by themselves: make one below whenever you want.", and: " and ",
     off: "The Instagram account isn't connected yet: an approved set goes up with “Post now” once it is.",
-    none: "No set this time.", making: "The pictures are being made: they show here within 15 minutes.", waiting: "Waiting for you", approved: "Approved: not up yet",
+    on: (n: string) => `Instagram is connected: @${n}`, broken: "Instagram can't be reached. Instagram's reason:",
+    now: "Make a new set now", nowHelp: "From the most important stories of the last 12 hours, for the sections you pick. It shows here in 5 to 15 minutes; you see it before it goes up.",
+    nowBtn: "Make the set", asked: (t: string) => `The set asked for at ${t} is being made: it shows here in 5 to 15 minutes.`, lastAsk: (t: string) => `The set asked for at ${t}:`,
+    none: "No set this time.", making: "The pictures are being made: they show here in 5 to 15 minutes.", waiting: "Waiting for you", approved: "Approved: not up yet",
     posted: "Posted", failed: "Not posted", expired: "Time passed",
-    drop: "Take this card out", next: "Another photo", caption: "The words on Instagram", saveCaption: "Save the words",
+    drop: "Take this card out", next: "Another photo", earlier: "← Earlier", later: "Later →", caption: "The words on Instagram", saveCaption: "Save the words",
     approve: "Approve and post", again: "Post now", skip: "Don't post this set", sure: "Yes, don't post", see: "See it on Instagram", last: "Posted lately",
     lastCard: "Last card: the section's link",
+    settings: "Change the times and sections", how: "How sets are made", auto: "By themselves, every day at set times", byHand: "Only when I ask",
+    times: "Times (India)", timesHelp: `Up to ${MAX_TIMES} times. A set is ready an hour before each; a time left empty doesn't count.`,
+    tiers: "Sets for which sections", save: "Save",
   },
 };
 
-export default function Insta({ lang, sets, on }: { lang: "gu" | "en"; sets: InstaSet[]; on: boolean }) {
+/** "સાંજે ૭:૦૦" for a moment */
+const clock = (iso: string, lang: "gu" | "en") => timeName(new Date(new Date(iso).getTime() + 5.5 * 3600_000).toISOString().slice(11, 16), lang);
+const list = (xs: string[], and: string) => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")}${and}${xs.at(-1)}` : xs[0] ?? "");
+
+export default function Insta({ lang, sets, settings, ask, news, who }: {
+  lang: "gu" | "en"; sets: InstaSet[]; settings: InstaSettings; ask: InstaAsk | null; news: InstaNews | null;
+  who: { name: string } | { why: string } | null;
+}) {
   const w = WORDS[lang];
   const nn = (x: number) => (lang === "gu" ? num(x, "gu") : String(x));
   const current = sets.filter((x) => ["making", "waiting", "approved", "failed"].includes(x.state) && x.cards.length);
   const posted = sets.filter((x) => x.state === "posted").slice(0, 6);
+  const tierName = (t: (typeof TIERS)[number]) => sectionName(t, lang);
+  const times = Array.from({ length: MAX_TIMES }, (_, i) => settings.times[i] ?? "");
+  const tierPills = (picked: readonly string[]) => (
+    <div className={s.pills}>{TIERS.map((t) => (
+      <label key={t}><input type="checkbox" name="tier" value={t} defaultChecked={picked.includes(t)} /><span>{tierName(t)}</span></label>
+    ))}</div>
+  );
   return (
     <section className={s.block} aria-labelledby="insta">
       <h2 id="insta">{w.title} {current.some((x) => x.state === "waiting") && <span className={s.count}>{nn(current.filter((x) => x.state === "waiting").length)}</span>}</h2>
-      <p className={s.help}>{w.note}</p>
-      {!on && <p className={s.note}>{w.off}</p>}
+      <p className={s.help}>{settings.auto && settings.times.length
+        ? w.note(list(settings.times.map((t) => timeName(t, lang)), w.and), list(settings.tiers.map(tierName), w.and))
+        : w.manual}</p>
+      {!who ? <p className={s.note}>{w.off}</p>
+        : "name" in who ? <p className={s.done}>✓ {w.on(who.name)}</p>
+        : <p className={s.why}>{w.broken} {who.why}</p>}
+
+      <div className={s.card}>
+        <h3>{w.now}</h3>
+        {ask ? <p className={s.running}>{w.asked(clock(ask.at, lang))}</p> : (
+          <form className={s.form} action={makeInstaNow}>
+            <p className={s.help}>{w.nowHelp}</p>
+            {tierPills(settings.tiers)}
+            <button className={s.yes} style={{ alignSelf: "flex-start" }}>{w.nowBtn}</button>
+          </form>
+        )}
+        {news && !ask && Date.now() - new Date(news.at).getTime() < 6 * 3600_000 && <p className={s.when}>{w.lastAsk(clock(news.at, lang))} {news.text}</p>}
+      </div>
+
       {current.length ? current.map((set) => (
         <article key={set.id} className={s.card}>
           <p className={s.tag}>{sectionName(set.tier, "gu")} · {editionName(set.edition)} · {w[set.state as "waiting"]}</p>
@@ -54,6 +103,8 @@ export default function Insta({ lang, sets, on }: { lang: "gu" | "en"; sets: Ins
                   <img src={`${set.image}?card=${i + 1}&w=360`} width={360} height={450} alt={c.headline} loading="lazy" />
                   {set.state === "waiting" && (
                     <figcaption>
+                      {i > 0 && <form action={moveInstaCard.bind(null, set.id, i, -1)}><button className={s.small}>{w.earlier}</button></form>}
+                      {i < set.cards.length - 1 && <form action={moveInstaCard.bind(null, set.id, i, 1)}><button className={s.small}>{w.later}</button></form>}
                       {c.options.length > 1 && <form action={nextInstaPhoto.bind(null, set.id, i)}><button className={s.small}>{w.next} ({nn(c.pick + 1)}/{nn(c.options.length)})</button></form>}
                       {set.cards.length > MIN_KEPT && <form action={dropInstaCard.bind(null, set.id, i)}><button className={s.small}>{w.drop}</button></form>}
                     </figcaption>
@@ -86,6 +137,23 @@ export default function Insta({ lang, sets, on }: { lang: "gu" | "en"; sets: Ins
           <li key={x.id}><span>{sectionName(x.tier, "gu")} · {editionName(x.edition)}</span>{x.postUrl && <a href={x.postUrl} target="_blank" rel="noopener">{w.see}</a>}</li>
         ))}</ul>
       </>}
+
+      <details className={s.more}><summary>{w.settings}</summary>
+        <form className={s.form} action={saveInstaTimes}>
+          <fieldset className={s.pick}><legend>{w.how}</legend>
+            <div className={s.pills}>
+              <label><input type="radio" name="auto" value="on" defaultChecked={settings.auto} /><span>{w.auto}</span></label>
+              <label><input type="radio" name="auto" value="off" defaultChecked={!settings.auto} /><span>{w.byHand}</span></label>
+            </div>
+          </fieldset>
+          <fieldset className={s.pick}><legend>{w.times}</legend>
+            <div className={s.times}>{times.map((t, i) => <input key={i} type="time" name="time" defaultValue={t} className={s.select} aria-label={`${w.times} ${i + 1}`} />)}</div>
+            <span className={s.help}>{w.timesHelp}</span>
+          </fieldset>
+          <fieldset className={s.pick}><legend>{w.tiers}</legend>{tierPills(settings.tiers)}</fieldset>
+          <button className={s.yes} style={{ alignSelf: "flex-start" }}>{w.save}</button>
+        </form>
+      </details>
     </section>
   );
 }

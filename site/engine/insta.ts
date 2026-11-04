@@ -1,8 +1,9 @@
-// Instagram's sets (lib/insta.ts), run after each engine round (site-engine.yml): when an edition is due (8 in the
-// morning, 7 in the evening, India time, made an hour ahead) it picks each section's most important stories of the last
+// Instagram's sets (lib/insta.ts), run after each engine round (site-engine.yml), and between rounds when the editor asks
+// for a set or changed one (engine/listen.ts): when an edition is due (at the editor's times, India time, made an hour
+// ahead) or the editor asked for one, it picks each section's most important stories of the last
 // 12 hours, finds each a good photo, makes the cards' pictures with a real browser and tells the editor on Telegram;
-// a set the editor changed on the editor page gets its pictures made again. Sets left unapproved go at the next edition,
-// and the pictures of old ones leave the photo store after four days.
+// a set the editor changed on the editor page gets its pictures made again. A set left unapproved goes when a newer one of
+// its section is made, or after 12 hours, and the pictures of old ones leave the photo store after four days.
 //   node --experimental-strip-types --no-warnings site/engine/insta.ts           (what is due)
 //   node --experimental-strip-types --no-warnings site/engine/insta.ts --now     (an edition now, whatever the hour: to try)
 import { createHash, randomBytes } from "node:crypto";
@@ -11,8 +12,8 @@ import { del, put } from "@vercel/blob";
 import sharp from "sharp";
 import { db, storiesIn } from "../lib/db.ts";
 import {
-  MAX_STORIES, MIN_STORIES, MIN_WIDTH, SITE, captionFor, cardsHtml, editionName, editionNow, recentSets, saveSet, setsIn,
-  type Card, type CardPhoto, type InstaSet,
+  MAX_STORIES, MIN_STORIES, MIN_WIDTH, SITE, askDone, captionFor, cardsHtml, editionAt, editionName, editionNow, instaAsk, instaSettings,
+  putInstaNews, recentSets, saveSet, setsIn, type Card, type CardPhoto, type InstaSet,
 } from "../lib/insta.ts";
 import { sectionName, TIERS } from "../lib/sections.ts";
 import { tell } from "../lib/telegram.ts";
@@ -158,34 +159,61 @@ const sql = db();
 if (!sql) { console.log("no DATABASE_URL"); process.exit(0); }
 if (!process.env.BLOB_READ_WRITE_TOKEN) { console.log("no BLOB_READ_WRITE_TOKEN: the pictures can't be kept"); process.exit(0); }
 
-// --now: the edition of this half of the day, whatever the hour (to try it)
-const t = new Date(Date.now() + 5.5 * 3600_000);
-const edition = editionNow() ?? (process.argv.includes("--now") ? `${t.toISOString().slice(0, 10)}-${t.getUTCHours() < 13 ? "am" : "pm"}` : null);
+const settings = await instaSettings(sql);
+const ask = await instaAsk(sql);
 const recent = await recentSets(sql, 40);
 
-// sets left unapproved from an earlier edition go
-for (const s of recent.filter((s) => s.edition !== edition && (s.state === "waiting" || s.state === "making"))) {
-  s.state = "expired";
-  await saveSet(sql, s);
-  log(`${s.id}: expired`);
-}
 // the pictures of sets more than four days old leave the store (Instagram keeps its own copies)
 for (const s of recent.filter((s) => s.image && Date.now() - new Date(s.madeAt).getTime() > 4 * 86_400_000)) {
   await del(s.image!.replace(/^\/media\//, "")).catch(() => {});
   s.image = null;
   await saveSet(sql, s);
 }
+// sets left unapproved for 12 hours go
+for (const s of recent.filter((s) => (s.state === "waiting" || s.state === "making") && Date.now() - new Date(s.madeAt).getTime() > 12 * 3600_000)) {
+  s.state = "expired";
+  await saveSet(sql, s);
+  log(`${s.id}: expired`);
+}
 
-const made: InstaSet[] = [];
-if (edition && !recent.some((s) => s.edition === edition)) {
+/** an edition's sets for these sections; a newer set takes the place of its section's older one not yet up */
+async function edition(edition: string, tiers: typeof TIERS): Promise<{ made: InstaSet[]; left: string[] }> {
   log(`Edition ${edition}`);
-  for (const tier of TIERS) {
-    const set = await makeSet(sql, tier, edition);
-    if (set) { await saveSet(sql, set); made.push(set); }
+  const made: InstaSet[] = [];
+  for (const tier of tiers) {
+    const set = await makeSet(sql!, tier, edition);
+    if (!set) continue;
+    await saveSet(sql!, set);
+    made.push(set);
+    for (const old of recent.filter((o) => o.tier === tier && (o.state === "waiting" || o.state === "making"))) {
+      old.state = "expired";
+      await saveSet(sql!, old);
+      log(`${old.id}: expired, a newer set took its place`);
+    }
+    recent.unshift(set);
   }
+  return { made, left: tiers.filter((t) => !made.some((s) => s.tier === t)).map((t) => sectionName(t, "gu")) };
+}
+const told: { made: InstaSet[]; left: string[] }[] = [];
+
+// the editor's times; --now: one now, whatever the hour (to try it)
+const due = settings.auto && settings.times.length ? editionNow(settings.times) : null;
+const now = due ?? (process.argv.includes("--now") ? editionAt() : null);
+if (now && !recent.some((s) => s.edition === now)) {
+  const r = await edition(now, settings.tiers);
+  told.push(r);
   // no section had enough good stories: a set of none, so the edition counts as made and isn't tried every round
-  if (!made.length) await saveSet(sql, { id: `${edition}-none`, edition, tier: "gujarat", state: "expired", cards: [], caption: "", image: null,
-                                         madeAt: new Date().toISOString(), postedAt: null, postUrl: null, note: "too few stories with good photos" });
+  if (!r.made.length) await saveSet(sql, { id: `${now}-none`, edition: now, tier: "gujarat", state: "expired", cards: [], caption: "", image: null,
+                                           madeAt: new Date().toISOString(), postedAt: null, postUrl: null, note: "too few stories with good photos" });
+}
+// a set the editor asked for
+if (ask) {
+  const r = ask.tiers.length ? await edition(editionAt(), ask.tiers) : { made: [], left: [] };
+  await putInstaNews(sql, { at: new Date().toISOString(), text: [
+    ...r.made.map((s) => `${sectionName(s.tier, "gu")}: ${s.cards.length} સમાચાર`),
+    ...(r.left.length ? [`${r.left.join(", ")}: છેલ્લા ૧૨ કલાકમાં સારા ફોટાવાળા પૂરતા સમાચાર નથી`] : []),
+  ].join("; ") });
+  await askDone(sql, ask);
 }
 
 // pictures for the new sets and for those the editor changed
@@ -199,8 +227,7 @@ if (toMake.length) {
   }
 }
 
-if (made.length) {
-  const left = TIERS.filter((t) => !made.some((s) => s.tier === t)).map((t) => sectionName(t, "gu"));
+for (const { made, left } of told.filter((r) => r.made.length)) {
   await tell(`<b>ઇન્સ્ટાગ્રામ: ${editionName(made[0].edition)}</b>\n${made.map((s) => `${sectionName(s.tier, "gu")}: ${s.cards.length} સમાચાર`).join("\n")}` +
     `${left.length ? `\n(${left.join(", ")}: સારા ફોટાવાળા પૂરતા સમાચાર નથી)` : ""}\n\nજોઈને મંજૂર કરો: ${SITE}/editor?tab=insta`);
 }

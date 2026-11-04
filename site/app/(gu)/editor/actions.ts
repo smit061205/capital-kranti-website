@@ -10,7 +10,7 @@ import { help, type Draft, type Help } from "@/lib/aihelp.ts";
 import { GENRES, TIERS } from "@/lib/sections.ts";
 import { dropLeader, findLeader, saveLeader, type FoundLeader, type Leader } from "@/lib/leaders.ts";
 import { addAd, dropAd } from "@/lib/classifieds.ts";
-import { captionFor, getSet, MIN_KEPT, saveSet } from "@/lib/insta.ts";
+import { askInsta, captionFor, cleanTiers, cleanTimes, getSet, instaSettings, MIN_KEPT, saveInstaSettings, saveSet } from "@/lib/insta.ts";
 import { instagramOn, postSet } from "@/lib/instagram.ts";
 
 async function signedIn() {
@@ -136,7 +136,7 @@ async function instaSet(id: string) {
   const set = sql ? await getSet(sql, id) : null;
   return { sql: sql!, set };
 }
-/** a card taken out, or given its next photo: the pictures are made again by the engine's next round */
+/** a card taken out, or given its next photo: the pictures are made again by the engine within minutes */
 export async function dropInstaCard(id: string, i: number) {
   const { sql, set } = await instaSet(id);
   if (!set || set.state !== "waiting" || set.cards.length <= MIN_KEPT || !set.cards[i]) return refresh();
@@ -154,6 +154,33 @@ export async function nextInstaPhoto(id: string, i: number) {
   set.caption = captionFor(set.tier, set.edition, set.cards);
   set.state = "making";
   await saveSet(sql, set);
+  refresh();
+}
+/** a card moved one place earlier (-1) or later (1); the pictures are made again */
+export async function moveInstaCard(id: string, i: number, by: -1 | 1) {
+  const { sql, set } = await instaSet(id);
+  const j = i + by;
+  if (!set || set.state !== "waiting" || !set.cards[i] || !set.cards[j]) return refresh();
+  [set.cards[i], set.cards[j]] = [set.cards[j], set.cards[i]];
+  set.caption = captionFor(set.tier, set.edition, set.cards);
+  set.state = "making";
+  await saveSet(sql, set);
+  refresh();
+}
+/** a set made now, for the sections ticked (the engine makes it within minutes: engine/listen.ts) */
+export async function makeInstaNow(f: FormData) {
+  const { who, sql } = await signedIn();
+  const tiers = cleanTiers(f.getAll("tier"));
+  if (sql && tiers.length) await askInsta(sql, { tiers, at: new Date().toISOString(), by: who });
+  refresh();
+}
+/** the editor's times, sections and whether sets come by themselves */
+export async function saveInstaTimes(f: FormData) {
+  const { sql } = await signedIn();
+  if (!sql) return refresh();
+  const before = await instaSettings(sql);
+  const tiers = cleanTiers(f.getAll("tier"));
+  await saveInstaSettings(sql, { auto: f.get("auto") === "on", times: cleanTimes(f.getAll("time")), tiers: tiers.length ? tiers : before.tiers });
   refresh();
 }
 export async function captionInsta(id: string, f: FormData) {
