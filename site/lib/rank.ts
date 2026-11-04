@@ -27,13 +27,14 @@ const wordsOf = (s: Story) => new Set(((s.en?.headline || s.headline).toLowerCas
   .filter((w) => w.length >= 4 && !STOP.has(w)));
 
 /** Two stories of one event or one person's one day (4 Nov: Kohli's 13,000 runs and his chase record, side by side): the
- *  same file photo, or half their headline words in common. */
-export function sameStory(a: Story, b: Story): boolean {
+ *  same file photo, three headline words in common, half of them, or two words that hardly any other story of the day
+ *  has (4 Nov: "Agnipath change, Agniveers permanent in the forces" and "Cabinet clears permanent recruitment of
+ *  Agniveers" shared only those two, and went up side by side). `rare` says whether a word is one of those. */
+export function sameStory(a: Story, b: Story, rare: (w: string) => boolean = () => false): boolean {
   if (a.photo && b.photo && a.photo.url.replace(/^.*[-/]/, "") === b.photo.url.replace(/^.*[-/]/, "")) return true;
   const wa = wordsOf(a), wb = wordsOf(b);
-  let both = 0;
-  for (const w of wa) if (wb.has(w)) both++;
-  return both >= 3 || (both >= 2 && both / Math.min(wa.size, wb.size) >= 0.5);
+  const both = [...wa].filter((w) => wb.has(w));
+  return both.length >= 3 || both.filter(rare).length >= 2 || (both.length >= 2 && both.length / Math.min(wa.size, wb.size) >= 0.5);
 }
 
 /** the desk a story belongs to at the top: its first subject (sport, economy, ...) or else its place */
@@ -45,11 +46,15 @@ export function ranked(stories: Story[], now = Date.now(), size = 12): Story[] {
   // the last day and a half; older only when there's nothing newer (the paper alone, the engine stopped)
   const recent = stories.filter((s) => now - Date.parse(s.publishedAt) < 36 * 3600_000);
   const pool = (recent.length >= 6 ? recent : stories).map((s) => ({ s, score: topScore(s, now) })).sort((a, b) => b.score - a.score);
+  // a word in at most two of these stories' headlines (the two being compared)
+  const seen = new Map<string, number>();
+  for (const x of pool) for (const w of wordsOf(x.s)) seen.set(w, (seen.get(w) ?? 0) + 1);
+  const rare = (w: string) => (seen.get(w) ?? 0) <= 2;
   const top: { s: Story; score: number }[] = [];
   const later: { s: Story; score: number }[] = [];
   for (const x of pool) {
     if (top.length >= size) break;
-    if ([...top, ...later].some((y) => sameStory(x.s, y.s))) continue;
+    if ([...top, ...later].some((y) => sameStory(x.s, y.s, rare))) continue;
     if (top.length < 6 && (top.filter((y) => desk(y.s) === desk(x.s)).length >= 2 || top.filter((y) => y.s.tier === x.s.tier).length >= 3)) { later.push(x); continue; }
     top.push(x);
   }

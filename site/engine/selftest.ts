@@ -172,6 +172,14 @@ test("the front page's top: important and fresh first, one story of an event, no
   const kohli = { photo: { url: "https://upload.wikimedia.org/wikipedia/commons/thumb/a/ab/Virat_Kohli.jpg/1920px-Virat_Kohli.jpg", width: 1920, height: 1280 } };
   assert.ok(sameStory(st("Kohli breaks chase record", 7, 1, kohli), st("Kohli first to 13,000 runs", 7, 1, kohli)));
   assert.ok(!sameStory(st("Cabinet approves cattle insurance scheme", 7, 1), st("Manipur violence four dead", 7, 1)));
+  // two rare words in common are one event, two common ones are not
+  const ag1 = st("Major change in Agnipath scheme, Agniveers to be permanent in armed forces", 8, 1);
+  const ag2 = st("Cabinet decision: path cleared for permanent recruitment of Agniveers in army", 8, 1);
+  assert.ok(!sameStory(ag1, ag2));
+  assert.equal(ranked([ag1, ag2, st("Cabinet approves cattle insurance scheme", 7, 1), st("Cabinet clears lithium processing support", 7, 1),
+    st("Manipur violence four dead", 7, 1), st("Amul raises ghee prices", 6, 1)], now).filter((s) => /Agni/.test(s.en!.headline)).length, 1);
+  assert.equal(ranked([st("Cabinet approves cattle insurance scheme", 7, 1), st("Cabinet clears lithium processing support", 7, 1),
+    st("Cabinet extends fast track courts scheme", 7, 1), st("Manipur violence four dead", 7, 1), st("Amul raises ghee prices", 6, 1), st("Toyota Innova launch", 6, 1)], now).length, 6);
   // no more than two of one desk among the first six, and Gujarat's best brought in when it's near
   const sport = ["Kohli century Rajkot", "Neeraj javelin Doha", "Sindhu badminton title", "Mumbai Indians auction"].map((h) => st(h, 9, 0, { genres: ["sport"] }));
   const list = ranked([...sport, st("budget numbers economy", 7, 0, { genres: ["economy"] }), st("world summit talks", 7, 0, { tier: "world" }),
