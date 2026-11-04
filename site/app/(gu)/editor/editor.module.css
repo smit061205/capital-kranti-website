@@ -174,3 +174,5 @@ button.ghost:disabled, .yes:disabled { opacity: .6; cursor: wait }
 .quick .ghost { justify-content: center }
 .writeAv { background: #0B0B0F }
 .use dd.ok { color: var(--checked) } .use dd.bad { color: var(--no) }
+.times { display: flex; flex-wrap: wrap; gap: 10px }
+.times input { flex: 0 1 190px; min-width: 150px }

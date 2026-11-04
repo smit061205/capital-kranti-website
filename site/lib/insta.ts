@@ -6,7 +6,7 @@
 // This file is shared by the site and the engine: the sets in the database, the cards' page and the caption.
 import type { NeonQueryFunction } from "@neondatabase/serverless";
 import { dateText, num } from "./format.ts";
-import { sectionName } from "./sections.ts";
+import { sectionName, TIERS } from "./sections.ts";
 import type { Tier } from "./types.ts";
 import { prepared } from "./write.ts";
 
@@ -45,17 +45,91 @@ export const LANDMARKS: Record<Tier, Landmark> = {
            url: "https://upload.wikimedia.org/wikipedia/commons/thumb/9/97/The_Earth_seen_from_Apollo_17.jpg/1280px-The_Earth_seen_from_Apollo_17.jpg" },
 };
 
-// ---- editions: 8 in the morning and 7 in the evening, India time; each is made an hour ahead, for the editor to look at
+// ---- editions: at the editor's times (8 in the morning and 7 in the evening at first), India time; each is made an hour
+// ahead, for the editor to look at. The editor can also ask for a set at any hour ("make one now"), and change the times,
+// the sections and whether sets come by themselves (the user, 4 Nov: the editor "can't even change the timing").
 
 const india = (d: Date) => new Date(d.getTime() + 5.5 * 3600_000);
-/** the edition being made or shown now ("2026-11-03-am"), or null between them */
-export function editionNow(now = new Date()): string | null {
-  const t = india(now), h = t.getUTCHours(), day = t.toISOString().slice(0, 10);
-  return h >= 7 && h < 13 ? `${day}-am` : h >= 18 && h < 23 ? `${day}-pm` : null;
+/** the editor's choices, kept in the state table */
+export interface InstaSettings { auto: boolean; times: string[]; tiers: Tier[] }
+export const DEFAULT_SETTINGS: InstaSettings = { auto: true, times: ["08:00", "19:00"], tiers: [...TIERS] };
+export const MAX_TIMES = 4;
+/** made this long before an edition's time, and the edition's sets kept this long after it */
+const AHEAD = 60, AFTER = 4 * 60;
+const minutes = (t: string) => Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5));
+const hhmm = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}${String(m % 60).padStart(2, "0")}`;
+
+/** the edition being made or shown now ("2026-11-03-0800"), or null between them */
+export function editionNow(times = DEFAULT_SETTINGS.times, now = new Date()): string | null {
+  const t = india(now), at = t.getUTCHours() * 60 + t.getUTCMinutes();
+  const day = (d: number) => new Date(t.getTime() + d * 86_400_000).toISOString().slice(0, 10);
+  // yesterday's, today's and tomorrow's times in minutes from today's midnight (an 00:30 one is made the evening before)
+  const all = [-1, 0, 1].flatMap((d) => [...new Set(times)].map(minutes).map((m) => ({ d, m, a: d * 1440 + m }))).sort((x, y) => x.a - y.a);
+  for (const [i, e] of all.entries()) {
+    // from an hour before its time until four hours after, or until the next one starts being made
+    const next = all[i + 1]?.a ?? Infinity;
+    if (at >= e.a - AHEAD && at < Math.min(e.a + AFTER, next - AHEAD)) return `${day(e.d)}-${hhmm(e.m)}`;
+  }
+  return null;
+}
+/** an edition of this minute, for a set the editor asked for */
+export function editionAt(now = new Date()): string {
+  const t = india(now);
+  return `${t.toISOString().slice(0, 10)}-${hhmm(t.getUTCHours() * 60 + t.getUTCMinutes())}`;
+}
+/** "સવારે ૮:૦૦" for "08:00" */
+export function timeName(t: string, lang: "gu" | "en" = "gu"): string {
+  const h = Number(t.slice(0, 2)), m = t.slice(3, 5), h12 = h % 12 || 12;
+  if (lang === "en") return `${h12}:${m} ${h < 12 ? "am" : "pm"}`;
+  const part = h >= 4 && h < 12 ? "સવારે" : h >= 12 && h < 16 ? "બપોરે" : h >= 16 && h < 20 ? "સાંજે" : "રાત્રે";
+  return `${part} ${num(`${h12}:${m}`, "gu")}`;
 }
 export function editionName(edition: string): string {
-  return `${dateText(edition.slice(0, 10), "gu")}, ${edition.endsWith("am") ? "સવાર" : "સાંજ"}`;
+  const date = dateText(edition.slice(0, 10), "gu"), end = edition.slice(11);
+  // the first sets were named by half of the day
+  if (end === "am" || end === "pm") return `${date}, ${end === "am" ? "સવાર" : "સાંજ"}`;
+  return `${date}, ${timeName(`${end.slice(0, 2)}:${end.slice(2, 4)}`)}`;
 }
+
+// ---- the editor's choices and asks, in the state table
+
+async function stateOf(sql: Sql, key: string): Promise<unknown> {
+  await prepared(sql);
+  const [r] = await sql.query(`select value from state where key = $1`, [key]);
+  try { return r ? JSON.parse(r.value as string) : null; } catch { return null; }
+}
+async function putState(sql: Sql, key: string, value: unknown) {
+  await prepared(sql);
+  await sql.query(`insert into state (key, value) values ($1, $2) on conflict (key) do update set value = excluded.value`, [key, JSON.stringify(value)]);
+}
+const isTime = (t: unknown): t is string => typeof t === "string" && /^([01]\d|2[0-3]):[0-5]\d$/.test(t);
+/** times as the editor typed them: real times only, each once, in order, at most four */
+export const cleanTimes = (list: unknown[]): string[] => [...new Set(list.filter(isTime))].sort().slice(0, MAX_TIMES);
+export const cleanTiers = (list: unknown[]): Tier[] => TIERS.filter((t) => list.includes(t));
+
+export async function instaSettings(sql: Sql): Promise<InstaSettings> {
+  const v = (await stateOf(sql, "insta_settings")) as Partial<InstaSettings> | null;
+  if (!v) return DEFAULT_SETTINGS;
+  const tiers = cleanTiers(Array.isArray(v.tiers) ? v.tiers : []);
+  return { auto: v.auto !== false, times: cleanTimes(Array.isArray(v.times) ? v.times : []), tiers: tiers.length ? tiers : [...TIERS] };
+}
+export const saveInstaSettings = (sql: Sql, s: InstaSettings) => putState(sql, "insta_settings", s);
+
+/** a set the editor asked for, made by the engine within minutes (engine/listen.ts) */
+export interface InstaAsk { tiers: Tier[]; at: string; by: string }
+export async function instaAsk(sql: Sql): Promise<InstaAsk | null> {
+  const v = (await stateOf(sql, "insta_ask")) as InstaAsk | null;
+  return v && Array.isArray(v.tiers) && typeof v.at === "string" ? { ...v, tiers: cleanTiers(v.tiers) } : null;
+}
+export const askInsta = (sql: Sql, ask: InstaAsk) => putState(sql, "insta_ask", ask);
+/** the ask done: taken away only if it's still the same one (the editor may have asked again meanwhile) */
+export async function askDone(sql: Sql, ask: InstaAsk) {
+  await sql.query(`delete from state where key = 'insta_ask' and value::jsonb ->> 'at' = $1`, [ask.at]);
+}
+/** what the last ask came to, for the editor page: "ગુજરાત: ૬ સમાચાર; વિશ્વ: પૂરતા સમાચાર નથી" */
+export interface InstaNews { at: string; text: string }
+export const instaNews = async (sql: Sql) => (await stateOf(sql, "insta_news")) as InstaNews | null;
+export const putInstaNews = (sql: Sql, n: InstaNews) => putState(sql, "insta_news", n);
 
 // ---- the sets in the database
 

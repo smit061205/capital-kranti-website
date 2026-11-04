@@ -45,3 +45,14 @@ export async function postSet(set: InstaSet): Promise<string> {
   const link = await call("GET", posted.id as string, { fields: "permalink" }).catch(() => ({ permalink: "" }));
   return (link.permalink as string) || "https://www.instagram.com/";
 }
+
+/** The account the settings reach, for the editor page: its name, or Instagram's reason it can't be reached. */
+export async function instagramWho(): Promise<{ name: string } | { why: string } | null> {
+  if (!instagramOn()) return null;
+  try {
+    const me = await call("GET", process.env.INSTAGRAM_USER_ID!, { fields: "username" });
+    return { name: String(me.username ?? "") };
+  } catch (e) {
+    return { why: e instanceof Error ? e.message : String(e) };
+  }
+}
