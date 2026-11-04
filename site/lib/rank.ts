@@ -24,7 +24,7 @@ const STOP = new Set(["with", "from", "that", "this", "after", "over", "into", "
   "amid", "about", "more", "than", "india", "indian", "gujarat", "government", "govt", "first", "year", "years", "crore", "lakh"]);
 /** a headline's own words, in English when it has its English (the same event is told in different Gujarati words) */
 const wordsOf = (s: Story) => new Set(((s.en?.headline || s.headline).toLowerCase().match(/[\p{L}\p{M}\p{N}]+/gu) ?? [])
-  .filter((w) => w.length >= 4 && !STOP.has(w)));
+  .filter((w) => w.length >= 4 && !STOP.has(w)).map((w) => w.replace(/s$/, "")));
 
 /** Two stories of one event or one person's one day (4 Nov: Kohli's 13,000 runs and his chase record, side by side): the
  *  same file photo, three headline words in common, half of them, or two words that hardly any other story of the day
@@ -46,10 +46,10 @@ export function ranked(stories: Story[], now = Date.now(), size = 12): Story[] {
   // the last day and a half; older only when there's nothing newer (the paper alone, the engine stopped)
   const recent = stories.filter((s) => now - Date.parse(s.publishedAt) < 36 * 3600_000);
   const pool = (recent.length >= 6 ? recent : stories).map((s) => ({ s, score: topScore(s, now) })).sort((a, b) => b.score - a.score);
-  // a word in at most two of these stories' headlines (the two being compared)
+  // a word in at most three of these stories' headlines (4 Nov: three stories of the Agniveers' cabinet decision)
   const seen = new Map<string, number>();
   for (const x of pool) for (const w of wordsOf(x.s)) seen.set(w, (seen.get(w) ?? 0) + 1);
-  const rare = (w: string) => (seen.get(w) ?? 0) <= 2;
+  const rare = (w: string) => (seen.get(w) ?? 0) <= 3;
   const top: { s: Story; score: number }[] = [];
   const later: { s: Story; score: number }[] = [];
   for (const x of pool) {
