@@ -13,7 +13,7 @@ import { del, put } from "@vercel/blob";
 import sharp from "sharp";
 import { db, storiesIn } from "../lib/db.ts";
 import {
-  MAX_STORIES, MIN_STORIES, MIN_WIDTH, SITE, askDone, captionFor, cardsHtml, editionAt, editionName, editionNow, instaAsk, instaSettings,
+  MAX_STORIES, MIN_STORIES, MIN_WIDTH, SITE, askDone, captionFor, cardsHtml, editionAt, editionName, editionNow, instaAsk, instaLog, instaSettings,
   putInstaNews, putInstaProgress, recentSets, saveSet, setsIn, type Card, type CardPhoto, type InstaProgress, type InstaSet,
 } from "../lib/insta.ts";
 import { num } from "../lib/format.ts";
@@ -24,7 +24,12 @@ import { askGemini, type GeminiImage } from "./ai.ts";
 import { UA as WIKI_UA, commonsAt, commonsPictures, subjectOf } from "./wikiphoto.ts";
 
 type Sql = NeonQueryFunction<false, false>;
-const log = (s: string) => console.log(s);
+// each line also goes to the editor page's log (lib/insta.ts), written before the run ends
+const logged: Promise<void>[] = [];
+const log = (s: string) => {
+  console.log(s);
+  if (sql) logged.push(instaLog(sql, "engine", s.trim()));
+};
 
 // ---- a photo for each story: its own when it's good, else free photos of its subject from Wikimedia Commons, each looked at
 
@@ -56,6 +61,7 @@ async function thumb(url: string): Promise<string | null> {
  *  only when it has none are file photos of its subject looked for, each looked at by Gemini (4 Nov: the stories' own
  *  Commons photos were judged again and mostly turned down, and with Gemini busy none were kept, so no set was made). */
 async function photosFor(sql: Sql, s: Story): Promise<CardPhoto[]> {
+  const short = `“${s.headline.slice(0, 60)}”`;
   if (s.photo && s.photo.width >= MIN_WIDTH) {
     return [{ url: s.photo.url, width: s.photo.width, height: s.photo.height, credit: s.photo.credit, representative: !!s.photo.credit,
               symbolic: /^પ્રતીકાત્મક/.test(s.caption ?? "") }];
@@ -63,12 +69,14 @@ async function photosFor(sql: Sql, s: Story): Promise<CardPhoto[]> {
   const offers: Offer[] = [];
   // file photos of the story's subject
   const who = await subjectOf(sql, { kicker: s.kicker, headline: s.en?.headline || s.headline, deck: s.en?.deck || s.deck, body: s.en?.body || s.body, caption: "", model: "" });
+  if (!who) log(`${short}: પોતાનો મોટો ફોટો નથી, અને ફાઇલ ફોટા માટે કોઈ વિષય (વ્યક્તિ/સ્થળ) ન મળ્યો`);
   if (who) {
     for (const p of (await commonsPictures(who.title, 8)).filter((p) => p.full >= 1080).slice(0, 4)) {
       const big = commonsAt(p, 1920);
       offers.push({ photo: { url: big.url, width: big.width, height: big.height, credit: p.credit, representative: true }, fetchUrl: commonsAt(p, 960).url, about: p.alt });
     }
   }
+  if (who && !offers.length) log(`${short}: “${who.title}”ના મોટા ફાઇલ ફોટા વિકિમીડિયા પર નથી`);
   if (!offers.length) return [];
   const images: GeminiImage[] = [];
   const shown: Offer[] = [];
@@ -88,10 +96,12 @@ async function photosFor(sql: Sql, s: Story): Promise<CardPhoto[]> {
   }, { wait: false, timeoutMs: 90_000 });
   if (!res.ok) {
     // the photos can't be looked at now: no file photo unseen
-    log(`    photos not looked at (${res.why.slice(0, 100)})`);
+    log(`${short}: ફોટા તપાસાયા નહીં, AI વ્યસ્ત (${res.why.slice(0, 160)})`);
     return [];
   }
   const seen = new Map(res.value.map((x) => [x.n, x]));
+  const good = shown.filter((_, i) => { const x = seen.get(i + 1); return x && x.fits && x.kind === "photo" && x.quality >= 6; }).length;
+  log(`${short}: “${who!.title}”ના ${shown.length} ફાઇલ ફોટા AI (${res.model})એ જોયા, ${good} ચાલે એવા`);
   return shown
     .map((o, i) => ({ o, x: seen.get(i + 1) }))
     .filter(({ x }) => x && x.fits && x.kind === "photo" && x.quality >= 6)
@@ -111,17 +121,19 @@ async function makeSet(sql: Sql, tier: Tier, edition: string, seen: (looked: num
   const stories = [...all.filter((s) => at(s) >= Date.now() - 12 * 3600_000).sort(byWeight), ...all.filter((s) => at(s) < Date.now() - 12 * 3600_000).sort(byWeight)];
   const cards: Card[] = [];
   const looking = stories.slice(0, 20);
+  log(`${sectionName(tier, "gu")}: સમાચાર પસંદ થાય છે (${looking.length} સૌથી મહત્ત્વના જોવાશે)`);
   // three stories at a time (each waits on Wikimedia and two AI answers): a section in a few minutes, not ten
   for (let i = 0; i < looking.length && cards.length < MAX_STORIES; i += 3) {
     const batch = looking.slice(i, i + 3);
     const found = await Promise.all(batch.map((s) => photosFor(sql, s).catch(() => [] as CardPhoto[])));
     for (const [k, s] of batch.entries()) {
-      log(`  ${s.headline.slice(0, 70)}: ${found[k].length} photo(s)`);
+      if (found[k].length) log(`“${s.headline.slice(0, 60)}”: ${found[k].length} ફોટો, કાર્ડ ${cards.length < MAX_STORIES ? "બન્યું" : "નહીં (સેટ ભરાઈ ગયો)"}`);
       if (found[k].length && cards.length < MAX_STORIES) cards.push({ storyId: s.id, headline: s.headline, deck: s.deck, options: found[k], pick: 0 });
     }
     await seen(Math.min(i + 3, looking.length), looking.length, cards.length);
   }
-  log(`${sectionName(tier, "en")}: ${stories.length} stories in 24 hours, ${looking.length} looked at, ${cards.length} with a good photo`);
+  log(`${sectionName(tier, "gu")}: ૨૪ કલાકમાં ${stories.length} સમાચાર, ${looking.length} જોયા, ${cards.length} સારા ફોટાવાળા` +
+    (cards.length < MIN_STORIES ? `: ઓછામાં ઓછા ${MIN_STORIES} જોઈએ, તેથી સેટ ન બન્યો` : ""));
   if (cards.length < MIN_STORIES) return null;
   return {
     id: `${edition}-${tier}-${randomBytes(3).toString("hex")}`, edition, tier, state: "making", cards,
@@ -140,6 +152,7 @@ async function render(sql: Sql, sets: InstaSet[], report = true) {
     for (const [i, set] of sets.entries()) {
       if (progress && report) await step(`ચિત્રો બની રહ્યાં છે: ${sectionName(set.tier, "gu")} (${num(i + 1, "gu")}/${num(sets.length, "gu")})`,
                                progress.total - (sets.length - i));
+      log(`${sectionName(set.tier, "gu")}: ${set.cards.length + 1} કાર્ડનાં ચિત્રો બને છે`);
       const page = await browser.newPage({ viewport: { width: 1200, height: 1500 } });
       await page.setExtraHTTPHeaders({ "user-agent": WIKI_UA });
       await page.setContent(cardsHtml(set), { waitUntil: "networkidle", timeout: 90_000 });
@@ -160,7 +173,7 @@ async function render(sql: Sql, sets: InstaSet[], report = true) {
       set.note = "";
       await saveSet(sql, set);
       if (old && old !== set.image) await del(old.replace(/^\/media\//, "")).catch(() => {});
-      log(`${set.id}: ${shots.length} cards, ${Math.round(tall.length / 1024)} KB`);
+      log(`${sectionName(set.tier, "gu")}: ${shots.length} કાર્ડનાં ચિત્રો તૈયાર (${Math.round(tall.length / 1024)} KB): મંજૂરીની રાહ`);
     }
   } finally {
     await browser.close();
@@ -189,9 +202,11 @@ const settings = await instaSettings(sql);
 const [lock] = await sql.query(`insert into state (key, value) values ('insta_lock', $1) on conflict (key) do update set value = excluded.value
   where state.value < $2 returning key`, [new Date().toISOString(), new Date(Date.now() - 16 * 60_000).toISOString()]);
 if (!lock) { console.log("another Instagram run is at work"); process.exit(0); }
+const ending = async () => { await Promise.all(logged); };
 const ask = await instaAsk(sql);
 // --asked: only a set the editor asked for (the round's first step); nothing else when there's none
 if (process.argv.includes("--asked") && !ask) { await sql.query(`delete from state where key = 'insta_lock'`); process.exit(0); }
+if (ask) log(`${ask.by || "સંપાદક"}એ માગેલો સેટ (${ask.tiers.map((t) => sectionName(t, "gu")).join(", ")}): કામ શરૂ`);
 const recent = await recentSets(sql, 40);
 
 // the pictures of sets more than four days old leave the store (Instagram keeps its own copies)
@@ -204,12 +219,12 @@ for (const s of recent.filter((s) => s.image && Date.now() - new Date(s.madeAt).
 for (const s of recent.filter((s) => (s.state === "waiting" || s.state === "making") && Date.now() - new Date(s.madeAt).getTime() > 12 * 3600_000)) {
   s.state = "expired";
   await saveSet(sql, s);
-  log(`${s.id}: expired`);
+  log(`${sectionName(s.tier, "gu")}નો ${editionName(s.edition)}નો સેટ ૧૨ કલાક મંજૂર ન થયો: હટાવ્યો`);
 }
 
 /** an edition's sets for these sections; a newer set takes the place of its section's older one not yet up */
 async function edition(edition: string, tiers: typeof TIERS): Promise<{ made: InstaSet[]; left: string[] }> {
-  log(`Edition ${edition}`);
+  log(`સેટ બનવાનું શરૂ: ${editionName(edition)} (${tiers.map((t) => sectionName(t, "gu")).join(", ")})`);
   const made: InstaSet[] = [];
   const at = new Date().toISOString();
   progress = { started: at, at, step: "સમાચાર પસંદ થઈ રહ્યા છે", done: 0, total: tiers.length * PER_SET };
@@ -223,11 +238,11 @@ async function edition(edition: string, tiers: typeof TIERS): Promise<{ made: In
     made.push(set);
     // its pictures at once, so the editor sees each section's set while the next is made
     await step(`ચિત્રો બની રહ્યાં છે: ${name}`, n * PER_SET + MAX_STORIES);
-    await render(sql!, [set], false).catch((e) => log(`${set.id}: pictures not made yet (${e instanceof Error ? e.message : e})`));
+    await render(sql!, [set], false).catch((e) => log(`${name}: ચિત્રો હજી ન બન્યાં (${e instanceof Error ? e.message : e}); ફરી પ્રયાસ થશે`));
     for (const old of recent.filter((o) => o.tier === tier && (o.state === "waiting" || o.state === "making"))) {
       old.state = "expired";
       await saveSet(sql!, old);
-      log(`${old.id}: expired, a newer set took its place`);
+      log(`${name}નો જૂનો સેટ (${editionName(old.edition)}) હટાવ્યો: નવો આવ્યો`);
     }
     recent.unshift(set);
   }
@@ -267,7 +282,7 @@ if (toMake.length) {
   try {
     await render(sql, toMake);
   } catch (e) {
-    log(`the pictures weren't made: ${e instanceof Error ? e.message : e}`);
+    log(`ચિત્રો ન બન્યાં: ${e instanceof Error ? e.message : e}; આગલી વખતે ફરી પ્રયાસ થશે`);
     for (const s of toMake) { s.note = `ચિત્રો બન્યાં નહીં; આગલા ચક્રમાં ફરી પ્રયાસ થશે.`; await saveSet(sql, s); }
   }
 }
@@ -278,3 +293,4 @@ for (const { made, left } of told.filter((r) => r.made.length)) {
 }
 await putInstaProgress(sql, null).catch(() => {});
 await sql.query(`delete from state where key = 'insta_lock'`);
+await ending();

@@ -7,10 +7,10 @@ import { db } from "@/lib/db.ts";
 import { redirect } from "next/navigation";
 import { addFeature, addStory, COOKIE, decideFeature, editorOf, restoreStory, saveFeature, saveStory, setPaused, withdrawStory, type NewFeature, type NewStory, type Words } from "@/lib/editor.ts";
 import { help, type Draft, type Help } from "@/lib/aihelp.ts";
-import { GENRES, TIERS } from "@/lib/sections.ts";
+import { GENRES, sectionName, TIERS } from "@/lib/sections.ts";
 import { dropLeader, findLeader, saveLeader, type FoundLeader, type Leader } from "@/lib/leaders.ts";
 import { addAd, dropAd } from "@/lib/classifieds.ts";
-import { askInsta, captionFor, cleanTiers, cleanTimes, getSet, instaSettings, MIN_KEPT, saveInstaSettings, saveSet } from "@/lib/insta.ts";
+import { askInsta, captionFor, instaLog, cleanTiers, cleanTimes, getSet, instaSettings, MIN_KEPT, saveInstaSettings, saveSet } from "@/lib/insta.ts";
 import { instagramOn, postSet } from "@/lib/instagram.ts";
 
 async function signedIn() {
@@ -132,14 +132,17 @@ export async function dropAdAction(id: string) { const { sql } = await signedIn(
 
 // Instagram's sets (Insta.tsx, lib/insta.ts)
 async function instaSet(id: string) {
-  const { sql } = await signedIn();
+  const { sql, who } = await signedIn();
   const set = sql ? await getSet(sql, id) : null;
-  return { sql: sql!, set };
+  // a line in the editor page's log (lib/insta.ts): who pressed what, on which set
+  const say = (line: string, by = who) => (sql && set ? instaLog(sql, by, `${sectionName(set.tier, "gu")}: ${line}`) : Promise.resolve());
+  return { sql: sql!, set, say };
 }
 /** a card taken out, or given its next photo: the pictures are made again by the engine within minutes */
 export async function dropInstaCard(id: string, i: number) {
-  const { sql, set } = await instaSet(id);
+  const { sql, set, say } = await instaSet(id);
   if (!set || set.state !== "waiting" || set.cards.length <= MIN_KEPT || !set.cards[i]) return refresh();
+  await say(`કાર્ડ ${i + 1} હટાવ્યું (“${set.cards[i].headline.slice(0, 50)}”): ચિત્રો ફરી બનશે`);
   set.cards.splice(i, 1);
   set.caption = captionFor(set.tier, set.edition, set.cards);
   set.state = "making";
@@ -147,10 +150,11 @@ export async function dropInstaCard(id: string, i: number) {
   refresh();
 }
 export async function nextInstaPhoto(id: string, i: number) {
-  const { sql, set } = await instaSet(id);
+  const { sql, set, say } = await instaSet(id);
   const c = set?.cards[i];
   if (!set || set.state !== "waiting" || !c || c.options.length < 2) return refresh();
   c.pick = (c.pick + 1) % c.options.length;
+  await say(`કાર્ડ ${i + 1}નો બીજો ફોટો (${c.pick + 1}/${c.options.length}): ચિત્રો ફરી બનશે`);
   set.caption = captionFor(set.tier, set.edition, set.cards);
   set.state = "making";
   await saveSet(sql, set);
@@ -158,10 +162,11 @@ export async function nextInstaPhoto(id: string, i: number) {
 }
 /** a card moved one place earlier (-1) or later (1); the pictures are made again */
 export async function moveInstaCard(id: string, i: number, by: -1 | 1) {
-  const { sql, set } = await instaSet(id);
+  const { sql, set, say } = await instaSet(id);
   const j = i + by;
   if (!set || set.state !== "waiting" || !set.cards[i] || !set.cards[j]) return refresh();
   [set.cards[i], set.cards[j]] = [set.cards[j], set.cards[i]];
+  await say(`કાર્ડ ${i + 1} ${by < 0 ? "આગળ" : "પાછળ"} ખસેડ્યું: ચિત્રો ફરી બનશે`);
   set.caption = captionFor(set.tier, set.edition, set.cards);
   set.state = "making";
   await saveSet(sql, set);
@@ -171,51 +176,62 @@ export async function moveInstaCard(id: string, i: number, by: -1 | 1) {
 export async function makeInstaNow(f: FormData) {
   const { who, sql } = await signedIn();
   const tiers = cleanTiers(f.getAll("tier"));
-  if (sql && tiers.length) await askInsta(sql, { tiers, at: new Date().toISOString(), by: who });
+  if (sql && tiers.length) {
+    await askInsta(sql, { tiers, at: new Date().toISOString(), by: who });
+    await instaLog(sql, who, `નવો સેટ માગ્યો: ${tiers.map((t) => sectionName(t, "gu")).join(", ")}`);
+  }
   refresh();
 }
 /** the editor's times, sections and whether sets come by themselves */
 export async function saveInstaTimes(f: FormData) {
-  const { sql } = await signedIn();
+  const { sql, who } = await signedIn();
   if (!sql) return refresh();
   const before = await instaSettings(sql);
   const tiers = cleanTiers(f.getAll("tier"));
-  await saveInstaSettings(sql, { auto: f.get("auto") === "on", times: cleanTimes(f.getAll("time")), tiers: tiers.length ? tiers : before.tiers });
+  const after = { auto: f.get("auto") === "on", times: cleanTimes(f.getAll("time")), tiers: tiers.length ? tiers : before.tiers };
+  await saveInstaSettings(sql, after);
+  await instaLog(sql, who, `સમય બદલ્યા: ${after.auto ? after.times.join(", ") || "કોઈ સમય નહીં" : "ફક્ત માગું ત્યારે"}; વિભાગ: ${after.tiers.map((t) => sectionName(t, "gu")).join(", ")}`);
   refresh();
 }
 export async function captionInsta(id: string, f: FormData) {
-  const { sql, set } = await instaSet(id);
+  const { sql, set, say } = await instaSet(id);
   const caption = String(f.get("caption") ?? "").replace(/\r\n/g, "\n").trim().slice(0, 2200);
-  if (set && caption && set.state !== "posted") { set.caption = caption; await saveSet(sql, set); }
+  if (set && caption && set.state !== "posted") { set.caption = caption; await saveSet(sql, set); await say("ઇન્સ્ટાગ્રામ પરના શબ્દો બદલ્યા"); }
   refresh();
 }
 /** approved: put up at once when the account is connected, else kept approved for "Post now" */
 export async function approveInsta(id: string) {
-  const { sql, set } = await instaSet(id);
+  const { sql, set, say } = await instaSet(id);
   if (!set || !set.image || !["waiting", "approved", "failed"].includes(set.state)) return refresh();
   // pressed again while it's going up: not put up twice (postedAt, while approved, is when it started going up)
-  if (set.state === "approved" && set.postedAt && Date.now() - new Date(set.postedAt).getTime() < 90_000) return refresh();
+  if (set.state === "approved" && set.postedAt && Date.now() - new Date(set.postedAt).getTime() < 90_000) {
+    await say("ફરી દબાવ્યું, પણ સેટ મુકાઈ જ રહ્યો છે: બે વાર નહીં મુકાય");
+    return refresh();
+  }
   set.state = "approved";
   set.note = "";
   set.postedAt = instagramOn() ? new Date().toISOString() : null;
   await saveSet(sql, set);
+  await say(instagramOn() ? "મંજૂર કર્યો: ઇન્સ્ટાગ્રામ પર મુકાય છે" : "મંજૂર કર્યો; ઇન્સ્ટાગ્રામ ખાતું જોડાયેલું નથી, તેથી હજી નહીં મુકાય");
   if (instagramOn()) {
     try {
-      set.postUrl = await postSet(set);
+      set.postUrl = await postSet(set, (line) => say(line, "instagram"));
       set.state = "posted";
       set.postedAt = new Date().toISOString();
       revalidatePath("/insta");
+      await say(`મુકાઈ ગયો: ${set.postUrl}`, "instagram");
     } catch (e) {
       set.state = "failed";
       set.postedAt = null;
       set.note = `ઇન્સ્ટાગ્રામે ના પાડી: ${e instanceof Error ? e.message : e}`.slice(0, 300);
+      await say(`ન મુકાયો. ${set.note}`, "instagram");
     }
     await saveSet(sql, set);
   }
   refresh();
 }
 export async function skipInsta(id: string) {
-  const { sql, set } = await instaSet(id);
-  if (set && set.state !== "posted") { set.state = "expired"; await saveSet(sql, set); }
+  const { sql, set, say } = await instaSet(id);
+  if (set && set.state !== "posted") { set.state = "expired"; await saveSet(sql, set); await say("“આ સેટ ન મૂકો”: હટાવ્યો"); }
   refresh();
 }

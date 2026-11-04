@@ -179,3 +179,15 @@ button.ghost:disabled, .yes:disabled { opacity: .6; cursor: wait }
 .progress { margin: 0 0 10px; padding: 14px 16px; border-radius: var(--r); background: color-mix(in srgb, var(--checked) 9%, var(--bg)); color: var(--checked) }
 .progress progress { display: block; width: 100%; height: 14px; accent-color: var(--checked) }
 .progress p { margin: 10px 0 0; font-size: 16px }
+/* a pressed button while its work is done (Press.tsx) */
+.yes:disabled, .no:disabled, .small:disabled { opacity: .7; cursor: progress }
+.yes :global(.spin), .no :global(.spin), .small :global(.spin) { display: inline-block; width: 1em; height: 1em; margin-right: 6px; vertical-align: -2px;
+  border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin .8s linear infinite }
+@keyframes spin { to { transform: rotate(360deg) } }
+/* Instagram's log (Insta.tsx): newest first, time, who, what */
+.log { list-style: none; margin: 8px 0 0; padding: 0; max-height: 420px; overflow-y: auto; border-top: 1px solid var(--rule); font: 15px/1.45 var(--ui) }
+.log li { display: grid; grid-template-columns: 5.5em 6.5em 1fr; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--rule) }
+.log time { font-variant-numeric: tabular-nums; opacity: .75 }
+.log b { font-weight: 600; overflow-wrap: anywhere }
+.log span { overflow-wrap: anywhere }
+@media (max-width: 600px) { .log li { grid-template-columns: 4.5em 1fr } .log b { display: none } }
