@@ -50,13 +50,16 @@ async function thumb(url: string): Promise<string | null> {
   }
 }
 
-/** The photos fit for a story's card, best first (its own first): up to three, for the editor's "another photo". */
+/** The photos fit for a story's card, best first: up to three, for the editor's "another photo". The photo the story has on
+ *  the site comes first and is trusted (the news engine already chose it for this story, and a symbolic one is labelled);
+ *  only when it has none are file photos of its subject looked for, each looked at by Gemini (4 Nov: the stories' own
+ *  Commons photos were judged again and mostly turned down, and with Gemini busy none were kept, so no set was made). */
 async function photosFor(sql: Sql, s: Story): Promise<CardPhoto[]> {
-  const offers: Offer[] = [];
   if (s.photo && s.photo.width >= MIN_WIDTH) {
-    offers.push({ photo: { url: s.photo.url, width: s.photo.width, height: s.photo.height, credit: s.photo.credit, representative: !!s.photo.credit },
-                  fetchUrl: s.photo.url.startsWith("/") ? SITE + s.photo.url : s.photo.url, about: s.caption });
+    return [{ url: s.photo.url, width: s.photo.width, height: s.photo.height, credit: s.photo.credit, representative: !!s.photo.credit,
+              symbolic: /^પ્રતીકાત્મક/.test(s.caption ?? "") }];
   }
+  const offers: Offer[] = [];
   // file photos of the story's subject
   const who = await subjectOf(sql, { kicker: s.kicker, headline: s.en?.headline || s.headline, deck: s.en?.deck || s.deck, body: s.en?.body || s.body, caption: "", model: "" });
   if (who) {
@@ -73,7 +76,7 @@ async function photosFor(sql: Sql, s: Story): Promise<CardPhoto[]> {
     await new Promise((r) => setTimeout(r, 250)); // Wikimedia asks programs not to rush it
     if (!jpeg) continue;
     shown.push(o);
-    images.push({ label: `PHOTO ${shown.length} (${o.photo.representative ? "a file photo" : "the story's own"}; its description: ${o.about.slice(0, 160) || "none"})`, jpeg });
+    images.push({ label: `PHOTO ${shown.length} (a file photo; its description: ${o.about.slice(0, 160) || "none"})`, jpeg });
   }
   if (!images.length) return [];
   const res = await askGemini(sql, "lite", {
@@ -83,15 +86,15 @@ async function photosFor(sql: Sql, s: Story): Promise<CardPhoto[]> {
     return Array.isArray(x) ? x.map((y) => ({ n: Number(y.n), fits: y.fits === true, kind: String(y.kind ?? ""), quality: Number(y.quality) || 0 })) : null;
   }, { wait: false, timeoutMs: 90_000 });
   if (!res.ok) {
-    // the photos can't be looked at now: the story's own, as the site shows it, and no file photo unseen
+    // the photos can't be looked at now: no file photo unseen
     log(`    photos not looked at (${res.why.slice(0, 100)})`);
-    return shown.filter((o) => !o.photo.representative).map((o) => o.photo);
+    return [];
   }
   const seen = new Map(res.value.map((x) => [x.n, x]));
   return shown
     .map((o, i) => ({ o, x: seen.get(i + 1) }))
     .filter(({ x }) => x && x.fits && x.kind === "photo" && x.quality >= 6)
-    .sort((a, b) => Number(!!a.o.photo.representative) - Number(!!b.o.photo.representative) || b.x!.quality - a.x!.quality)
+    .sort((a, b) => b.x!.quality - a.x!.quality)
     .slice(0, 3)
     .map(({ o }) => o.photo);
 }

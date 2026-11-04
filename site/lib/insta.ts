@@ -20,8 +20,9 @@ export const MIN_KEPT = 3;
 export const MIN_WIDTH = 1000;
 export const SITE = "https://www.capitalkranti.co.in";
 
-/** representative: a file photo of the story's subject (Wikimedia Commons), marked "ફાઇલ" on the card */
-export interface CardPhoto { url: string; width: number; height: number; credit?: string; representative?: boolean }
+/** representative: a file photo of the story's subject (Wikimedia Commons), marked "ફાઇલ" on the card; symbolic: a photo of
+ *  the kind of thing, marked "પ્રતીકાત્મક" as the site marks it */
+export interface CardPhoto { url: string; width: number; height: number; credit?: string; representative?: boolean; symbolic?: boolean }
 /** a story's card: the photos found for it, best first, and the one in use */
 /** deck: the story's short summary, a small line under the headline (the user, 3 Nov) */
 export interface Card { storyId: string; headline: string; deck?: string; options: CardPhoto[]; pick: number }
@@ -257,7 +258,7 @@ export function cardsHtml(set: { tier: Tier; edition: string; cards: Card[] }, s
   const top = (i: number) => `<div class="top"><span class="logo">કેપિટલ ક્રાંતિ</span><span class="n">${num(i, "gu")}/${num(total, "gu")}</span></div>`;
   const cards = set.cards.map((c, i) => {
     const p = photoOfCard(c);
-    const credit = p.credit ? `ફોટો: ${p.representative ? "ફાઇલ · " : ""}${p.credit.replace(/, Wikimedia Commons$/, "")}` : "capitalkranti.co.in";
+    const credit = p.credit ? `ફોટો: ${p.symbolic ? "પ્રતીકાત્મક · " : p.representative ? "ફાઇલ · " : ""}${p.credit.replace(/, Wikimedia Commons$/, "")}` : "capitalkranti.co.in";
     return `<section data-card="${i + 1}" class="c">${picture(p)}${top(i + 1)}
       <div class="body">${tag}<div class="hl${size(c.headline)}"><span>${esc(c.headline)}</span></div>${c.deck ? `<div class="dek"><span>${esc(c.deck)}</span></div>` : ""}
       <div class="foot"><span>${esc(date)}</span><span>${esc(credit)}</span></div></div></section>`;
