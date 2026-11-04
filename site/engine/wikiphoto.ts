@@ -212,7 +212,29 @@ async function pexels(search: string): Promise<{ url: string; width: number; hei
   });
 }
 
-/** A photo for a story without one, shown from Wikimedia's or Pexels' own servers (4 Nov: storing each took one of the
+/** Free stock photos from Unsplash (4 Nov: Pexels gave the user no key; Unsplash gives one at once, for a free developer
+ *  app), when the UNSPLASH_ACCESS_KEY secret is set; landscape, at least 1200 wide, shown from Unsplash's own servers as
+ *  its rules ask. `used` tells Unsplash a photo was chosen (its rules ask for that too). */
+async function unsplash(search: string): Promise<{ url: string; width: number; height: number; alt: string; credit: string; used: () => void }[]> {
+  const key = process.env.UNSPLASH_ACCESS_KEY;
+  if (!key) return [];
+  const head = { authorization: `Client-ID ${key}`, "accept-version": "v1" };
+  const r = await fetch(`https://api.unsplash.com/search/photos?${new URLSearchParams({ query: search, per_page: "8", orientation: "landscape", content_filter: "high" })}`,
+    { headers: head, signal: AbortSignal.timeout(15_000) }).catch(() => null);
+  if (!r?.ok) return [];
+  type Hit = { width: number; height: number; alt_description?: string | null; description?: string | null; user?: { name?: string }; urls?: { raw?: string }; links?: { download_location?: string } };
+  const hits = ((await r.json().catch(() => null)) as { results?: Hit[] } | null)?.results ?? [];
+  return hits.filter((p) => p.urls?.raw && p.width >= 1200).map((p) => {
+    const w = Math.min(1600, p.width);
+    const url = new URL(p.urls!.raw!);
+    for (const [k, v] of Object.entries({ w: String(w), q: "80", fm: "jpg", fit: "max" })) url.searchParams.set(k, v);
+    return { url: url.href, width: w, height: Math.round(p.height * (w / p.width)), alt: p.alt_description || p.description || "",
+             credit: `${(p.user?.name ?? "").slice(0, 60) || "Photographer"}, Unsplash`,
+             used: () => { if (p.links?.download_location) void fetch(p.links.download_location, { headers: head, signal: AbortSignal.timeout(10_000) }).catch(() => null); } };
+  });
+}
+
+/** A photo for a story without one, shown from Wikimedia's, Unsplash's or Pexels' own servers (4 Nov: storing each took one of the
  *  site's 50 uploads a day, while some 700 stories went up, and four in five had no photo):
  *  1. the subject's own photo, as before (a public figure, a landmark: its Wikipedia article's photo);
  *  2. a Commons photo of the organisation, place or thing the story is about;
@@ -249,17 +271,19 @@ export async function freePhoto(sql: Sql, w: Written, storyId: string, note: (wh
       // Pexels' stock photos when its key is set, and free Commons photos of the kind of thing either way (4 Nov: a
       // Pennsylvania drug plant went up as a "file photo" beside an Indian drug maker's story; it is a symbolic picture)
       // two at most asked about (4 Nov: up to ten questions a story, for sixteen stories a round, used up the free models)
-      const stock = [...(await pexels(symbolic.search)).slice(0, 2),
+      const stock: { url: string; width: number; height: number; alt: string; credit: string; used?: () => void }[] = [
+        ...(await unsplash(symbolic.search)).slice(0, 2), ...(await pexels(symbolic.search)).slice(0, 2),
         ...(await commonsSearch(symbolic.search, 4, 1920)).sort((a, b) => Number(b.full >= 1200) - Number(a.full >= 1200)).slice(0, 2)
           .map((p) => ({ ...commonsAt(p, 1920), alt: p.alt, credit: p.credit }))];
       for (const p of stock.filter((p) => !UNFIT.test(`${p.url.replace(/%[0-9a-f]{2}|[_/]/gi, " ")} ${p.alt}`)).slice(0, 2)) {
         const ok = await askJson(sql, { system: SYMBOLIC_FIT + SEARCHED, user: `STORY: ${w.headline}\n${w.deck}\n\nPHOTO: ${p.alt || symbolic.en}`, maxTokens: 40, small: true },
           (v) => (typeof (v as { fits?: unknown })?.fits === "boolean" ? (v as { fits: boolean }).fits : null));
         if (!ok.ok || !ok.value) continue;
+        p.used?.();
         return { photo: { url: p.url, width: p.width, height: p.height, credit: p.credit },
                  caption: { gu: `પ્રતીકાત્મક તસવીર: ${symbolic.gu}`, en: `Representative image: ${symbolic.en}`, hi: `प्रतीकात्मक तस्वीर: ${symbolic.hi}` } };
       }
-      note(file ? "no file or symbolic photo suited" : `no symbolic photo suited${process.env.PEXELS_API_KEY ? "" : " (Pexels waits for its key)"}`);
+      note(file ? "no file or symbolic photo suited" : `no symbolic photo suited${process.env.UNSPLASH_ACCESS_KEY || process.env.PEXELS_API_KEY ? "" : " (the stock photos wait for their key)"}`);
       return null;
     }
     note(file ? "no file photo suited, and no symbolic one fits this story" : "no photo would be accurate (an accident, a crime, a person)");
