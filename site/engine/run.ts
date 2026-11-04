@@ -20,7 +20,7 @@ import { pollUpdates, tell } from "../lib/telegram.ts";
 import { touched } from "../lib/write.ts";
 import { aiLeft, aiUsed, freeModels, groqModels } from "./ai.ts";
 import { collect } from "./collect.ts";
-import { STALE_H, gate, gather, importance, levelOf, needsTranslation, thin, translate, writeChecked, type ClusterItem, type Debunk } from "./newsroom.ts";
+import { STALE_H, STRAY, gate, gather, importance, levelOf, mendLetters, needsTranslation, thin, translate, writeChecked, type ClusterItem, type Debunk } from "./newsroom.ts";
 import { indiaDate, photoOf, saveLive } from "./publish.ts";
 import { alertBreaking } from "../lib/push.ts";
 import { birthdays, leaders } from "../lib/leaders.ts";
@@ -329,6 +329,36 @@ async function dedupe(until = deadline) {
   return removed;
 }
 
+/** Once (4 Nov): the last three days' stories with Russian, Greek, Arabic, Thai or East Asian letters in them, which the
+ *  check didn't look for ("виста́р" in a headline), put into Gujarati letters and translated again; one that can't be
+ *  mended comes down. */
+async function mendPublished() {
+  const [done] = await sql.query(`select value from state where key = 'mend_scripts_1'`);
+  if (done) return 0;
+  const rows = await sql.query(
+    `select id, kicker, headline, deck, body, caption from stories where origin = 'live' and status = 'published' and published_at > now() - interval '3 days'
+        and concat_ws(' ', kicker, headline, deck, body, caption) ~ '[\u0300-\u036F\u0370-\u03FF\u0400-\u04FF\u0600-\u06FF\u0E00-\u0E7F\u3040-\u30FF\u4E00-\u9FFF\uAC00-\uD7AF]'`);
+  let mended = 0, left = 0;
+  for (const r of rows) {
+    const w = await mendLetters(sql, { kicker: r.kicker, headline: r.headline, deck: r.deck, body: r.body, caption: r.caption, model: "" });
+    const same = w.headline === r.headline && w.deck === r.deck && w.body === r.body && w.kicker === r.kicker && w.caption === r.caption;
+    // no model answered: tried again next round
+    if (same) { left++; continue; }
+    if ([w.kicker, w.headline, w.deck, w.body, w.caption].some((x) => STRAY.test(x))) {
+      await sql.query(`update stories set status = 'withdrawn', hold_reason = 'letters from another script', updated_at = now() where id = $1`, [r.id]);
+      log(`    taken down, letters from another script: ${r.headline}`);
+      continue;
+    }
+    await sql.query(`update stories set kicker = $2, headline = $3, deck = $4, body = $5, caption = $6, en_status = 'pending', hi_status = 'none',
+        translate_fails = 0, updated_at = now() where id = $1`, [r.id, w.kicker, w.headline, w.deck, w.body, w.caption]);
+    mended++;
+    log(`    letters mended: ${w.headline}`);
+  }
+  if (!left) await sql.query(`insert into state (key, value) values ('mend_scripts_1', '1') on conflict (key) do nothing`);
+  if (rows.length) await touched(sql);
+  return mended;
+}
+
 /** Once (29 Oct): events filed under Gujarat whose sources are about somewhere else (Mumbai's airport)
  *  move to India, with their stories. (The first pass, 'tier_refile', read the model's own keywords.) */
 async function refile() {
@@ -516,6 +546,7 @@ try {
   log("photos:");
   await step("refiling");
   details.refiled = await refile();
+  details.mended = await mendPublished();
   await step("photos");
   const [photosAdded, again] = await Promise.all([photos(), translations(finish)]);
   details.photos = photosAdded;
