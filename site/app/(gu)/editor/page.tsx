@@ -85,6 +85,8 @@ export default async function Editor({ searchParams }: { searchParams: Promise<Q
 
   const time = (iso: string) => (iso ? `${shortDate(iso, "gu")}, ${timeText(iso, "gu")}` : "");
   const nn = (x: number) => (lang === "gu" ? num(x, "gu") : String(x));
+  /** rupees: whole above ₹10, else to the paisa ("₹૦.૪૨") */
+  const rs = (x: number) => { const t = x >= 10 ? String(Math.round(x)) : x.toFixed(2).replace(/\.00$/, ""); return lang === "gu" ? num(t, "gu") : t; };
   const today = todayIst();
 
   // one searchable list (Capital Kranti's news or Aavtikal's articles)
@@ -180,7 +182,7 @@ export default async function Editor({ searchParams }: { searchParams: Promise<Q
             <div><dt>{w.engine}</dt><dd className={d.paused ? s.bad : s.ok}>{d.paused ? w.off2 : w.on2}</dd></div>
             <div><dt>{w.stories}</dt><dd>{nn(d.today.stories)}</dd></div>
             {d.av && <div><dt>{w.avNew}</dt><dd>{nn(d.av.published)} / {nn(d.av.target)}</dd></div>}
-            <div><dt>{w.cost}</dt><dd>₹{nn(0)}</dd></div>
+            <div><dt>{w.cost}</dt><dd>₹{rs(d.today.paid)}</dd></div>
           </dl>
         </section>
       )}
@@ -316,9 +318,10 @@ export default async function Editor({ searchParams }: { searchParams: Promise<Q
             <div><dt>{w.ai}</dt><dd>{nn(d.today.ai)} / {nn(d.today.aiLimit)}</dd></div>
             <div><dt>{w.aiAavtikal}</dt><dd>{nn(d.today.aiAavtikal)}</dd></div>
             <div><dt>{w.uploads}</dt><dd>{nn(d.today.uploads)} / {nn(d.today.uploadLimit)}</dd></div>
-            <div><dt>{w.cost}</dt><dd>₹{nn(0)}</dd></div>
+            <div><dt>{w.cost}</dt><dd>₹{rs(d.today.paid)} / ₹{nn(d.today.paidLimit)}</dd></div>
+            <div><dt>{w.costMonth}</dt><dd>₹{rs(d.today.paidMonth)}</dd></div>
           </dl>
-          <p className={s.empty}>{w.free}</p>
+          <p className={s.empty}>{w.paidNote(nn(d.today.paidLimit), nn(d.today.paidAsks))}</p>
         </section>
       </>}
     </main>

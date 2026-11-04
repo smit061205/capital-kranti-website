@@ -74,7 +74,9 @@ export interface DeskRun { at: string; ok: boolean; running: boolean; stories: n
 export interface AvDesk { published: number; target: number; rewritten: number; toRewrite: number; at: string; running: boolean; lines: string[] }
 export interface Desk {
   av: AvDesk | null;
-  runs: DeskRun[]; paused: boolean; today: { stories: number; ai: number; aiLimit: number; aiAavtikal: number; uploads: number; uploadLimit: number };
+  runs: DeskRun[]; paused: boolean; today: { stories: number; ai: number; aiLimit: number; aiAavtikal: number; uploads: number; uploadLimit: number;
+    /** the paid backup (engine/ai.ts): rupees today and this month, its requests today, and the day's most */
+    paid: number; paidMonth: number; paidAsks: number; paidLimit: number };
 }
 
 type Row = Record<string, unknown>;
@@ -96,7 +98,8 @@ export async function engineRounds(sql: Sql): Promise<DeskRun[]> {
   });
 }
 export async function desk(sql: Sql | null): Promise<Desk> {
-  const today = { stories: 0, ai: 0, aiLimit: WEBSITE.dailyGoogleRequests + WEBSITE.dailyFreeRequests, aiAavtikal: 0, uploads: 0, uploadLimit: 2000 };
+  const today = { stories: 0, ai: 0, aiLimit: WEBSITE.dailyGoogleRequests + WEBSITE.dailyFreeRequests, aiAavtikal: 0, uploads: 0, uploadLimit: 2000,
+    paid: 0, paidMonth: 0, paidAsks: 0, paidLimit: WEBSITE.paidDailyRupees };
   if (!sql) {
     return { av: null, runs: [], paused: false, today };
   }
@@ -108,7 +111,10 @@ export async function desk(sql: Sql | null): Promise<Desk> {
        (select count(*) from stories where origin = 'live' and status = 'published' and published_at > now() - interval '24 hours') as stories,
        (select coalesce(sum(n), 0) from usage where day = (now() at time zone 'Asia/Kolkata')::date and kind in ('ai_free', 'ai_google')) as ai,
        (select coalesce(sum(n), 0) from usage where day = (now() at time zone 'Asia/Kolkata')::date and kind like 'ai_gemini%') as ai_aavtikal,
-       (select coalesce(sum(n), 0) from usage where kind = 'upload' and day >= date_trunc('month', now() at time zone 'Asia/Kolkata')) as uploads`),
+       (select coalesce(sum(n), 0) from usage where kind = 'upload' and day >= date_trunc('month', now() at time zone 'Asia/Kolkata')) as uploads,
+       (select coalesce(sum(n), 0) from usage where day = (now() at time zone 'Asia/Kolkata')::date and kind = 'paid_paise') as paid,
+       (select coalesce(sum(n), 0) from usage where kind = 'paid_paise' and day >= date_trunc('month', now() at time zone 'Asia/Kolkata')) as paid_month,
+       (select coalesce(sum(n), 0) from usage where day = (now() at time zone 'Asia/Kolkata')::date and kind = 'ai_paid') as paid_asks`),
     sql.query(`select
        (select count(*) from features where author = 'desk' and status = 'published' and (created_at at time zone 'Asia/Kolkata')::date = $1::date) as published,
        (select count(*) from features where checks->>'rewritten' = 'true') as rewritten,
@@ -126,7 +132,8 @@ export async function desk(sql: Sql | null): Promise<Desk> {
           lines: ((ar?.details as { log?: string[] } | null)?.log ?? []).slice(-12) },
     runs,
     paused: paused[0]?.value === "yes",
-    today: { ...today, stories: Number(c.stories ?? 0), ai: Number(c.ai ?? 0), aiAavtikal: Number(c.ai_aavtikal ?? 0), uploads: Number(c.uploads ?? 0) },
+    today: { ...today, stories: Number(c.stories ?? 0), ai: Number(c.ai ?? 0), aiAavtikal: Number(c.ai_aavtikal ?? 0), uploads: Number(c.uploads ?? 0),
+             paid: Number(c.paid ?? 0) / 100, paidMonth: Number(c.paid_month ?? 0) / 100, paidAsks: Number(c.paid_asks ?? 0) },
   };
 }
 
