@@ -199,6 +199,8 @@ main{padding-block:8px 48px}
 .dek{font-family:var(--serif);font-size:var(--t2);line-height:1.65;color:var(--soft);margin:8px 0 0}
 .meta{font-size:var(--t1);color:var(--muted);margin-top:6px;display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .meta .sec{font-weight:400;color:var(--muted)}
+/* a cropped photo keeps its upper part, where faces are (4 Nov: an upright portrait cut to 3:2 from its middle lost the forehead) */
+.ph,.cmp img,.thumb,.short img,.river img,.insta img{object-position:50% 22%}
 .ph{width:100%;aspect-ratio:3/2;object-fit:cover;background:var(--surface);filter:var(--photo)}
 .phw{display:block;overflow:hidden;border-radius:var(--r);background:var(--surface)}
 .phw .ph{display:block;transition:transform var(--slow) var(--ease),filter var(--move) ease;border-radius:0}

@@ -20,11 +20,11 @@ import { pollUpdates, tell } from "../lib/telegram.ts";
 import { touched } from "../lib/write.ts";
 import { aiLeft, aiUsed, freeModels, groqModels } from "./ai.ts";
 import { collect } from "./collect.ts";
-import { STALE_H, gate, gather, importance, levelOf, needsTranslation, translate, writeChecked, type ClusterItem, type Debunk } from "./newsroom.ts";
+import { STALE_H, gate, gather, importance, levelOf, needsTranslation, thin, translate, writeChecked, type ClusterItem, type Debunk } from "./newsroom.ts";
 import { indiaDate, photoOf, saveLive } from "./publish.ts";
 import { alertBreaking } from "../lib/push.ts";
 import { birthdays, leaders } from "../lib/leaders.ts";
-import { fitsStory, freePhoto, leadPhoto } from "./wikiphoto.ts";
+import { background, fitsStory, freePhoto, leadPhoto } from "./wikiphoto.ts";
 import { cluster, nearEvent, placeTier, sameEvent, triage, type Triage } from "./triage.ts";
 
 const url = process.env.DATABASE_URL;
@@ -133,6 +133,18 @@ async function write(until = deadline) {
   await Promise.all(Array.from({ length: WRITERS }, writer));
 }
 
+/** The reports of the last two days filed under another event that's this one told another way (nearEvent), not yet up. */
+async function nearReports(c: Record<string, any>): Promise<ClusterItem[]> {
+  const mine = { event: c.event as string, keys: (c.keys ?? []) as string[] };
+  const near = (await sql.query(
+    `select id, event, keys from clusters where id <> $1 and keys && $2::text[] and updated_at > now() - interval '48 hours'
+       and state in ('new', 'waiting', 'confirmed', 'dropped') limit 60`, [c.id, mine.keys]))
+    .filter((r) => nearEvent(mine, { event: r.event, keys: r.keys ?? [] }));
+  if (!near.length) return [];
+  return (await sql.query(`select ${ITEM} from items where cluster_id = any($1) and coalesce(published_at, seen_at) > now() - interval '48 hours'
+    order by seen_at limit 8`, [near.map((r) => r.id)])).map(itemOf);
+}
+
 /** One confirmed event: settled, joined to its twin, or written and put up. */
 async function writeOne(c: Record<string, any>): Promise<"stop" | "busy" | void> {
   const items = await itemsOf(c.id);
@@ -153,7 +165,18 @@ async function writeOne(c: Record<string, any>): Promise<"stop" | "busy" | void>
     log(`    same event as ${twin.story}: ${c.event}`);
     return;
   }
-  const src = await gather(items);
+  let src = await gather(items);
+  // only a few lines to write from: the other reports of the same event, filed apart, then Wikipedia's lines on its subject
+  // for a paragraph of background (4 Nov: a story from a feed's three lines came out two short paragraphs)
+  if (thin(level, src)) {
+    const more = await nearReports(c);
+    if (more.length) src = await gather([...items, ...more]);
+    if (thin(level, src) && !c.sensitive) {
+      const bg = await background(sql, c.event, items.map((i) => `${i.title}. ${i.summary}`).join("\n").slice(0, 1500)).catch(() => null);
+      if (bg) src = [...src, bg];
+    }
+    log(`    few lines to write from: ${more.length} report(s) of the same event filed apart${src.some((s) => s.background) ? ", Wikipedia's background" : ""}`);
+  }
   if (!src.length) { await sql.query(`update clusters set state = 'dropped', reason = 'no source text to write from' where id = $1`, [c.id]); return; }
   log(`  writing ${c.id} (${level}, ${imp}): ${c.event}`);
   const res = await writeChecked(sql, src, level, indiaDate(), c.event);
