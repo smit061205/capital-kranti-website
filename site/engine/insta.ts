@@ -105,12 +105,15 @@ async function makeSet(sql: Sql, tier: Tier, edition: string, seen: (looked: num
     .sort((a, b) => (b.importance ?? 0) - (a.importance ?? 0) || b.publishedAt.localeCompare(a.publishedAt));
   const cards: Card[] = [];
   const looking = stories.slice(0, 14);
-  for (const [i, s] of looking.entries()) {
-    if (cards.length >= MAX_STORIES) break;
-    const options = await photosFor(sql, s);
-    log(`  ${s.headline.slice(0, 70)}: ${options.length} photo(s)`);
-    if (options.length) cards.push({ storyId: s.id, headline: s.headline, deck: s.deck, options, pick: 0 });
-    await seen(i + 1, looking.length, cards.length);
+  // three stories at a time (each waits on Wikimedia and two AI answers): a section in a few minutes, not ten
+  for (let i = 0; i < looking.length && cards.length < MAX_STORIES; i += 3) {
+    const batch = looking.slice(i, i + 3);
+    const found = await Promise.all(batch.map((s) => photosFor(sql, s).catch(() => [] as CardPhoto[])));
+    for (const [k, s] of batch.entries()) {
+      log(`  ${s.headline.slice(0, 70)}: ${found[k].length} photo(s)`);
+      if (found[k].length && cards.length < MAX_STORIES) cards.push({ storyId: s.id, headline: s.headline, deck: s.deck, options: found[k], pick: 0 });
+    }
+    await seen(Math.min(i + 3, looking.length), looking.length, cards.length);
   }
   log(`${sectionName(tier, "en")}: ${stories.length} stories in 12 hours, ${cards.length} with a good photo`);
   if (cards.length < MIN_STORIES) return null;
@@ -123,13 +126,13 @@ async function makeSet(sql: Sql, tier: Tier, edition: string, seen: (looked: num
 // ---- the pictures: the cards' page in a real browser (Gujarati's letters need one), each card a 1080×1350 picture, put
 // one under another in a single JPEG (one upload a set; the site cuts out each card: app/media)
 
-async function render(sql: Sql, sets: InstaSet[]) {
+async function render(sql: Sql, sets: InstaSet[], report = true) {
   const { chromium } = await import("playwright");
   // GitHub's machines have Chrome; Playwright's own browser where it was installed
   const browser = await chromium.launch({ channel: "chrome" }).catch(() => chromium.launch());
   try {
     for (const [i, set] of sets.entries()) {
-      if (progress) await step(`ચિત્રો બની રહ્યાં છે: ${sectionName(set.tier, "gu")} (${num(i + 1, "gu")}/${num(sets.length, "gu")})`,
+      if (progress && report) await step(`ચિત્રો બની રહ્યાં છે: ${sectionName(set.tier, "gu")} (${num(i + 1, "gu")}/${num(sets.length, "gu")})`,
                                progress.total - (sets.length - i));
       const page = await browser.newPage({ viewport: { width: 1200, height: 1500 } });
       await page.setExtraHTTPHeaders({ "user-agent": WIKI_UA });
@@ -205,6 +208,9 @@ async function edition(edition: string, tiers: typeof TIERS): Promise<{ made: In
     if (!set) continue;
     await saveSet(sql!, set);
     made.push(set);
+    // its pictures at once, so the editor sees each section's set while the next is made
+    await step(`ચિત્રો બની રહ્યાં છે: ${name}`, n * PER_SET + MAX_STORIES);
+    await render(sql!, [set], false).catch((e) => log(`${set.id}: pictures not made yet (${e instanceof Error ? e.message : e})`));
     for (const old of recent.filter((o) => o.tier === tier && (o.state === "waiting" || o.state === "making"))) {
       old.state = "expired";
       await saveSet(sql!, old);
