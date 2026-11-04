@@ -400,7 +400,9 @@ async function askPaid<T>(sql: Sql, a: { system: string; user: string; temperatu
     ? [{ type: "text", text: a.user }, ...a.images.flatMap((i) => [{ type: "text", text: i.label }, { type: "image_url", image_url: { url: `data:image/jpeg;base64,${i.jpeg}` } }])]
     : a.user;
   const res = await call(WEBSITE.paidModel, {
-    temperature: a.temperature, max_tokens: a.maxTokens, response_format: { type: "json_object" },
+    // room for Gemma's thinking on top of the answer (4 Nov: the first paid answers came back cut off, "not the JSON";
+    // only the tokens it uses are paid for)
+    temperature: a.temperature, max_tokens: a.maxTokens + GOOGLE_THINKING_ROOM, response_format: { type: "json_object" },
     reasoning: { effort: "low", exclude: true }, usage: { include: true },
     // the cheapest providers only, never one asking more than the most set
     provider: { sort: "price", max_price: WEBSITE.paidMaxPrice },
@@ -413,7 +415,7 @@ async function askPaid<T>(sql: Sql, a: { system: string; user: string; temperatu
     if (res.status === 401 || res.status === 402 || res.status === 403) paidOff = why;
     return { ok: false, why };
   }
-  const answer = (await res.json().catch(() => ({}))) as { choices?: { message?: { content?: string } }[];
+  const answer = (await res.json().catch(() => ({}))) as { choices?: { message?: { content?: string }; finish_reason?: string }[];
     usage?: { cost?: number; prompt_tokens?: number; completion_tokens?: number } };
   // its cost: OpenRouter's own figure, else the tokens at the most it may ask
   const u = answer.usage ?? {};
@@ -422,7 +424,9 @@ async function askPaid<T>(sql: Sql, a: { system: string; user: string; temperatu
   await count(sql, PAID, Math.max(1, Math.ceil(dollars * WEBSITE.rupeesPerDollar * 100)));
   const text = answer.choices?.[0]?.message?.content ?? "";
   const parsed = readJson(text);
-  if (parsed === undefined) return { ok: false, why: `${model}: not the JSON asked for (${text.length} chars)` };
+  if (parsed === undefined) {
+    return { ok: false, why: `${model}: not the JSON asked for (${text.length} chars, ${answer.choices?.[0]?.finish_reason ?? "?"}): ${text.slice(0, 80).replace(/\s+/g, " ")}` };
+  }
   const value = check(parsed);
   return value === null ? { ok: false, why: `${model}: JSON without what was asked for` } : { ok: true, value, model };
 }
