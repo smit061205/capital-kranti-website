@@ -29,6 +29,7 @@ export const POLICY: Record<string, Record<Lang, Page>> = {
       "જાહેરાતો પ્રકાશિત કરવા માટે ગુજરાત સરકાર અને ભારત સરકાર (ડીએવીપી) દ્વારા માન્ય દૈનિક તરીકે, અમે ગુજરાત અને બીજાં રાજ્યોનાં વ્યવસાયિક ગૃહોની પસંદ છીએ, અને સમગ્ર ભારતની પબ્લિક રિલેશન એજન્સીઓ સાથે જોડાયેલા છીએ.",
       "આ વેબસાઇટ પર દિવસભર તાજા સમાચાર, દરરોજ સાંજે છપાયેલા પેપરના સમાચાર અને જૂના અંકો મળે છે. સમાચાર ગુજરાતીમાં, અને દેશ-વિદેશના સમાચાર હિંદી અને અંગ્રેજીમાં પણ વાંચી શકાય છે.",
       "અમારું સૂત્ર છે: સમાજનો વિવેકપૂર્ણ દ્રષ્ટિકોણ. અમે હકીકતો આપીએ છીએ, સ્રોત જણાવીએ છીએ અને ભૂલ થાય તો ખુલ્લેઆમ સુધારીએ છીએ.",
+      `અમારી ટીમ: તંત્રી ${PAPER.editor.gu}. વેબસાઇટ અને તેની ટેક્નોલોજી: ${PAPER.tech.map((x) => x.gu).join(" અને ")}.`,
     ] },
     en: { title: "About us", paras: [
       `Capital Kranti is a Gujarati daily newspaper published from Gandhinagar (RNI ${PAPER.rni}). From Gujarat’s capital, since ${PAPER.founded}, it has brought readers the news of government, farming, the economy, education and society.`,
@@ -38,6 +39,7 @@ export const POLICY: Record<string, Record<Lang, Page>> = {
       "Empanelled with the Government of Gujarat and the Government of India (DAVP) for publishing advertisements, we are a popular choice among commercial houses from Gujarat and other states, and are connected to public relations agencies across India.",
       "This website carries the latest news through the day, the stories of each evening’s printed paper and past issues. Stories are in Gujarati; national and world stories are also in Hindi and English.",
       "Our motto is “a thoughtful view of society”. We give the facts, say where they come from, and correct mistakes openly.",
+      `Our team: ${PAPER.editor.en}, Editor. The website and its technology: ${PAPER.tech.map((x) => x.en).join(" and ")}.`,
     ] },
     hi: { title: "हमारे बारे में", paras: [
       `कैपिटल क्रांति गांधीनगर से प्रकाशित होने वाला गुजराती दैनिक है (RNI ${PAPER.rni})। गुजरात की राजधानी से, ${PAPER.founded} से, हम सरकार, खेती, अर्थव्यवस्था, शिक्षा और समाज के समाचार पाठकों तक पहुँचाते हैं।`,
@@ -47,6 +49,7 @@ export const POLICY: Record<string, Record<Lang, Page>> = {
       "विज्ञापन प्रकाशित करने के लिए गुजरात सरकार और भारत सरकार (डीएवीपी) से मान्य दैनिक के रूप में, हम गुजरात और दूसरे राज्यों के व्यावसायिक घरानों की पसंद हैं और पूरे भारत की जनसंपर्क एजेंसियों से जुड़े हैं।",
       "इस वेबसाइट पर दिन भर ताज़ा समाचार, हर शाम छपे अख़बार के समाचार और पुराने अंक मिलते हैं। समाचार गुजराती में हैं; देश और विदेश के समाचार हिंदी और अंग्रेज़ी में भी पढ़े जा सकते हैं।",
       "हमारा सूत्र है: समाज का विवेकपूर्ण दृष्टिकोण। हम तथ्य देते हैं, स्रोत बताते हैं और ग़लती होने पर खुलकर सुधारते हैं।",
+      `हमारी टीम: संपादक ${PAPER.editor.hi}। वेबसाइट और उसकी तकनीक: ${PAPER.tech.map((x) => x.hi).join(" और ")}।`,
     ] },
   },
   "editorial-policy": {
@@ -71,6 +74,7 @@ export const POLICY: Record<string, Record<Lang, Page>> = {
   },
   "how-we-check": {
     gu: { title: "અમે સમાચાર કેવી રીતે ચકાસીએ છીએ", paras: [
+      `કોણ લખે છે: વેબસાઇટના મોટા ભાગના તાજા સમાચાર AI (કૃત્રિમ બુદ્ધિ) સત્તાવાર જાહેરાતો અને નીચેની યાદીનાં માધ્યમોના અહેવાલ પરથી લખે છે, અને નીચે જણાવ્યા મુજબ ચકાસાય છે; તેના પર “કેપિટલ ક્રાંતિ ડેસ્ક” લખેલું હોય છે. તંત્રીના પોતાના અહેવાલ પર તેમનું નામ હોય છે. પેપર માટે જવાબદાર તંત્રી ${PAPER.editor.gu} છે.`,
       "કોણે કહ્યું: સરકાર કે સત્તાવાર સંસ્થા પોતે જાહેર કરે તે સમાચાર સીધા પ્રકાશિત થાય છે. બીજા સમાચાર અમારી યાદીનાં માન્ય માધ્યમોના અહેવાલ પરથી પ્રકાશિત થાય છે; ઘણી વાર તે એક જ માધ્યમનો અહેવાલ હોય છે, અને સમાચારમાં તેનો સ્રોત લખેલો હોય છે.",
       "તાજા અને સાચા: જૂના સમાચાર ફરી ફરતા હોય તો પકડાય છે. ફેક્ટ-ચેક સંસ્થાઓએ (જેમ કે PIB ફેક્ટ ચેક) ખોટા જાહેર કરેલા દાવા પ્રકાશિત થતા નથી.",
       "દરેક દાવો અને આંકડો: સમાચારનો દરેક દાવો અને દરેક આંકડો (રકમ, તારીખ, સંખ્યા) મૂળ સ્રોત સાથે મેળવાય છે; લખનાર સિવાયની બીજી તપાસ પણ દરેક દાવો ફરી તપાસે છે. મેળ ન ખાય તો સમાચાર પ્રકાશિત થતા નથી.",
@@ -78,6 +82,7 @@ export const POLICY: Record<string, Record<Lang, Page>> = {
       "પ્રકાશન પછી પણ: સ્રોત પોતાના સમાચાર સુધારે કે પાછા ખેંચે તો અમારા સમાચાર પણ તરત રોકાય છે અને સુધારાય છે. દરેક સમાચારના અંતે મૂળ સ્રોતની લિંક હોય છે, જેથી વાચક જાતે મેળવી શકે.",
     ] },
     en: { title: "How we check the news", paras: [
+      `Who writes: most of the latest news on this website is written by AI from official releases and the reports of the outlets on our list, and checked as described below; it carries the byline “Capital Kranti desk”. Reports written by the editor carry the editor’s name. The editor responsible for the paper is ${PAPER.editor.en}.`,
       "Who said it: a government or official body speaking for itself is published directly. Other news is published from the reports of the outlets on our list; often that is one outlet's report, and the story names its source.",
       "Fresh and true: old news going round again is caught. Claims that fact-checkers (such as PIB Fact Check) have found false are not published.",
       "Every claim and number: each claim and each number in a story (amounts, dates, counts) is matched against the original sources, and a second check, separate from the writing, goes over every claim again. If anything doesn’t match, the story isn’t published.",
@@ -85,6 +90,7 @@ export const POLICY: Record<string, Record<Lang, Page>> = {
       "After publishing too: if a source corrects or withdraws its report, our story is held and corrected at once. Every story ends with links to its original sources, so readers can check it themselves.",
     ] },
     hi: { title: "हम समाचार कैसे जाँचते हैं", paras: [
+      `कौन लिखता है: वेबसाइट के ज़्यादातर ताज़ा समाचार AI (कृत्रिम बुद्धि) आधिकारिक घोषणाओं और हमारी सूची के माध्यमों की ख़बरों से लिखता है, और नीचे बताए तरीक़े से जाँचे जाते हैं; उन पर “कैपिटल क्रांति डेस्क” लिखा होता है। संपादक की अपनी ख़बरों पर उनका नाम होता है। अख़बार के ज़िम्मेदार संपादक ${PAPER.editor.hi} हैं।`,
       "किसने कहा: सरकार या आधिकारिक संस्था के अपने बयान सीधे प्रकाशित होते हैं। दूसरे समाचार हमारी सूची के माध्यमों की ख़बरों से प्रकाशित होते हैं; अक्सर वह एक ही माध्यम की ख़बर होती है, और समाचार में उसका स्रोत लिखा होता है।",
       "ताज़ा और सच: पुराने समाचार फिर से फैलें तो पकड़े जाते हैं। फ़ैक्ट-चेक संस्थाओं (जैसे PIB फ़ैक्ट चेक) ने जिन दावों को ग़लत बताया है, वे प्रकाशित नहीं होते।",
       "हर दावा और आँकड़ा: समाचार का हर दावा और हर आँकड़ा (रक़म, तारीख़, संख्या) मूल स्रोतों से मिलाया जाता है, और लिखने से अलग एक दूसरी जाँच हर दावे को फिर परखती है। मेल न खाए तो समाचार प्रकाशित नहीं होता।",

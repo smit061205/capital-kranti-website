@@ -41,6 +41,8 @@ export interface Story {
   importance: number | null;
   /** further photos, spread through the story (the editor's own reports) */
   gallery: Photo[];
+  /** written by the editor on the editor's page, word for word (the rest are the engine's) */
+  byEditor?: boolean;
 }
 
 export interface IssuePage { number: number; url: string; width: number; height: number }

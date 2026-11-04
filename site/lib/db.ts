@@ -58,6 +58,7 @@ function storyOf(r: Row): Story {
     sources: (r.sources as StorySource[] | null) ?? [],
     importance: (r.importance as number | null) ?? null,
     gallery: (r.gallery as Photo[] | null) ?? [],
+    byEditor: r.by === "editor",
   };
 }
 function issueOf(r: Row): Issue {
@@ -68,7 +69,7 @@ function issueOf(r: Row): Issue {
 }
 
 const COLUMNS = `id, issue_date, published_at, updated_at, tier, genres, kicker, headline, deck, body, caption, photo, source,
-                 checked, page, rank, en, en_status, hi, hi_status, corrections, origin, sources, importance, gallery`;
+                 checked, page, rank, en, en_status, hi, hi_status, corrections, origin, sources, importance, gallery, checks->>'by' as by`;
 
 /** The newest stories, the latest day's paper first in its printed order. */
 export async function latestStories(limit = 60): Promise<Story[]> {
