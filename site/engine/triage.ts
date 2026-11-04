@@ -131,10 +131,14 @@ export const SAME_EVENT = 0.6;
 // Two clusters can grow for one event when its reports share too few keywords (29 Oct: Spain's train
 // crash went up twice, minutes apart). Before a cluster is written, the stories of the last two days that
 // share words with it are put to a free model; when one is the same incident, the cluster joins it.
-const SAME = `You compare news events. You get one NEW event and a numbered list of EARLIER events.
-Answer with the number of the earlier event that is the SAME real-world incident or decision (the same crash,
-the same verdict, the same announcement), even when the wording, numbers or angle differ. A different incident
-on the same topic (another crash, another verdict) is NOT the same. Reply with JSON only: {"same": 0} when none is.`;
+const SAME = `You compare news events. You get one NEW event and a numbered list of EARLIER events, each earlier one with
+the story already published about it. Answer with the number of the earlier event that is the SAME real-world incident or
+decision (the same crash, the same verdict, the same announcement), even when the wording, numbers or angle differ.
+Different parts or details of one decision are the SAME event: a cabinet's changes to one scheme (longer service, higher
+pay, permanent posts) told in separate reports, one budget's different measures, one match's different records.
+A different incident on the same topic (another crash, another verdict), or someone else's later reaction or own
+decision (a state announcing its own quota for the scheme's members) is NOT the same.
+Reply with JSON only: {"same": 0} when none is.`;
 
 /** The words of an event line, as keywords */
 const eventWords = (event: string) => keySet(event.toLowerCase().split(/\s+/));
@@ -172,8 +176,15 @@ export async function sameEvent(sql: Sql, c: { id: string; event: string; keys: 
   const heads = await sql.query(
     `select cluster_id, string_agg(left(title, 140), ' | ') as titles from (select cluster_id, title, row_number() over (partition by cluster_id order by seen_at) as n
        from items where cluster_id = any($1::text[])) t where n <= 2 group by cluster_id`, [[c.id, ...near.map((r) => r.id)]]);
-  const told = (id: string, event: string) => { const t = heads.find((h) => h.cluster_id === id)?.titles; return t ? `${event} (reports: ${t})` : event; };
-  const res = await askJson(sql, { system: SAME, user: `NEW: ${told(c.id, c.event)}\n\nEARLIER:\n${near.map((r, i) => `${i + 1}. ${told(r.id, r.event)}`).join("\n")}`, maxTokens: 60, small: true },
+  // and the story already up about each earlier one (4 Nov: three stories of the Agniveers' one cabinet decision went up,
+  // its event lines alone told apart as "permanent recruitment" and "extra years and higher pay")
+  const ours = new Map((await sql.query(`select id, coalesce(en->>'headline', headline) as h, coalesce(en->>'deck', deck) as d from stories where id = any($1::text[])`,
+    [near.map((r) => r.story)])).map((r) => [r.id as string, `${r.h} - ${r.d}`.slice(0, 260)]));
+  const told = (id: string, event: string, story?: string) => {
+    const t = heads.find((h) => h.cluster_id === id)?.titles;
+    return `${event}${t ? ` (reports: ${t})` : ""}${story && ours.has(story) ? ` [published: ${ours.get(story)}]` : ""}`;
+  };
+  const res = await askJson(sql, { system: SAME, user: `NEW: ${told(c.id, c.event)}\n\nEARLIER:\n${near.map((r, i) => `${i + 1}. ${told(r.id, r.event, r.story)}`).join("\n")}`, maxTokens: 60, small: true },
     (v) => { const n = Number((v as { same?: unknown })?.same); return Number.isInteger(n) && n >= 0 && n <= near.length ? n : null; });
   if (!res.ok) return "unsure";
   return res.value > 0 ? near[res.value - 1] : null;
