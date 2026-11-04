@@ -13,8 +13,9 @@ import sharp from "sharp";
 import { db, storiesIn } from "../lib/db.ts";
 import {
   MAX_STORIES, MIN_STORIES, MIN_WIDTH, SITE, askDone, captionFor, cardsHtml, editionAt, editionName, editionNow, instaAsk, instaSettings,
-  putInstaNews, recentSets, saveSet, setsIn, type Card, type CardPhoto, type InstaSet,
+  putInstaNews, putInstaProgress, recentSets, saveSet, setsIn, type Card, type CardPhoto, type InstaProgress, type InstaSet,
 } from "../lib/insta.ts";
+import { num } from "../lib/format.ts";
 import { sectionName, TIERS } from "../lib/sections.ts";
 import { tell } from "../lib/telegram.ts";
 import type { Story, Tier } from "../lib/types.ts";
@@ -97,17 +98,19 @@ async function photosFor(sql: Sql, s: Story): Promise<CardPhoto[]> {
 
 // ---- a section's set
 
-async function makeSet(sql: Sql, tier: Tier, edition: string): Promise<InstaSet | null> {
+async function makeSet(sql: Sql, tier: Tier, edition: string, seen: (looked: number, of: number, cards: number) => Promise<void>): Promise<InstaSet | null> {
   const since = Date.now() - 12 * 3600_000;
   const stories = (await storiesIn(tier, 60))
     .filter((s) => new Date(s.publishedAt).getTime() >= since)
     .sort((a, b) => (b.importance ?? 0) - (a.importance ?? 0) || b.publishedAt.localeCompare(a.publishedAt));
   const cards: Card[] = [];
-  for (const s of stories.slice(0, 14)) {
+  const looking = stories.slice(0, 14);
+  for (const [i, s] of looking.entries()) {
     if (cards.length >= MAX_STORIES) break;
     const options = await photosFor(sql, s);
     log(`  ${s.headline.slice(0, 70)}: ${options.length} photo(s)`);
     if (options.length) cards.push({ storyId: s.id, headline: s.headline, deck: s.deck, options, pick: 0 });
+    await seen(i + 1, looking.length, cards.length);
   }
   log(`${sectionName(tier, "en")}: ${stories.length} stories in 12 hours, ${cards.length} with a good photo`);
   if (cards.length < MIN_STORIES) return null;
@@ -125,7 +128,9 @@ async function render(sql: Sql, sets: InstaSet[]) {
   // GitHub's machines have Chrome; Playwright's own browser where it was installed
   const browser = await chromium.launch({ channel: "chrome" }).catch(() => chromium.launch());
   try {
-    for (const set of sets) {
+    for (const [i, set] of sets.entries()) {
+      if (progress) await step(`ચિત્રો બની રહ્યાં છે: ${sectionName(set.tier, "gu")} (${num(i + 1, "gu")}/${num(sets.length, "gu")})`,
+                               progress.total - (sets.length - i));
       const page = await browser.newPage({ viewport: { width: 1200, height: 1500 } });
       await page.setExtraHTTPHeaders({ "user-agent": WIKI_UA });
       await page.setContent(cardsHtml(set), { waitUntil: "networkidle", timeout: 90_000 });
@@ -152,6 +157,16 @@ async function render(sql: Sql, sets: InstaSet[]) {
     await browser.close();
   }
 }
+
+// ---- the editor page's bar: a section's stories are most of the work, its pictures the rest
+
+let progress: InstaProgress | null = null;
+async function step(text: string, done: number) {
+  if (!progress) return;
+  progress = { ...progress, at: new Date().toISOString(), step: text, done: Math.min(done, progress.total) };
+  await putInstaProgress(sql!, progress).catch(() => {});
+}
+const PER_SET = MAX_STORIES + 1;
 
 // ---- the run
 
@@ -180,8 +195,13 @@ for (const s of recent.filter((s) => (s.state === "waiting" || s.state === "maki
 async function edition(edition: string, tiers: typeof TIERS): Promise<{ made: InstaSet[]; left: string[] }> {
   log(`Edition ${edition}`);
   const made: InstaSet[] = [];
-  for (const tier of tiers) {
-    const set = await makeSet(sql!, tier, edition);
+  const at = new Date().toISOString();
+  progress = { started: at, at, step: "સમાચાર પસંદ થઈ રહ્યા છે", done: 0, total: tiers.length * PER_SET };
+  await putInstaProgress(sql!, progress).catch(() => {});
+  for (const [n, tier] of tiers.entries()) {
+    const name = sectionName(tier, "gu");
+    const set = await makeSet(sql!, tier, edition, (looked, of, cards) =>
+      step(`${name}: ${num(looked, "gu")}/${num(of, "gu")} સમાચારના ફોટા જોયા, ${num(cards, "gu")} કાર્ડ તૈયાર`, n * PER_SET + Math.min(cards, MAX_STORIES)));
     if (!set) continue;
     await saveSet(sql!, set);
     made.push(set);
@@ -199,26 +219,32 @@ const told: { made: InstaSet[]; left: string[] }[] = [];
 // the editor's times; --now: one now, whatever the hour (to try it)
 const due = settings.auto && settings.times.length ? editionNow(settings.times) : null;
 const now = due ?? (process.argv.includes("--now") ? editionAt() : null);
-if (now && !recent.some((s) => s.edition === now)) {
-  const r = await edition(now, settings.tiers);
-  told.push(r);
-  // no section had enough good stories: a set of none, so the edition counts as made and isn't tried every round
-  if (!r.made.length) await saveSet(sql, { id: `${now}-none`, edition: now, tier: "gujarat", state: "expired", cards: [], caption: "", image: null,
-                                           madeAt: new Date().toISOString(), postedAt: null, postUrl: null, note: "too few stories with good photos" });
-}
-// a set the editor asked for
+const dueNew = now && !recent.some((s) => s.edition === now) ? now : null;
+const none = (edition: string) => saveSet(sql, { id: `${edition}-none`, edition, tier: "gujarat", state: "expired", cards: [], caption: "", image: null,
+                                                madeAt: new Date().toISOString(), postedAt: null, postUrl: null, note: "too few stories with good photos" });
 if (ask) {
-  const r = ask.tiers.length ? await edition(editionAt(), ask.tiers) : { made: [], left: [] };
+  // a set the editor asked for; when an edition is due as well, the asked one is that edition (made once, not twice)
+  const r = ask.tiers.length ? await edition(dueNew ?? editionAt(), ask.tiers) : { made: [], left: [] };
   await putInstaNews(sql, { at: new Date().toISOString(), text: [
     ...r.made.map((s) => `${sectionName(s.tier, "gu")}: ${s.cards.length} સમાચાર`),
     ...(r.left.length ? [`${r.left.join(", ")}: છેલ્લા ૧૨ કલાકમાં સારા ફોટાવાળા પૂરતા સમાચાર નથી`] : []),
   ].join("; ") });
   await askDone(sql, ask);
+  if (dueNew && !r.made.length) await none(dueNew);
+} else if (dueNew) {
+  const r = await edition(dueNew, settings.tiers);
+  told.push(r);
+  // no section had enough good stories: a set of none, so the edition counts as made and isn't tried every round
+  if (!r.made.length) await none(dueNew);
 }
 
 // pictures for the new sets and for those the editor changed
 const toMake = await setsIn(sql, "making");
 if (toMake.length) {
+  if (!progress) {
+    const at = new Date().toISOString();
+    progress = { started: at, at, step: "ચિત્રો બની રહ્યાં છે", done: 0, total: toMake.length };
+  }
   try {
     await render(sql, toMake);
   } catch (e) {
@@ -231,3 +257,4 @@ for (const { made, left } of told.filter((r) => r.made.length)) {
   await tell(`<b>ઇન્સ્ટાગ્રામ: ${editionName(made[0].edition)}</b>\n${made.map((s) => `${sectionName(s.tier, "gu")}: ${s.cards.length} સમાચાર`).join("\n")}` +
     `${left.length ? `\n(${left.join(", ")}: સારા ફોટાવાળા પૂરતા સમાચાર નથી)` : ""}\n\nજોઈને મંજૂર કરો: ${SITE}/editor?tab=insta`);
 }
+await putInstaProgress(sql, null).catch(() => {});

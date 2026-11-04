@@ -4,7 +4,8 @@
 // The last few posted, with their links; and the editor's times, sections and whether sets come by themselves.
 import s from "./editor.module.css";
 import { approveInsta, captionInsta, dropInstaCard, makeInstaNow, moveInstaCard, nextInstaPhoto, saveInstaTimes, skipInsta } from "./actions.ts";
-import { editionName, MAX_TIMES, MIN_KEPT, timeName, type InstaAsk, type InstaNews, type InstaSet, type InstaSettings } from "@/lib/insta.ts";
+import { editionName, MAX_TIMES, MIN_KEPT, timeName, type InstaAsk, type InstaNews, type InstaProgress, type InstaSet, type InstaSettings } from "@/lib/insta.ts";
+import Renew from "./Renew.tsx";
 import { TIERS } from "@/lib/sections.ts";
 import { num } from "@/lib/format.ts";
 import { sectionName } from "@/lib/sections.ts";
@@ -17,7 +18,9 @@ const WORDS = {
     off: "ઇન્સ્ટાગ્રામ ખાતું હજી જોડાયેલું નથી: મંજૂર કરેલો સેટ ખાતું જોડાયા પછી “હવે મૂકો” દબાવવાથી મુકાશે.",
     on: (n: string) => `ઇન્સ્ટાગ્રામ જોડાયેલું છે: @${n}`, broken: "ઇન્સ્ટાગ્રામ સુધી પહોંચાતું નથી. ઇન્સ્ટાગ્રામનું કારણ:",
     now: "હમણાં નવો સેટ બનાવો", nowHelp: "છેલ્લા ૧૨ કલાકના સૌથી મહત્ત્વના સમાચારમાંથી, જે વિભાગ પસંદ કરો તેના. ૫ થી ૧૫ મિનિટમાં અહીં દેખાશે; મુકાતાં પહેલાં તમે જોઈ શકશો.",
-    nowBtn: "સેટ બનાવો", asked: (t: string) => `${t} વાગ્યે માગેલો સેટ બની રહ્યો છે: ૫ થી ૧૫ મિનિટમાં અહીં દેખાશે.`, lastAsk: (t: string) => `${t} વાગ્યે માગેલો સેટ:`,
+    nowBtn: "સેટ બનાવો", asked: (t: string) => `${t} વાગ્યે માગ્યો.`,
+    queued: "રાહમાં: એન્જિન હાલનું સમાચારનું કામ પૂરું કરીને શરૂ કરશે (સામાન્ય રીતે ૧૫ મિનિટની અંદર). શરૂ થયા પછી ૫ થી ૧૦ મિનિટ લાગે છે.",
+    since: (m: string) => `શરૂ થયાને ${m} મિનિટ`, ago: (m: string) => `${m} મિનિટ પહેલાં માગ્યો`, live: "આ પાનું જાતે તાજું થતું રહે છે.", lastAsk: (t: string) => `${t} વાગ્યે માગેલો સેટ:`,
     none: "આ વખતનો કોઈ સેટ નથી.", making: "ચિત્રો બની રહ્યાં છે: ૫ થી ૧૫ મિનિટમાં અહીં દેખાશે.", waiting: "મંજૂરીની રાહ", approved: "મંજૂર: મુકાવાનું બાકી",
     posted: "મુકાયો", failed: "મુકાયો નહીં", expired: "સમય ગયો",
     drop: "આ કાર્ડ હટાવો", next: "બીજો ફોટો", earlier: "← આગળ", later: "પાછળ →", caption: "ઇન્સ્ટાગ્રામ પરના શબ્દો", saveCaption: "શબ્દો સાચવો",
@@ -34,7 +37,9 @@ const WORDS = {
     off: "The Instagram account isn't connected yet: an approved set goes up with “Post now” once it is.",
     on: (n: string) => `Instagram is connected: @${n}`, broken: "Instagram can't be reached. Instagram's reason:",
     now: "Make a new set now", nowHelp: "From the most important stories of the last 12 hours, for the sections you pick. It shows here in 5 to 15 minutes; you see it before it goes up.",
-    nowBtn: "Make the set", asked: (t: string) => `The set asked for at ${t} is being made: it shows here in 5 to 15 minutes.`, lastAsk: (t: string) => `The set asked for at ${t}:`,
+    nowBtn: "Make the set", asked: (t: string) => `Asked for at ${t}.`,
+    queued: "Waiting: the engine starts once it finishes its current news work (usually within 15 minutes). It then takes 5 to 10 minutes.",
+    since: (m: string) => `Started ${m} min ago`, ago: (m: string) => `asked ${m} min ago`, live: "This page renews itself.", lastAsk: (t: string) => `The set asked for at ${t}:`,
     none: "No set this time.", making: "The pictures are being made: they show here in 5 to 15 minutes.", waiting: "Waiting for you", approved: "Approved: not up yet",
     posted: "Posted", failed: "Not posted", expired: "Time passed",
     drop: "Take this card out", next: "Another photo", earlier: "← Earlier", later: "Later →", caption: "The words on Instagram", saveCaption: "Save the words",
@@ -50,14 +55,24 @@ const WORDS = {
 const clock = (iso: string, lang: "gu" | "en") => timeName(new Date(new Date(iso).getTime() + 5.5 * 3600_000).toISOString().slice(11, 16), lang);
 const list = (xs: string[], and: string) => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")}${and}${xs.at(-1)}` : xs[0] ?? "");
 
-export default function Insta({ lang, sets, settings, ask, news, who }: {
-  lang: "gu" | "en"; sets: InstaSet[]; settings: InstaSettings; ask: InstaAsk | null; news: InstaNews | null;
+export default function Insta({ lang, sets, settings, ask, news, progress, who }: {
+  lang: "gu" | "en"; sets: InstaSet[]; settings: InstaSettings; ask: InstaAsk | null; news: InstaNews | null; progress: InstaProgress | null;
   who: { name: string } | { why: string } | null;
 }) {
   const w = WORDS[lang];
   const nn = (x: number) => (lang === "gu" ? num(x, "gu") : String(x));
   const current = sets.filter((x) => ["making", "waiting", "approved", "failed"].includes(x.state) && x.cards.length);
   const posted = sets.filter((x) => x.state === "posted").slice(0, 6);
+  // the engine's progress, if it renewed it in the last five minutes (a run cut short leaves it behind)
+  const working = progress && Date.now() - new Date(progress.at).getTime() < 5 * 60_000 ? progress : null;
+  const mins = (iso: string) => nn(Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000)));
+  const busy = !!ask || !!working || current.some((x) => x.state === "making");
+  const bar = working && (
+    <div className={s.progress}>
+      <progress max={working.total} value={working.done} />
+      <p><b>{working.step}</b> · {w.since(mins(working.started))}</p>
+    </div>
+  );
   const tierName = (t: (typeof TIERS)[number]) => sectionName(t, lang);
   const times = Array.from({ length: MAX_TIMES }, (_, i) => settings.times[i] ?? "");
   const tierPills = (picked: readonly string[]) => (
@@ -67,6 +82,7 @@ export default function Insta({ lang, sets, settings, ask, news, who }: {
   );
   return (
     <section className={s.block} aria-labelledby="insta">
+      {busy && <Renew />}
       <h2 id="insta">{w.title} {current.some((x) => x.state === "waiting") && <span className={s.count}>{nn(current.filter((x) => x.state === "waiting").length)}</span>}</h2>
       <p className={s.help}>{settings.auto && settings.times.length
         ? w.note(list(settings.times.map((t) => timeName(t, lang)), w.and), list(settings.tiers.map(tierName), w.and))
@@ -77,7 +93,10 @@ export default function Insta({ lang, sets, settings, ask, news, who }: {
 
       <div className={s.card}>
         <h3>{w.now}</h3>
-        {ask ? <p className={s.running}>{w.asked(clock(ask.at, lang))}</p> : (
+        {ask ? <>
+          {bar || <p className={s.running}>{w.queued}</p>}
+          <p className={s.when}>{w.asked(clock(ask.at, lang))} ({w.ago(mins(ask.at))}) · {w.live}</p>
+        </> : (
           <form className={s.form} action={makeInstaNow}>
             <p className={s.help}>{w.nowHelp}</p>
             {tierPills(settings.tiers)}
@@ -93,7 +112,7 @@ export default function Insta({ lang, sets, settings, ask, news, who }: {
           {set.note && <p className={s.why}>{set.note}</p>}
           {set.state === "making" || !set.image ? (
             <>
-              <p className={s.running}>{w.making}</p>
+              {!ask && bar ? bar : <p className={s.running}>{w.making}</p>}
               <ol className={s.runs}>{set.cards.map((c) => <li key={c.storyId}>{c.headline}</li>)}</ol>
             </>
           ) : (
