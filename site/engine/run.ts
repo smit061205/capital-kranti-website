@@ -337,21 +337,28 @@ async function settleWaiting() {
   if (up.length) await touched(sql);
 }
 
-/** Once (29 Oct, and again 2 Nov with the wider check in sameEvent and the reports' headlines): a story that went up twice (Spain's train crash, the
+/** Once (29 Oct, again 2 Nov with the wider check in sameEvent and the reports' headlines, and 4 Nov with the stories
+ *  already up shown to the model): a story that went up twice (Spain's train crash, the
  *  Asia Cup squad) keeps its first copy; the later one comes down. Early in the round, with a minute and a half of its own
  *  (run last, it began after the round's time and stopped at once). */
 async function dedupe(until = deadline) {
-  const [done] = await sql.query(`select value from state where key = 'dedupe_4'`);
+  const [done] = await sql.query(`select value from state where key = 'dedupe_5'`);
   if (done) return 0;
+  // a slice each round, newest first, from where the last round stopped (4 Nov: the newest 40 alone missed the day's twins)
+  const [at] = await sql.query(`select value from state where key = 'dedupe_5_at'`);
   const rows = await sql.query(
     `select c.id, c.event, c.keys, c.first_seen, c.story_id from clusters c join stories s on s.id = c.story_id
-      where s.status = 'published' and s.origin = 'live' and c.first_seen > now() - interval '48 hours' order by c.first_seen desc limit 40`);
-  let removed = 0, unsure = 0;
+      where s.status = 'published' and s.origin = 'live' and c.first_seen > now() - interval '48 hours'
+        and ($1::timestamptz is null or c.first_seen < $1) order by c.first_seen desc limit 60`, [at?.value ?? null]);
+  let removed = 0, unsure = 0, looked = 0;
+  let cursor: string | null = null;
   for (const r of rows) {
-    if (Date.now() > until) { log(`  copies: out of time, ${removed} taken down, the rest next run`); return removed; }
+    if (Date.now() > until) break;
     const twin = await sameEvent(sql, { id: r.id, event: r.event, keys: r.keys ?? [], before: new Date(r.first_seen).toISOString() });
-    if (twin === "unsure") unsure++;
-    if (!twin || twin === "unsure") continue;
+    looked++;
+    if (twin === "unsure") { unsure++; break; }
+    cursor = new Date(r.first_seen).toISOString();
+    if (!twin) continue;
     await sql.query(`update stories set status = 'withdrawn', hold_reason = $2, updated_at = now() where id = $1 and status = 'published'`,
       [r.story_id, `the same event as ${twin.story}`]);
     await sql.query(`update items set cluster_id = $2 where cluster_id = $1`, [r.id, twin.id]);
@@ -359,9 +366,10 @@ async function dedupe(until = deadline) {
     removed++;
     log(`    a second copy taken down: ${r.story_id} (the same event as ${twin.story})`);
   }
-  log(`  copies: ${rows.length} looked at, ${removed} taken down${unsure ? `, ${unsure} not answered (next run)` : ""}`);
-  // done for good only when every one was answered
-  if (!unsure) await sql.query(`insert into state (key, value) values ('dedupe_4', '1') on conflict (key) do nothing`);
+  if (cursor) await sql.query(`insert into state (key, value) values ('dedupe_5_at', $1) on conflict (key) do update set value = excluded.value`, [cursor]);
+  log(`  copies: ${looked} looked at, ${removed} taken down${unsure ? ", the free models busy (next run)" : looked < rows.length ? ", the rest next run" : ""}`);
+  // done for good when the last two days are all answered
+  if (!rows.length || (looked === rows.length && !unsure && rows.length < 60)) await sql.query(`insert into state (key, value) values ('dedupe_5', '1') on conflict (key) do nothing`);
   if (removed) await touched(sql);
   return removed;
 }
