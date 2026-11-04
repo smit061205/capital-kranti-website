@@ -18,9 +18,13 @@ export function rss(stories: Story[], lang: Lang, title?: string) {
     `<link>${SITE_URL}${href(lang, "/")}</link><description>${x(PAPER[lang].tagline)}</description><language>${lang}-IN</language>${items}</channel></rss>`;
 }
 
-/** Google News: the last two days' stories only. */
-export function newsSitemap(stories: { id: string; publishedAt: string; headline: string; en: boolean }[]) {
-  const urls = stories.map((s) => `<url><loc>${SITE_URL}/news/${s.id}</loc><news:news><news:publication><news:name>${x(PAPER.gu.name)}</news:name>` +
-    `<news:language>gu</news:language></news:publication><news:publication_date>${s.publishedAt}</news:publication_date><news:title>${x(s.headline)}</news:title></news:news></url>`).join("");
+/** Google News: the last two days' stories only, each language version its own entry (at most the 1,000 Google reads). */
+export function newsSitemap(stories: { id: string; publishedAt: string; headline: string; en: string | null; hi: string | null }[]) {
+  const urls = stories.flatMap((s) => (["gu", "en", "hi"] as const).flatMap((lang) => {
+    const title = lang === "gu" ? s.headline : s[lang];
+    if (!title) return [];
+    return [`<url><loc>${SITE_URL}${href(lang, `/news/${s.id}`)}</loc><news:news><news:publication><news:name>${x(PAPER[lang].name)}</news:name>` +
+      `<news:language>${lang}</news:language></news:publication><news:publication_date>${s.publishedAt}</news:publication_date><news:title>${x(title)}</news:title></news:news></url>`];
+  })).slice(0, 1000).join("");
   return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">${urls}</urlset>`;
 }

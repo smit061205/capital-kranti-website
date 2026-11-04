@@ -11,7 +11,8 @@ import { pic, SIZES } from "../lib/photo.ts";
 import { num, timeText } from "../lib/format.ts";
 import TimeAgo from "../components/TimeAgo.tsx";
 import Frame from "../components/Frame.tsx";
-import { PAPER } from "../lib/site.ts";
+import { PAPER, SITE_URL } from "../lib/site.ts";
+import { JsonLd, ORG_ID, organization } from "../lib/jsonld.tsx";
 import { beatName, featureWords, features, flw, type Feature } from "../lib/flagship.ts";
 import { Chev } from "../components/icons.tsx";
 
@@ -139,6 +140,8 @@ export default async function Home({ lang }: { lang: Lang }) {
 
   return (
     <Frame lang={lang} path="/" active="home">
+      <JsonLd items={[organization(lang), { "@type": "WebSite", "@id": `${SITE_URL}${href(lang, "/")}#site`, url: `${SITE_URL}${href(lang, "/")}`, name: PAPER[lang].name,
+                                             inLanguage: lang, publisher: { "@id": ORG_ID } }]} />
       {/* the page's name for screen readers and search engines (the wordmark above is a link) */}
       <h1 className="vh">{PAPER[lang].name}: {PAPER[lang].tagline}</h1>
       {!lead || !lw ? <p className="empty">{t(lang, "empty")}</p> : (

@@ -36,6 +36,11 @@ export function largest(p: { url: string; width: number }): string {
   return commons(p.url.replace(/\?.*$/, "")) ? at(p.url, 1200)! : p.url;
 }
 
+/** The copy for share previews and search engines: 1200 wide (what Google and WhatsApp ask for), or the whole photo when smaller. */
+export function shareCopy(p: { url: string; width: number }): string {
+  return (p.width > 1200 && at(p.url, 1200)) || largest(p);
+}
+
 /** How wide the pictures show. Phones get a little less than their full width: 960 looks sharp there and is a third the size. */
 export const SIZES = {
   thumb: "160px",
