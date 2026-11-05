@@ -506,6 +506,14 @@ time.fresh{display:inline-flex}.livedot{display:none}
 .art .stand{font-family:var(--serif);font-size:var(--t3);line-height:1.6;color:var(--soft);font-weight:400;margin:0}
 .byl{font-size:var(--t2);color:var(--soft);margin:16px 0 2px}.byl b{color:var(--strong);font-weight:600}
 .byt{font-size:var(--t1);color:var(--muted);margin:0}
+/* how an AI-written story was made, under its byline (6 Nov: Google's guidance on AI content) */
+.ainote{font-size:var(--t1);color:var(--muted);margin:10px auto 0;max-width:34em;text-align:center;line-height:1.5}
+.ainote a{color:var(--brand);text-decoration:underline;text-underline-offset:2px;white-space:nowrap}
+/* Google's "preferred source" for the paper, at the end of a story */
+.prefsrc{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;margin:24px 0 0;padding:10px 16px;border:1px solid var(--rule);
+  border-radius:999px;font-size:var(--t2);font-weight:600;color:var(--strong);text-align:center;transition:border-color var(--quick) ease,color var(--quick) ease}
+.prefsrc:hover{border-color:var(--brand);color:var(--brand)}
+.prefsrc svg{flex:none;width:20px;height:20px;color:var(--brand)}
 .art .chk{margin-top:var(--s3)}
 /* reading: one comfortable measure and rhythm */
 .art .body p{line-height:1.8}

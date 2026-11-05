@@ -10,6 +10,7 @@ export const WhatsApp = () => (
 export const SaveIcon = ({ on }: { on?: boolean }) => <svg {...P}><path d="M6 3h12v18l-6-4-6 4z" fill={on ? "currentColor" : "none"} /></svg>;
 export const Check = () => <svg {...P}><circle cx="12" cy="12" r="9" /><path d="M8 12.5l2.8 2.8L16.5 9.5" /></svg>;
 export const Flag = () => <svg {...P}><path d="M5 21V4h12l-2 4 2 4H5" /></svg>;
+export const Star = () => <svg {...P}><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.1 5.9-.8z" /></svg>;
 export const LinkIcon = () => <svg {...P}><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a1 1 0 0 1 1-1h9" /></svg>;
 export const TextSize = () => <svg {...P}><path d="M3 18l4-11 4 11M4.5 14h5M13 18l3.5-9 3.5 9M14.2 15h4.6" /></svg>;
 export const HomeIcon = () => <svg {...P}><path d="M4 11l8-7 8 7v9h-5v-6H9v6H4z" /></svg>;

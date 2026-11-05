@@ -9,10 +9,10 @@ import { moreOnSubject, storiesIn, storyById as loadStory } from "../lib/db.ts";
 import { href, t } from "../lib/i18n.ts";
 import { sectionName } from "../lib/sections.ts";
 import { dateText, minutes, num, paragraphs, timeText } from "../lib/format.ts";
-import { PAPER, SITE_URL } from "../lib/site.ts";
+import { PAPER, PREFERRED_SOURCE, SITE_URL } from "../lib/site.ts";
 import { Cmp, Credit, Head, MoreOn, Std, strong, words } from "../components/cards.tsx";
 import CountRead from "../components/CountRead.tsx";
-import { Flag } from "../components/icons.tsx";
+import { Flag, Star } from "../components/icons.tsx";
 import ArticleTools from "../components/ArticleTools.tsx";
 import ReadProgress from "../components/ReadProgress.tsx";
 import PhotoZoom from "../components/PhotoZoom.tsx";
@@ -83,6 +83,8 @@ export default async function Article({ id, lang }: { id: string; lang: Lang }) 
           <p className="byt">{dateText(s.publishedAt, lang)}, {timeText(s.publishedAt, lang)}
             {changed && <> · {t(lang, "updatedAt")} {timeText(s.updatedAt, lang)}</>}
             {" · "}{num(minutes(w.body), lang)} {t(lang, "min")}</p>
+          {/* the engine's stories say how they were made (Google's guidance on AI content, and Google News's transparency rules) */}
+          {!s.byEditor && <p className="ainote">{t(lang, "aiNote")} <Link prefetch={false} href={href(lang, "/how-we-check")}>{t(lang, "aiHow")}</Link></p>}
           <ArticleTools id={s.id} url={url} headline={w.headline} savedHref={href(lang, "/saved")} words={toolWords} />
           {s.photo && (
             <figure className={strong(s) ? "wide-ph" : "in-ph"}>
@@ -121,6 +123,7 @@ export default async function Article({ id, lang }: { id: string; lang: Lang }) 
                       : <span>{t(lang, "desk")}</span>}
             <a className="report" href={mail}><Flag />{t(lang, "report")}</a>
           </div>
+          <a className="prefsrc" href={PREFERRED_SOURCE} target="_blank" rel="noopener"><Star />{t(lang, "prefSource")}</a>
           {after.length > 0 && (
             <section className="ctr"><Head label={t(lang, "related")} to={href(lang, `/section/${s.tier}`)} />
               <div className="rellist">{after.map((x) => <Std key={x.id} s={x} lang={lang} sec={false} photo={false} />)}</div></section>
