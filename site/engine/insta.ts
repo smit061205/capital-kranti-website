@@ -112,12 +112,25 @@ async function photosFor(sql: Sql, s: Story): Promise<CardPhoto[]> {
 
 // ---- a section's set
 
+/** The stories and photos already in a set of the last four days (a story is at most a day old when it's picked), so no
+ *  set repeats an earlier one (5 Nov, the user: a set made nine hours after another had the same pictures; the most
+ *  important stories of the last 24 hours were the same). A set that failed never went up, so its stories can be used. */
+async function usedBefore(sql: Sql): Promise<{ stories: Set<string>; photos: Set<string> }> {
+  const rows = await sql.query(`select cards from insta_sets where made_at > now() - interval '4 days' and state <> 'failed'`);
+  const cards = rows.flatMap((r) => (r.cards as Card[]) ?? []);
+  return { stories: new Set(cards.map((c) => c.storyId)), photos: new Set(cards.flatMap((c) => c.options.map((o) => photoKey(o.url)))) };
+}
+const photoKey = (url: string) => url.replace(/[?#].*$/, "");
+
 async function makeSet(sql: Sql, tier: Tier, edition: string, seen: (looked: number, of: number, cards: number) => Promise<void>): Promise<InstaSet | null> {
   // the last 12 hours' most important first, then the 12 hours before (4 Nov: Gujarat had 14 stories in 12 hours and 4 with
   // a photo, so no set was made)
   const at = (s: Story) => new Date(s.publishedAt).getTime();
   const byWeight = (a: Story, b: Story) => (b.importance ?? 0) - (a.importance ?? 0) || b.publishedAt.localeCompare(a.publishedAt);
-  const all = (await storiesIn(tier, 80, true)).filter((s) => at(s) >= Date.now() - 24 * 3600_000);
+  const used = await usedBefore(sql);
+  const fresh = (await storiesIn(tier, 80, true)).filter((s) => at(s) >= Date.now() - 24 * 3600_000);
+  const all = fresh.filter((s) => !used.stories.has(s.id));
+  if (all.length < fresh.length) log(`${sectionName(tier, "gu")}: ${fresh.length - all.length} સમાચાર પહેલાંના સેટમાં આવી ગયા છે, તે ફરી નહીં લેવાય`);
   const stories = [...all.filter((s) => at(s) >= Date.now() - 12 * 3600_000).sort(byWeight), ...all.filter((s) => at(s) < Date.now() - 12 * 3600_000).sort(byWeight)];
   const cards: Card[] = [];
   const looking = stories.slice(0, 20);
@@ -125,7 +138,9 @@ async function makeSet(sql: Sql, tier: Tier, edition: string, seen: (looked: num
   // three stories at a time (each waits on Wikimedia and two AI answers): a section in a few minutes, not ten
   for (let i = 0; i < looking.length && cards.length < MAX_STORIES; i += 3) {
     const batch = looking.slice(i, i + 3);
-    const found = await Promise.all(batch.map((s) => photosFor(sql, s).catch(() => [] as CardPhoto[])));
+    // a photo already in an earlier set (a file photo of the same leader for another story) isn't offered again
+    const found = (await Promise.all(batch.map((s) => photosFor(sql, s).catch(() => [] as CardPhoto[]))))
+      .map((options) => options.filter((o) => !used.photos.has(photoKey(o.url))));
     for (const [k, s] of batch.entries()) {
       if (found[k].length) log(`“${s.headline.slice(0, 60)}”: ${found[k].length} ફોટો, કાર્ડ ${cards.length < MAX_STORIES ? "બન્યું" : "નહીં (સેટ ભરાઈ ગયો)"}`);
       if (found[k].length && cards.length < MAX_STORIES) cards.push({ storyId: s.id, headline: s.headline, deck: s.deck, options: found[k], pick: 0 });
