@@ -18,7 +18,7 @@ import { WEBSITE } from "../lib/config.ts";
 import { ensureSchema } from "../lib/schema.ts";
 import { pollUpdates, tell } from "../lib/telegram.ts";
 import { touched } from "../lib/write.ts";
-import { aiLeft, aiNotes, aiUsed, freeModels, groqModels, stopAiAt } from "./ai.ts";
+import { aiLeft, aiNotes, aiUsed, freeModels, groqModels, nvidiaTimes, stopAiAt } from "./ai.ts";
 import { collect } from "./collect.ts";
 import { STALE_H, STRAY, gate, gather, importance, levelOf, mendLetters, thin, translate, translateBoth, writeChecked, type ClusterItem, type Debunk } from "./newsroom.ts";
 import { indiaDate, linkPhoto, photoOf, saveLive } from "./publish.ts";
@@ -639,6 +639,11 @@ try {
   log(`failed: ${details.error}`);
 }
 clearTimeout(guard);
+const nv = nvidiaTimes();
+if (nv) {
+  details.nvidia = nv;
+  log(`NVIDIA: ${nv.answers} answer(s), ${nv.median}s typical, ${nv.slowest}s the slowest; ${nv.late} not in time`);
+}
 details.steps = steps;
 details.log = lines;
 details.aiRequests = aiUsed();

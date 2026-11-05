@@ -26,10 +26,21 @@ const NVIDIA = "https://integrate.api.nvidia.com/v1";
 /** the longest answer NVIDIA is asked for (5 Nov: it answered 14 requests, then the first translation, which asks for up to
  *  20,000 tokens, set it aside for the day; a Gujarati story and its English and Hindi take well under this) */
 const NVIDIA_MAX_OUT = 8192;
+/** how long a long job (a story, its check, its translation) waits for NVIDIA (5 Nov: at 150 seconds some of its stories
+ *  were cut off unfinished; the round's own end still comes first) */
+const NVIDIA_LONG_S = 240;
 /** what happens to a route (NVIDIA set aside, and why), for the round's log: engine/run.ts gives the log */
 let note: (line: string) => void = () => {};
 export const aiNotes = (f: (line: string) => void) => { note = f; };
 const noted = new Set<number>();
+/** how long NVIDIA took to answer this run, in seconds, and how many it didn't answer in time (5 Nov: about three answers
+ *  a minute, well under its 40 a minute, so its speed is what to watch) */
+const nvidiaSeconds: number[] = [];
+let nvidiaLate = 0;
+export function nvidiaTimes() {
+  const t = [...nvidiaSeconds].sort((x, y) => x - y);
+  return t.length || nvidiaLate ? { answers: t.length, late: nvidiaLate, median: t[Math.floor(t.length / 2)] ?? 0, slowest: t.at(-1) ?? 0 } : null;
+}
 const GOOGLE = "https://generativelanguage.googleapis.com/v1beta";
 const isGoogle = (m: string) => m.startsWith("google:");
 const isGroq = (m: string) => m.startsWith("groq:");
@@ -131,6 +142,7 @@ async function callGoogle(model: string, a: { system: string; user: string; temp
 async function call(model: string, body: Record<string, unknown>, seconds: number): Promise<Response> {
   if (left() < 5000) return late();
   seconds = within(seconds);
+  const began = Date.now();
   try {
     const res = isNvidia(model)
       ? await fetch(`${NVIDIA}/chat/completions`, {
@@ -149,8 +161,11 @@ async function call(model: string, body: Record<string, unknown>, seconds: numbe
       headers: { authorization: `Bearer ${KEY}`, "content-type": "application/json", "http-referer": WEBSITE.url, "x-title": "Capital Kranti website" },
       body: JSON.stringify({ model, ...body }),
     });
-    return new Response(await res.text(), { status: res.status });
+    const text = await res.text();
+    if (isNvidia(model) && res.ok) nvidiaSeconds.push(Math.round((Date.now() - began) / 1000));
+    return new Response(text, { status: res.status });
   } catch (e) {
+    if (isNvidia(model)) nvidiaLate++;
     return new Response(`no answer in ${seconds}s (${e instanceof Error ? e.message : e})`, { status: 504 });
   }
 }
@@ -284,7 +299,7 @@ async function askFree<T>(sql: Sql | null, a: Ask, check: (v: unknown) => T | nu
       : isNvidia(model)
       // NVIDIA's: the plain request (it takes neither OpenRouter's thinking setting nor, for every model, a JSON mode)
       ? await call(model, { temperature: a.temperature ?? 0.2, max_tokens: Math.min(a.maxTokens ?? 3000, NVIDIA_MAX_OUT),
-          messages: [{ role: "system", content: a.system }, { role: "user", content: a.user }] }, (a.maxTokens ?? 3000) > 4000 ? 150 : 60)
+          messages: [{ role: "system", content: a.system }, { role: "user", content: a.user }] }, (a.maxTokens ?? 3000) > 4000 ? NVIDIA_LONG_S : 60)
       : await call(model, {
       temperature: a.temperature ?? 0.2, max_tokens: a.maxTokens ?? 3000, response_format: { type: "json_object" },
       // thinking models spend their tokens thinking first: keep it short so the answer fits (Groq names it its own way,
