@@ -18,13 +18,21 @@ export function rss(stories: Story[], lang: Lang, title?: string) {
     `<link>${SITE_URL}${href(lang, "/")}</link><description>${x(PAPER[lang].tagline)}</description><language>${lang}-IN</language>${items}</channel></rss>`;
 }
 
-/** Google News: the last two days' stories only, each language version its own entry (at most the 1,000 Google reads). */
-export function newsSitemap(stories: { id: string; publishedAt: string; headline: string; en: string | null; hi: string | null }[]) {
-  const urls = stories.flatMap((s) => (["gu", "en", "hi"] as const).flatMap((lang) => {
+/** Google News: the last two days' stories in one language (5 Nov: one file for all three held its 1,000 URLs, the most
+ *  Google reads in a file, within twelve hours, so the stories of the day before were missing from it). */
+export function newsSitemap(stories: { id: string; publishedAt: string; headline: string; en: string | null; hi: string | null }[], lang: Lang) {
+  const urls = stories.flatMap((s) => {
     const title = lang === "gu" ? s.headline : s[lang];
     if (!title) return [];
     return [`<url><loc>${SITE_URL}${href(lang, `/news/${s.id}`)}</loc><news:news><news:publication><news:name>${x(PAPER[lang].name)}</news:name>` +
       `<news:language>${lang}</news:language></news:publication><news:publication_date>${s.publishedAt}</news:publication_date><news:title>${x(title)}</news:title></news:news></url>`];
-  })).slice(0, 1000).join("");
+  }).slice(0, 1000).join("");
   return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">${urls}</urlset>`;
+}
+
+/** The news sitemap's address (the one in Search Console and robots.txt) lists one file per language. */
+const NEWS_SITEMAP_LANGS = ["gu", "en", "hi"] as const;
+export function newsSitemapIndex(newest: string | null) {
+  const files = NEWS_SITEMAP_LANGS.map((lang) => `<sitemap><loc>${SITE_URL}/news-sitemap-${lang}.xml</loc>${newest ? `<lastmod>${newest}</lastmod>` : ""}</sitemap>`).join("");
+  return `<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${files}</sitemapindex>`;
 }

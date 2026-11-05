@@ -1,7 +1,7 @@
 // What search engines read about the paper and its pages (schema.org JSON-LD, for Google Search and Google News).
 import type { Lang } from "./types.ts";
 import { href } from "./i18n.ts";
-import { PAPER, SITE_URL } from "./site.ts";
+import { PAPER, SITE_URL, SOCIAL } from "./site.ts";
 
 /** The paper itself, named once and referred to by its @id from every article. */
 export const ORG_ID = `${SITE_URL}/#org`;
@@ -11,12 +11,14 @@ export function editor(lang: Lang) {
   return { "@type": "Person", "@id": EDITOR_ID, name: PAPER.editor.en, alternateName: [PAPER.editor.gu, PAPER.editor.hi], jobTitle: "Editor",
            url: `${SITE_URL}${href(lang, "/about")}`, worksFor: { "@id": ORG_ID } };
 }
+/** The paper's logo, the one Google News shows beside its stories */
+const LOGO = { "@type": "ImageObject", url: `${SITE_URL}/logo.png`, width: 600, height: 120 };
 export function organization(lang: Lang) {
   const page = (p: string) => `${SITE_URL}${href(lang, p)}`;
   return {
     "@type": "NewsMediaOrganization", "@id": ORG_ID,
     name: PAPER.en.name, alternateName: [PAPER.gu.name, PAPER.hi.name, "Capital Kranti News", "CapitalKranti"], url: `${SITE_URL}/`,
-    logo: { "@type": "ImageObject", url: `${SITE_URL}/logo.png`, width: 600, height: 120 },
+    logo: LOGO, sameAs: SOCIAL.length ? SOCIAL : undefined,
     foundingDate: String(PAPER.founded), foundingLocation: "Gandhinagar, Gujarat, India",
     email: PAPER.email, telephone: `+91 ${PAPER.phone}`,
     address: { "@type": "PostalAddress", addressLocality: "Gandhinagar", addressRegion: "Gujarat", addressCountry: "IN" },
@@ -43,12 +45,15 @@ export function article(o: { type?: "NewsArticle" | "Article"; url: string; lang
     headline: o.headline.length > 110 ? `${o.headline.slice(0, 109)}…` : o.headline,
     description: o.description || undefined, inLanguage: o.lang, articleSection: o.section,
     datePublished: o.publishedAt, dateModified: o.updatedAt || o.publishedAt,
-    // a story without a photo of its own shows the paper's share picture rather than none
-    image: [o.image ? new URL(o.image, SITE_URL).href : `${SITE_URL}/og.png`],
+    // its own photo or picture, or none: never the paper's logo picture, which Google asks not to be given as a story's
+    // image (6 Nov: every story without a photo named the same /og.png)
+    image: o.image ? [new URL(o.image, SITE_URL).href] : undefined,
     // the engine's stories are the paper's desk's; the editor's own carry the editor's name
     author: o.author === "editor" ? editor(o.lang) : o.author ? { "@type": "Organization", name: o.author.name, url: o.author.url }
           : { "@type": "Organization", name: PAPER[o.lang].name, url: `${SITE_URL}/` },
-    publisher: { "@id": ORG_ID }, isAccessibleForFree: true, wordCount: o.words, isBasedOn: o.basedOn,
+    // the paper named on the story's own page, not only by its @id, which is described on the home page (6 Nov)
+    publisher: { "@type": "NewsMediaOrganization", "@id": ORG_ID, name: PAPER.en.name, url: `${SITE_URL}/`, logo: LOGO },
+    isAccessibleForFree: true, wordCount: o.words, isBasedOn: o.basedOn,
   };
 }
 

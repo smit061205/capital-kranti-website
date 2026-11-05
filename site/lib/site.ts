@@ -5,6 +5,9 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.capita
 /** The paper's WhatsApp channel, once it has one: until then no page offers it (5 Nov: a "coming soon" box sat on every
  *  front page and Aavtikal page with nothing to join). */
 export const WHATSAPP_CHANNEL = "";
+/** The paper's own pages elsewhere (Instagram, Facebook, the WhatsApp channel), for Google to know them as the paper's
+ *  (sameAs, lib/jsonld.tsx): none listed until the user gives their addresses. */
+export const SOCIAL: string[] = [];
 export const INDEXABLE = !/\.vercel\.app$/.test(new URL(SITE_URL).hostname);
 export const PAPER = {
   gu: { name: "કેપિટલ ક્રાંતિ", tagline: "સમાજનો વિવેકપૂર્ણ દ્રષ્ટિકોણ", place: "ગાંધીનગર" },
