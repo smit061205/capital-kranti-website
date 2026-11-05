@@ -6,8 +6,9 @@ export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.capita
  *  front page and Aavtikal page with nothing to join). */
 export const WHATSAPP_CHANNEL = "";
 /** The paper's own pages elsewhere (Instagram, Facebook, the WhatsApp channel), for Google to know them as the paper's
- *  (sameAs, lib/jsonld.tsx): none listed until the user gives their addresses. */
-export const SOCIAL: string[] = [];
+ *  (sameAs, lib/jsonld.tsx), each added as the user gives its address (6 Nov: Instagram) */
+export const INSTAGRAM = "https://www.instagram.com/capitalkranti/";
+export const SOCIAL: string[] = [INSTAGRAM];
 /** Google's "preferred sources" page for the paper: a reader who picks it sees its stories more often in Top Stories
  *  (Google Search Central, 2025; the SEO report, 6 Nov) */
 export const PREFERRED_SOURCE = "https://www.google.com/preferences/source?q=capitalkranti.co.in";
