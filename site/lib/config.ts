@@ -17,6 +17,11 @@ export const WEBSITE = {
   // own requests a minute and a day, and one that says its day is used up rests till tomorrow (ai.ts)
   groqModels: ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "meta-llama/llama-4-scout-17b-16e-instruct", "openai/gpt-oss-20b", "llama-3.1-8b-instant"],
   dailyGroqRequests: 8000,
+  // NVIDIA's free inference (build.nvidia.com, the user's key NVIDIA_API_KEY, 5 Nov): the same Gemma 4 31B as Google's, about
+  // 40 requests a minute and no daily limit once the account's phone is verified (NVIDIA publishes no figures); tried first
+  // for the writing, and the ceiling below is only a guard against a loop
+  nvidiaModels: ["google/gemma-4-31b-it"],
+  dailyNvidiaRequests: 20000,
   dailyUploads: 50,
   // a paid backup for when every free model has failed (the user, 4 Nov: at most ₹1,000 a month, already in OpenRouter):
   // Gemma 4 26B on OpenRouter, the same model as the free ones, so the same Gujarati and the same checks; at most ₹30 a

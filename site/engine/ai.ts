@@ -20,18 +20,23 @@ const GOOGLE_KEY = process.env.GOOGLE_AI_KEY ?? "";
  *  the photo questions. They took the Gemmas' 16,000 tokens a minute from the writing and checking. */
 const GROQ_KEY = process.env.GROQ_API_KEY ?? "";
 const GROQ = "https://api.groq.com/openai/v1";
+/** NVIDIA's free inference (the user's key, 5 Nov): Gemma 4 31B, the writers' own model, with no daily limit */
+const NVIDIA_KEY = process.env.NVIDIA_API_KEY ?? "";
+const NVIDIA = "https://integrate.api.nvidia.com/v1";
 const GOOGLE = "https://generativelanguage.googleapis.com/v1beta";
 const isGoogle = (m: string) => m.startsWith("google:");
 const isGroq = (m: string) => m.startsWith("groq:");
+const isNvidia = (m: string) => m.startsWith("nvidia:");
 /** the route a model is reached by: each has its own requests a minute */
-const route = (m: string) => (isGoogle(m) ? "google" : isGroq(m) ? "groq" : "openrouter");
+const route = (m: string) => (isGoogle(m) ? "google" : isGroq(m) ? "groq" : isNvidia(m) ? "nvidia" : "openrouter");
 /** extra length for Gemma's thinking, on top of the answer's own */
 const GOOGLE_THINKING_ROOM = 8192;
 /** how much each Gemma may think, as aiprobe.ts found it accepts (none = its default) */
 const thinkingOf = (model: string) => WEBSITE.googleThinking[model.slice(7)] ?? null;
 /** which daily allowance a model's requests count against */
-const counter = (m: string) => (isGoogle(m) ? "ai_google" : isGroq(m) ? "ai_groq" : "ai_free");
-const ceiling = (m: string) => (isGoogle(m) ? WEBSITE.dailyGoogleRequests : isGroq(m) ? WEBSITE.dailyGroqRequests : WEBSITE.dailyFreeRequests);
+const counter = (m: string) => (isGoogle(m) ? "ai_google" : isGroq(m) ? "ai_groq" : isNvidia(m) ? "ai_nvidia" : "ai_free");
+const ceiling = (m: string) => (isGoogle(m) ? WEBSITE.dailyGoogleRequests : isGroq(m) ? WEBSITE.dailyGroqRequests
+  : isNvidia(m) ? WEBSITE.dailyNvidiaRequests : WEBSITE.dailyFreeRequests);
 /** the free routes allow 20-30 requests a minute, each its own */
 const GAP_MS = 2500;
 /** how long a Gemma has to answer before the next model is asked (4 Nov: 200 seconds, and a story's check sat three
@@ -115,12 +120,18 @@ async function callGoogle(model: string, a: { system: string; user: string; temp
   }
 }
 
-/** One request, once: no retrying here (the caller moves to the next model). OpenRouter's, or Groq's (the same shape). */
+/** One request, once: no retrying here (the caller moves to the next model). OpenRouter's, Groq's or NVIDIA's (the same shape). */
 async function call(model: string, body: Record<string, unknown>, seconds: number): Promise<Response> {
   if (left() < 5000) return late();
   seconds = within(seconds);
   try {
-    const res = isGroq(model)
+    const res = isNvidia(model)
+      ? await fetch(`${NVIDIA}/chat/completions`, {
+          method: "POST", signal: AbortSignal.timeout(seconds * 1000),
+          headers: { authorization: `Bearer ${NVIDIA_KEY}`, "content-type": "application/json", accept: "application/json" },
+          body: JSON.stringify({ model: model.slice(7), ...body }),
+        })
+      : isGroq(model)
       ? await fetch(`${GROQ}/chat/completions`, {
           method: "POST", signal: AbortSignal.timeout(seconds * 1000),
           headers: { authorization: `Bearer ${GROQ_KEY}`, "content-type": "application/json" },
@@ -188,7 +199,10 @@ export async function freeModels(): Promise<string[]> {
   models = models.filter((m) => /gemma/i.test(m));
   if (!models.length) models = named;
   if (!KEY) models = [];
-  models = [...google, ...models];
+  // NVIDIA's Gemma first: no daily limit, so Google's and OpenRouter's are kept for when it's busy, and the checker (the
+  // second model) is Google's, a different route from the writer's
+  const nvidia = NVIDIA_KEY ? WEBSITE.nvidiaModels.map((id) => `nvidia:${id}`) : [];
+  models = [...nvidia, ...google, ...models];
   return models;
 }
 
@@ -224,7 +238,7 @@ export async function askJson<T>(sql: Sql | null, a: Ask, check: (v: unknown) =>
 }
 
 async function askFree<T>(sql: Sql | null, a: Ask, check: (v: unknown) => T | null): Promise<AiResult<T>> {
-  if (!KEY && !GOOGLE_KEY && !GROQ_KEY) return { ok: false, why: "no GOOGLE_AI_KEY or OPENROUTER_API_KEY", stop: true };
+  if (!KEY && !GOOGLE_KEY && !GROQ_KEY && !NVIDIA_KEY) return { ok: false, why: "no GOOGLE_AI_KEY or OPENROUTER_API_KEY", stop: true };
   const list = await freeModels();
   const fast = await groqModels();
   // the checker starts from the second model of the best route, so it differs from the writer; Groq's last, when every
@@ -260,6 +274,10 @@ async function askFree<T>(sql: Sql | null, a: Ask, check: (v: unknown) => T | nu
     if (sql) await count(sql, counter(model));
     let res = isGoogle(model)
       ? await callGoogle(model, { system: a.system, user: a.user, temperature: a.temperature ?? 0.2, maxTokens: a.maxTokens ?? 3000 }, GEMMA_S)
+      : isNvidia(model)
+      // NVIDIA's: the plain request (it takes neither OpenRouter's thinking setting nor, for every model, a JSON mode)
+      ? await call(model, { temperature: a.temperature ?? 0.2, max_tokens: a.maxTokens ?? 3000,
+          messages: [{ role: "system", content: a.system }, { role: "user", content: a.user }] }, (a.maxTokens ?? 3000) > 4000 ? 150 : 60)
       : await call(model, {
       temperature: a.temperature ?? 0.2, max_tokens: a.maxTokens ?? 3000, response_format: { type: "json_object" },
       // thinking models spend their tokens thinking first: keep it short so the answer fits (Groq names it its own way,
@@ -285,6 +303,8 @@ async function askFree<T>(sql: Sql | null, a: Ask, check: (v: unknown) => T | nu
       // busy, gone, or too slow: set aside for a while, ask the next
       // ("rate-limited upstream" asks to retry shortly: a minute; anything else longer)
       if ([404, 408, 429, 500, 502, 503, 504].includes(res.status)) resting.set(model, Date.now() + (res.status === 429 || res.status === 500 ? 60_000 : REST_MS));
+      // NVIDIA refusing the key or the request itself: not asked again this run
+      if (isNvidia(model) && [400, 401, 403, 422].includes(res.status)) resting.set(model, Date.now() + 24 * 3600_000);
       continue;
     }
     const answer = (await res.json().catch(() => ({}))) as { choices?: { message?: { content?: string }; finish_reason?: string }[] };
@@ -493,7 +513,8 @@ async function askPaid<T>(sql: Sql, a: { system: string; user: string; temperatu
 export async function aiLeft(sql: Sql): Promise<number> {
   const google = GOOGLE_KEY ? Math.max(0, WEBSITE.dailyGoogleRequests - (await count(sql, "ai_google", 0))) : 0;
   const open = KEY ? Math.max(0, WEBSITE.dailyFreeRequests - (await count(sql, "ai_free", 0))) : 0;
-  return google + open;
+  const nvidia = NVIDIA_KEY ? Math.max(0, WEBSITE.dailyNvidiaRequests - (await count(sql, "ai_nvidia", 0))) : 0;
+  return google + open + nvidia;
 }
 
 /** The JSON in a model's answer: the whole of it, or inside a code fence, or
