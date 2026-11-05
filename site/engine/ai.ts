@@ -23,6 +23,13 @@ const GROQ = "https://api.groq.com/openai/v1";
 /** NVIDIA's free inference (the user's key, 5 Nov): Gemma 4 31B, the writers' own model, with no daily limit */
 const NVIDIA_KEY = process.env.NVIDIA_API_KEY ?? "";
 const NVIDIA = "https://integrate.api.nvidia.com/v1";
+/** the longest answer NVIDIA is asked for (5 Nov: it answered 14 requests, then the first translation, which asks for up to
+ *  20,000 tokens, set it aside for the day; a Gujarati story and its English and Hindi take well under this) */
+const NVIDIA_MAX_OUT = 8192;
+/** what happens to a route (NVIDIA set aside, and why), for the round's log: engine/run.ts gives the log */
+let note: (line: string) => void = () => {};
+export const aiNotes = (f: (line: string) => void) => { note = f; };
+const noted = new Set<number>();
 const GOOGLE = "https://generativelanguage.googleapis.com/v1beta";
 const isGoogle = (m: string) => m.startsWith("google:");
 const isGroq = (m: string) => m.startsWith("groq:");
@@ -276,7 +283,7 @@ async function askFree<T>(sql: Sql | null, a: Ask, check: (v: unknown) => T | nu
       ? await callGoogle(model, { system: a.system, user: a.user, temperature: a.temperature ?? 0.2, maxTokens: a.maxTokens ?? 3000 }, GEMMA_S)
       : isNvidia(model)
       // NVIDIA's: the plain request (it takes neither OpenRouter's thinking setting nor, for every model, a JSON mode)
-      ? await call(model, { temperature: a.temperature ?? 0.2, max_tokens: a.maxTokens ?? 3000,
+      ? await call(model, { temperature: a.temperature ?? 0.2, max_tokens: Math.min(a.maxTokens ?? 3000, NVIDIA_MAX_OUT),
           messages: [{ role: "system", content: a.system }, { role: "user", content: a.user }] }, (a.maxTokens ?? 3000) > 4000 ? 150 : 60)
       : await call(model, {
       temperature: a.temperature ?? 0.2, max_tokens: a.maxTokens ?? 3000, response_format: { type: "json_object" },
@@ -303,8 +310,18 @@ async function askFree<T>(sql: Sql | null, a: Ask, check: (v: unknown) => T | nu
       // busy, gone, or too slow: set aside for a while, ask the next
       // ("rate-limited upstream" asks to retry shortly: a minute; anything else longer)
       if ([404, 408, 429, 500, 502, 503, 504].includes(res.status)) resting.set(model, Date.now() + (res.status === 429 || res.status === 500 ? 60_000 : REST_MS));
-      // NVIDIA refusing the key or the request itself: not asked again this run
-      if (isNvidia(model) && [400, 401, 403, 422].includes(res.status)) resting.set(model, Date.now() + 24 * 3600_000);
+      // NVIDIA refusing the key: not asked again today; refusing a request: set aside a quarter of an hour (5 Nov: one refusal
+      // set it aside for the day, the round's log didn't say why)
+      if (isNvidia(model)) {
+        const off = [401, 403].includes(res.status) ? 24 * 3600_000 : [400, 422].includes(res.status) ? 15 * 60_000 : 0;
+        if (off) resting.set(model, Date.now() + off);
+        // a busy minute (429) isn't news; anything else is, once per kind of answer
+        if (res.status !== 429 && !noted.has(res.status)) {
+          noted.add(res.status);
+          const mins = Math.round(((resting.get(model) ?? Date.now()) - Date.now()) / 60_000);
+          note(`NVIDIA: ${res.status} ${said.slice(0, 200).replace(/\s+/g, " ")}${mins > 0 ? `; set aside ${mins} min` : ""}`);
+        }
+      }
       continue;
     }
     const answer = (await res.json().catch(() => ({}))) as { choices?: { message?: { content?: string }; finish_reason?: string }[] };

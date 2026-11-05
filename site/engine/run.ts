@@ -18,7 +18,7 @@ import { WEBSITE } from "../lib/config.ts";
 import { ensureSchema } from "../lib/schema.ts";
 import { pollUpdates, tell } from "../lib/telegram.ts";
 import { touched } from "../lib/write.ts";
-import { aiLeft, aiUsed, freeModels, groqModels, stopAiAt } from "./ai.ts";
+import { aiLeft, aiNotes, aiUsed, freeModels, groqModels, stopAiAt } from "./ai.ts";
 import { collect } from "./collect.ts";
 import { STALE_H, STRAY, gate, gather, importance, levelOf, mendLetters, thin, translate, translateBoth, writeChecked, type ClusterItem, type Debunk } from "./newsroom.ts";
 import { indiaDate, linkPhoto, photoOf, saveLive } from "./publish.ts";
@@ -535,6 +535,7 @@ async function watch() {
 }
 
 await ensureSchema(sql);
+aiNotes(log);
 // the editor's stop switch (the editor page, lib/editor.ts): nothing collected, written or published
 const [paused] = await sql.query(`select value from state where key = 'engine_paused'`);
 if (paused?.value === "yes") { log("the editor has paused the engine: nothing to do"); process.exit(0); }
