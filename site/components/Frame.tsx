@@ -6,7 +6,7 @@ import type { Lang } from "../lib/types.ts";
 import { href, t } from "../lib/i18n.ts";
 import { SECTIONS, sectionName } from "../lib/sections.ts";
 import { flw } from "../lib/flagship.ts";
-import { PAPER } from "../lib/site.ts";
+import { PAPER, PREFERRED_SOURCE } from "../lib/site.ts";
 import { dateText, num } from "../lib/format.ts";
 import Chrome from "./Chrome.tsx";
 import LangLink from "./LangLink.tsx";
@@ -73,7 +73,8 @@ export default async function Frame({ lang, path, section, active, bottomBar = t
             <div><b>{t(lang, "f3")}</b><Link prefetch={false} href={L("/archive")}>{t(lang, "archive")}</Link>
               <Link prefetch={false} href={L("/classifieds")}>{t(lang, "classifieds")}</Link>
               <Link prefetch={false} href={L("/advertise")}>{t(lang, "advertise")}</Link>
-              <Link prefetch={false} href={L("/rss")}>{t(lang, "fRss")}</Link></div>
+              <Link prefetch={false} href={L("/rss")}>{t(lang, "fRss")}</Link>
+              <a href={PREFERRED_SOURCE} target="_blank" rel="noopener">{t(lang, "prefShort")}</a></div>
             <div><b>{t(lang, "f4")}</b><Link prefetch={false} href={L("/terms")}>{t(lang, "fTerms")}</Link><Link prefetch={false} href={L("/privacy")}>{t(lang, "fPrivacy")}</Link>
               {(["gu", "hi", "en"] as const).filter((l) => l !== lang).map((l) => (
                 <LangLink key={l} to={l} href={href(l, path)} hrefLang={l}>{{ gu: "ગુજરાતી", hi: "हिंदी", en: "English" }[l]}</LangLink>))}</div>

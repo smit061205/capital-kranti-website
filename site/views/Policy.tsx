@@ -29,6 +29,7 @@ export const POLICY: Record<string, Record<Lang, Page>> = {
       "જાહેરાતો પ્રકાશિત કરવા માટે ગુજરાત સરકાર અને ભારત સરકાર (ડીએવીપી) દ્વારા માન્ય દૈનિક તરીકે, અમે ગુજરાત અને બીજાં રાજ્યોનાં વ્યવસાયિક ગૃહોની પસંદ છીએ, અને સમગ્ર ભારતની પબ્લિક રિલેશન એજન્સીઓ સાથે જોડાયેલા છીએ.",
       "આ વેબસાઇટ પર દિવસભર તાજા સમાચાર, દરરોજ સાંજે છપાયેલા પેપરના સમાચાર અને જૂના અંકો મળે છે. સમાચાર ગુજરાતીમાં, અને દેશ-વિદેશના સમાચાર હિંદી અને અંગ્રેજીમાં પણ વાંચી શકાય છે.",
       "અમારું સૂત્ર છે: સમાજનો વિવેકપૂર્ણ દ્રષ્ટિકોણ. અમે હકીકતો આપીએ છીએ, સ્રોત જણાવીએ છીએ અને ભૂલ થાય તો ખુલ્લેઆમ સુધારીએ છીએ.",
+      `માલિકી: કેપિટલ ક્રાંતિના માલિક, મુદ્રક અને પ્રકાશક ${PAPER.editor.gu} છે; તે કોઈ રાજકીય પક્ષ કે બીજી કંપનીની માલિકીનું નથી.`,
       `અમારી ટીમ: તંત્રી ${PAPER.editor.gu}. વેબસાઇટ અને તેની ટેક્નોલોજી: ${PAPER.tech.map((x) => x.gu).join(" અને ")}.`,
     ] },
     en: { title: "About us", paras: [
@@ -39,6 +40,7 @@ export const POLICY: Record<string, Record<Lang, Page>> = {
       "Empanelled with the Government of Gujarat and the Government of India (DAVP) for publishing advertisements, we are a popular choice among commercial houses from Gujarat and other states, and are connected to public relations agencies across India.",
       "This website carries the latest news through the day, the stories of each evening’s printed paper and past issues. Stories are in Gujarati; national and world stories are also in Hindi and English.",
       "Our motto is “a thoughtful view of society”. We give the facts, say where they come from, and correct mistakes openly.",
+      `Ownership: Capital Kranti is owned, printed and published by ${PAPER.editor.en}; it is not owned by any political party or other company.`,
       `Our team: ${PAPER.editor.en}, Editor. The website and its technology: ${PAPER.tech.map((x) => x.en).join(" and ")}.`,
     ] },
     hi: { title: "हमारे बारे में", paras: [
@@ -49,25 +51,29 @@ export const POLICY: Record<string, Record<Lang, Page>> = {
       "विज्ञापन प्रकाशित करने के लिए गुजरात सरकार और भारत सरकार (डीएवीपी) से मान्य दैनिक के रूप में, हम गुजरात और दूसरे राज्यों के व्यावसायिक घरानों की पसंद हैं और पूरे भारत की जनसंपर्क एजेंसियों से जुड़े हैं।",
       "इस वेबसाइट पर दिन भर ताज़ा समाचार, हर शाम छपे अख़बार के समाचार और पुराने अंक मिलते हैं। समाचार गुजराती में हैं; देश और विदेश के समाचार हिंदी और अंग्रेज़ी में भी पढ़े जा सकते हैं।",
       "हमारा सूत्र है: समाज का विवेकपूर्ण दृष्टिकोण। हम तथ्य देते हैं, स्रोत बताते हैं और ग़लती होने पर खुलकर सुधारते हैं।",
+      `स्वामित्व: कैपिटल क्रांति के स्वामी, मुद्रक और प्रकाशक ${PAPER.editor.hi} हैं; यह किसी राजनीतिक दल या दूसरी कंपनी के स्वामित्व में नहीं है।`,
       `हमारी टीम: संपादक ${PAPER.editor.hi}। वेबसाइट और उसकी तकनीक: ${PAPER.tech.map((x) => x.hi).join(" और ")}।`,
     ] },
   },
   "editorial-policy": {
     gu: { title: "સંપાદકીય નીતિ", paras: [
       "સ્રોત: અમારા સમાચાર સત્તાવાર સ્રોતો (પત્ર સૂચના કાર્યાલય – PIB, મંત્રાલયો, રિઝર્વ બેંક, ગુજરાત સરકાર, વિદેશની સરકારો અને આંતરરાષ્ટ્રીય સંસ્થાઓ) અને જાણીતાં, વિશ્વસનીય સમાચાર માધ્યમો પરથી છે. દરેક સમાચારના અંતે તેના બધા સ્રોત લિંક સાથે આપેલા છે.",
-      "અમારા શબ્દોમાં: સમાચાર અમે અમારા શબ્દોમાં લખીએ છીએ; બીજા માધ્યમોનું લખાણ કે ફોટા લેતા નથી. ફોટા ફક્ત સરકારી સ્રોતના છે અને તેનો સ્રોત લખેલો છે.",
+      "અમારા શબ્દોમાં: સમાચાર અમે અમારા શબ્દોમાં લખીએ છીએ; બીજા માધ્યમોનું લખાણ કે ફોટા લેતા નથી.",
+      "ફોટા: ફોટા સરકારી સ્રોતો, વિકિમીડિયા કૉમન્સ (મુક્ત લાઇસન્સવાળા ફોટા) અને Unsplash તથા Pexels જેવી ફોટો લાઇબ્રેરીમાંથી લેવાય છે, અને દરેક ફોટાની નીચે તેનો સ્રોત લખેલો હોય છે. દોરેલાં કે AIથી બનાવેલાં ચિત્રો અમે વાપરતા નથી.",
       "સંવેદનશીલ સમાચાર: મૃત્યુ, અકસ્માત, ગુના કે કોઈ વ્યક્તિ સામેના આક્ષેપો જેવા સમાચાર માત્ર સ્રોતોમાં જે કહેવાયું હોય તે જ જણાવે છે, અને તેની સાથે જૂના ફોટા મુકાતા નથી.",
       "જાહેરાત અને સમાચાર અલગ: પૈસા લઈને સમાચાર છાપવામાં આવતા નથી. જાહેરાત હંમેશાં જાહેરાત તરીકે ઓળખાશે.",
     ] },
     en: { title: "Editorial policy", paras: [
       "Sources: our stories come from official sources (the Press Information Bureau – PIB, ministries, the Reserve Bank, the Gujarat government, foreign governments and international bodies) and from established, trusted news outlets. Every story ends with all its sources and links.",
-      "In our own words: we write stories in our own words and never take other outlets’ text or photos. Photos come only from government sources and say so.",
+      "In our own words: we write stories in our own words and never take other outlets’ text or photos.",
+      "Photos: photos come from government sources, Wikimedia Commons (freely licensed photos) and photo libraries such as Unsplash and Pexels, and each one is credited under it. We never use drawn or AI-made pictures.",
       "Sensitive stories: deaths, accidents, crime and allegations against named people say only what the sources say, and carry no file photos.",
       "News is not for sale: we do not publish news for payment. Advertising is always marked as advertising.",
     ] },
     hi: { title: "संपादकीय नीति", paras: [
       "स्रोत: हमारे समाचार आधिकारिक स्रोतों (पत्र सूचना कार्यालय – PIB, मंत्रालय, रिज़र्व बैंक, गुजरात सरकार, विदेशी सरकारें और अंतरराष्ट्रीय संस्थाएँ) और जाने-माने, भरोसेमंद समाचार माध्यमों से हैं। हर समाचार के अंत में उसके सभी स्रोत लिंक के साथ दिए गए हैं।",
-      "अपने शब्दों में: हम समाचार अपने शब्दों में लिखते हैं; दूसरे माध्यमों का लेख या फ़ोटो नहीं लेते। फ़ोटो केवल सरकारी स्रोतों के हैं और उनका स्रोत लिखा होता है।",
+      "अपने शब्दों में: हम समाचार अपने शब्दों में लिखते हैं; दूसरे माध्यमों का लेख या फ़ोटो नहीं लेते।",
+      "फ़ोटो: फ़ोटो सरकारी स्रोतों, विकिमीडिया कॉमन्स (मुक्त लाइसेंस वाले फ़ोटो) और Unsplash व Pexels जैसी फ़ोटो लाइब्रेरी से लिए जाते हैं, और हर फ़ोटो के नीचे उसका स्रोत लिखा होता है। हम बनाए हुए या AI से बने चित्र इस्तेमाल नहीं करते।",
       "संवेदनशील समाचार: मृत्यु, दुर्घटना, अपराध या किसी व्यक्ति पर आरोप जैसे समाचार वही बताते हैं जो स्रोतों में कहा गया है, और उनके साथ पुरानी तस्वीरें नहीं लगाई जातीं।",
       "समाचार बिकाऊ नहीं: पैसे लेकर समाचार नहीं छापे जाते। विज्ञापन हमेशा विज्ञापन के रूप में पहचाना जाएगा।",
     ] },
@@ -165,17 +171,17 @@ export const POLICY: Record<string, Record<Lang, Page>> = {
   },
   terms: {
     gu: { title: "ઉપયોગના નિયમો", paras: [
-      "આ વેબસાઇટના સમાચાર અને ફોટા કેપિટલ ક્રાંતિના છે (સરકારી સ્રોતના ફોટા તેમના સ્રોતના). અંગત વાંચન માટે ઉપયોગ કરો; સમાચારની લિંક મોકલવાનું સ્વાગત છે.",
+      "આ વેબસાઇટના સમાચાર કેપિટલ ક્રાંતિના છે; દરેક ફોટો તેની નીચે જણાવેલા સ્રોતનો છે. અંગત વાંચન માટે ઉપયોગ કરો; સમાચારની લિંક મોકલવાનું સ્વાગત છે.",
       "આખા સમાચાર બીજે ફરી પ્રકાશિત કરવા હોય તો પહેલાં અમારી લેખિત મંજૂરી લો.",
       "અમે સમાચાર સાચા રાખવા પૂરો પ્રયત્ન કરીએ છીએ; ભૂલ દેખાય તો જણાવો, અમે સુધારીશું.",
     ] },
     en: { title: "Terms of use", paras: [
-      "The stories and photos on this website belong to Capital Kranti (photos from government sources to their sources). Use them for personal reading; sharing links to stories is welcome.",
+      "The stories on this website belong to Capital Kranti; each photo belongs to the source credited under it. Use them for personal reading; sharing links to stories is welcome.",
       "To republish whole stories elsewhere, ask us for written permission first.",
       "We do our best to keep every story accurate; if you spot a mistake, tell us and we will correct it.",
     ] },
     hi: { title: "उपयोग के नियम", paras: [
-      "इस वेबसाइट के समाचार और फ़ोटो कैपिटल क्रांति के हैं (सरकारी स्रोतों के फ़ोटो उनके स्रोतों के)। निजी पढ़ने के लिए उपयोग करें; समाचारों की लिंक भेजने का स्वागत है।",
+      "इस वेबसाइट के समाचार कैपिटल क्रांति के हैं; हर फ़ोटो उसके नीचे बताए स्रोत का है। निजी पढ़ने के लिए उपयोग करें; समाचारों की लिंक भेजने का स्वागत है।",
       "पूरे समाचार कहीं और फिर से प्रकाशित करने हों तो पहले हमारी लिखित अनुमति लें।",
       "हम हर समाचार सही रखने की पूरी कोशिश करते हैं; ग़लती दिखे तो बताएँ, हम सुधारेंगे।",
     ] },
