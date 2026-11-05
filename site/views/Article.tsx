@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Lang, Story } from "../lib/types.ts";
 import { largest, pic, shareCopy, SIZES } from "../lib/photo.ts";
-import { pageMeta, langsOf } from "../lib/meta.ts";
+import { missingMeta, pageMeta, langsOf } from "../lib/meta.ts";
 import { article, breadcrumbs, JsonLd } from "../lib/jsonld.tsx";
 import { moreOnSubject, storiesIn, storyById as loadStory } from "../lib/db.ts";
 import { href, t } from "../lib/i18n.ts";
@@ -25,7 +25,7 @@ const storyById = cache(loadStory);
 /** A story page's title, description, language versions and share preview. */
 export async function articleMeta(id: string, lang: Lang) {
   const s = await storyById(id);
-  if (!s) return pageMeta({ lang, path: "/" });
+  if (!s) return missingMeta(lang);
   const w = words(s, lang);
   return pageMeta({ lang, path: `/news/${s.id}`, title: w.headline, description: w.deck || w.body.slice(0, 160),
                     image: s.photo ? shareCopy(s.photo) : lang === "gu" && s.share ? `${SITE_URL}${s.share}` : null, article: s, langs: langsOf(s) });
@@ -37,7 +37,9 @@ function articleLd(s: Story, lang: Lang) {
   const w = words(s, shown);
   return [
     article({ url: `${SITE_URL}${href(shown, `/news/${s.id}`)}`, lang: shown, headline: w.headline, description: w.deck, section: sectionName(s.tier, shown),
-              publishedAt: s.publishedAt, updatedAt: s.updatedAt, image: s.photo && shareCopy(s.photo), basedOn: s.source?.url ?? s.sources[0]?.url,
+              publishedAt: s.publishedAt, updatedAt: s.updatedAt,
+              // its photo, else its own picture with its headline (made for the Gujarati only)
+              image: s.photo ? shareCopy(s.photo) : shown === "gu" && s.share ? `${SITE_URL}${s.share}` : null, basedOn: s.source?.url ?? s.sources[0]?.url,
               author: s.byEditor ? "editor" : undefined,
               words: w.body.split(/\s+/).filter(Boolean).length }),
     breadcrumbs(shown, [{ name: PAPER[shown].name, path: "/" }, { name: sectionName(s.tier, shown), path: `/section/${s.tier}` }, { name: w.headline, path: `/news/${s.id}` }]),

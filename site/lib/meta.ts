@@ -1,11 +1,18 @@
 // Each page's title, description, language alternates and share preview.
 import type { Metadata } from "next";
 import type { Lang } from "./types.ts";
-import { href } from "./i18n.ts";
+import { href, t } from "./i18n.ts";
 import { INDEXABLE, PAPER, SITE_URL } from "./site.ts";
 
 /** The languages a story or article really exists in: Gujarati always, English and Hindi once translated. */
 export const langsOf = (x: { en: unknown; hi: unknown }): Lang[] => ["gu", ...(x.en ? ["en" as const] : []), ...(x.hi ? ["hi" as const] : [])];
+
+/** A story or page that isn't there (taken off, or a wrong address): out of search, with no canonical or language versions
+ *  pointing at the home page (6 Nov: it was described as the home page, and Next added its own noindex beside our index).
+ *  The page streams, so its status stays 200 (Next's docs, loading.md "Status Codes"); the noindex keeps it out of Google. */
+export function missingMeta(lang: Lang): Metadata {
+  return { metadataBase: new URL(SITE_URL), title: `${t(lang, "notFoundTitle")} | ${PAPER[lang].name}`, robots: { index: false, follow: true } };
+}
 
 /** langs: the languages the page exists in (all three unless said). A copy not yet translated shows the Gujarati,
  *  so its canonical is the Gujarati page and search engines aren't told of it as a version of its own. */
