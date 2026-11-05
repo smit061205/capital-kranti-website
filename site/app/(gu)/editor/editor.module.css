@@ -95,6 +95,7 @@ a.title:hover { text-decoration: underline }
 .use dt { font-size: 15px; color: var(--muted) }
 .use dd { margin: 4px 0 0; font-size: 26px; font-weight: 800; color: var(--strong); font-variant-numeric: tabular-nums }
 .use dd small { font-size: 16px; font-weight: 600; color: var(--muted) }
+.use p { margin: 6px 0 0; font-size: 14px; color: var(--muted); font-variant-numeric: tabular-nums }
 
 /* the write page (Write.tsx): your own news with photos, big enough for a phone */
 .writeBtn { display: block; margin: 18px 0 4px; padding: 16px 20px; text-align: center; border-radius: var(--r); background: var(--brand);
