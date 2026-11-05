@@ -319,7 +319,8 @@ export default async function Editor({ searchParams }: { searchParams: Promise<Q
           <h2 id="use">{w.use}</h2>
           <dl className={s.use}>
             <div><dt>{w.stories}</dt><dd>{nn(d.today.stories)}</dd></div>
-            <div><dt>{w.ai}</dt><dd>{nn(d.today.ai)} / {nn(d.today.aiLimit)}</dd></div>
+            <div><dt>{w.ai}</dt><dd>{nn(d.today.ai)} / {nn(d.today.aiLimit)}</dd>
+              <p>{d.today.aiRoutes.map((r) => `${r.name} ${nn(r.n)}`).join(" · ")}</p></div>
             <div><dt>{w.aiAavtikal}</dt><dd>{nn(d.today.aiAavtikal)}</dd></div>
             <div><dt>{w.uploads}</dt><dd>{nn(d.today.uploads)} / {nn(d.today.uploadLimit)}</dd></div>
             <div><dt>{w.cost}</dt><dd>₹{rs(d.today.paid)} / ₹{nn(d.today.paidLimit)}</dd></div>
