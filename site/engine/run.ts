@@ -20,7 +20,7 @@ import { pollUpdates, tell } from "../lib/telegram.ts";
 import { touched } from "../lib/write.ts";
 import { aiLeft, aiNotes, aiUsed, freeModels, groqModels, nvidiaTimes, stopAiAt } from "./ai.ts";
 import { collect } from "./collect.ts";
-import { STALE_H, STRAY, gate, gather, importance, levelOf, mendLetters, thin, translate, translateBoth, writeChecked, type ClusterItem, type Debunk } from "./newsroom.ts";
+import { STALE_H, STRAY, aboutEvent, enough, gate, gather, importance, levelOf, material, mendLetters, thin, translate, translateBoth, writeChecked, type ClusterItem, type Debunk } from "./newsroom.ts";
 import { indiaDate, linkPhoto, photoOf, saveLive } from "./publish.ts";
 import { sourceById } from "./sources.ts";
 import { alertBreaking } from "../lib/push.ts";
@@ -162,6 +162,12 @@ async function writeOne(c: Record<string, any>): Promise<"stop" | "busy" | void>
   const imp = importance(Math.max(...items.map((i) => i.triage.score)), c.tier, g.groups.length, g.official);
   const level = levelOf(imp);
   if (!level) { await sql.query(`update clusters set state = 'dropped', reason = 'too small for a story' where id = $1`, [c.id]); return; }
+  // fewer, fuller stories (the user, 5 Nov: "target good length and better stories compared to chasing numbers"): a small
+  // event is written only when it's Gujarat's
+  if (level === "brief" && c.tier !== "gujarat") {
+    await sql.query(`update clusters set state = 'dropped', reason = 'a small event outside Gujarat' where id = $1`, [c.id]);
+    return;
+  }
   const twin = await sameEvent(sql, { id: c.id, event: c.event, keys: c.keys ?? [] });
   // not known whether it's already up: it waits for a later round
   if (twin === "unsure") { log(`    the free models couldn't say whether it's already up: next run: ${c.event}`); return; }
@@ -172,12 +178,13 @@ async function writeOne(c: Record<string, any>): Promise<"stop" | "busy" | void>
     log(`    same event as ${twin.story}: ${c.event}`);
     return;
   }
-  let src = await gather(items);
+  // only the reports about this event (5 Nov: other incidents filed with it went into its story)
+  let src = await aboutEvent(sql, c.event, await gather(items));
   // only a few lines to write from: the other reports of the same event, filed apart, then Wikipedia's lines on its subject
   // for a paragraph of background (4 Nov: a story from a feed's three lines came out two short paragraphs)
   if (thin(level, src)) {
     const more = await nearReports(c);
-    if (more.length) src = await gather([...items, ...more]);
+    if (more.length) src = await aboutEvent(sql, c.event, await gather([...items, ...more]));
     if (thin(level, src) && !c.sensitive) {
       const bg = await background(sql, c.event, items.map((i) => `${i.title}. ${i.summary}`).join("\n").slice(0, 1500)).catch(() => null);
       if (bg) src = [...src, bg];
@@ -185,6 +192,14 @@ async function writeOne(c: Record<string, any>): Promise<"stop" | "busy" | void>
     log(`    few lines to write from: ${more.length} report(s) of the same event filed apart${src.some((s) => s.background) ? ", Wikipedia's background" : ""}`);
   }
   if (!src.length) { await sql.query(`update clusters set state = 'dropped', reason = 'no source text to write from' where id = $1`, [c.id]); return; }
+  // too little for a full story: it waits for more reports, three rounds at most (5 Nov: no more two-paragraph stories)
+  if (!enough(src)) {
+    log(`    too little to write from yet (${material(src)} words): ${c.event}`);
+    await sql.query(`update clusters set write_tries = write_tries + 1,
+       state = case when write_tries >= 2 then 'dropped' else state end,
+       reason = case when write_tries >= 2 then 'too little to write from' else reason end where id = $1`, [c.id]);
+    return;
+  }
   log(`  writing ${c.id} (${level}, ${imp}): ${c.event}`);
   const res = await writeChecked(sql, src, level, indiaDate(), c.event);
   wrote++;

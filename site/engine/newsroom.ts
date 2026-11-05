@@ -60,8 +60,11 @@ export function importance(maxScore: number, tier: Tier, groups: number, officia
   return Math.round((maxScore * weight + Math.log2(Math.max(1, groups)) * 0.8 + (official ? 0.4 : 0)) * 10) / 10;
 }
 export const levelOf = (imp: number): Level | null => (imp >= 9.5 ? "lead" : imp >= 7.5 ? "top" : imp >= 5 ? "normal" : imp >= 3 ? "brief" : null);
-// longer, like the sources themselves (the user, 29 Oct: "can't it have the original length?")
-const WORDS: Record<Level, [number, number]> = { lead: [450, 700], top: [400, 600], normal: [250, 400], brief: [100, 160] };
+// longer, like the sources themselves (the user, 29 Oct: "can't it have the original length?"; 5 Nov: fewer, fuller stories
+// rather than many short ones, after a day of two-paragraph stories of 50 to 60 words)
+const WORDS: Record<Level, [number, number]> = { lead: [600, 900], top: [450, 700], normal: [300, 450], brief: [150, 220] };
+/** the shortest story that goes up: anything shorter is written again, or waits for more reports (5 Nov) */
+export const MIN_WORDS = 150;
 
 // ---- gathering the facts ----
 
@@ -133,26 +136,61 @@ const longestNews = (src: SourceText[]) => Math.max(0, ...src.filter((s) => !s.b
 /** Its sources are shorter than its level's story (a feed's few lines): more is looked for before it's written (engine/run.ts). */
 export const thin = (level: Level, src: SourceText[]) => longestNews(src) < WORDS[level][0];
 
-export function lengthFor(level: Level, src: SourceText[]): [number, number] {
-  const longest = longestNews(src);
-  // a paragraph of background, when Wikipedia gave some (4 Nov: a story from a feed's three lines was two short paragraphs)
+/** How much there is to tell, in words: the longest report, half of each other one (the same facts told again, with a few
+ *  of their own), and a paragraph of background when Wikipedia gave some (4 Nov: a story from a feed's three lines was two
+ *  short paragraphs) */
+export function material(src: SourceText[]): number {
+  const news = src.filter((s) => !s.background).map(wordsIn).sort((a, b) => b - a);
   const bg = src.find((s) => s.background);
-  const extra = bg ? Math.min(120, Math.round(wordsIn(bg) * 0.5)) : 0;
+  return (news[0] ?? 0) + Math.round(news.slice(1).reduce((t, n) => t + n, 0) * 0.5) + (bg ? Math.min(120, Math.round(wordsIn(bg) * 0.5)) : 0);
+}
+/** Enough to tell for a story of MIN_WORDS without padding it out (5 Nov: a story asked for more than its sources held was
+ *  padded, its padding cut by the check, and two short paragraphs went up) */
+export const enough = (src: SourceText[]) => material(src) >= MIN_WORDS * 0.9;
+
+export function lengthFor(level: Level, src: SourceText[]): [number, number] {
+  const told = material(src);
   // sources shorter than the level's length (a feed's three-line summary): the story as long as they are, not padded out to
   // the level's (4 Nov: 250 words asked from 60, the writer filled them with lines no source said and the check failed
   // over half the stories)
-  if (longest < WORDS[level][0]) {
-    const lo = Math.max(WORDS.brief[0] * 0.8, Math.round(longest * 0.9) + extra);
+  if (longestNews(src) < WORDS[level][0]) {
+    const lo = Math.max(MIN_WORDS * 0.8, Math.round(told * 0.9));
     return [lo, Math.round(lo * 1.4)];
   }
-  const lo = Math.min(1200, longest);
+  const lo = Math.min(1200, Math.max(WORDS[level][0], told));
   return [lo, Math.min(1500, Math.max(WORDS[level][1], Math.round(lo * 1.25)))];
+}
+
+const ABOUT = `You check which news reports are about one EVENT. You get the EVENT and numbered REPORTS (headline and opening).
+A report is about the EVENT when it reports that same real-world incident, decision or announcement, even in other words
+or with other numbers. A report of another incident is NOT, even in the same city or on the same topic (another fire,
+another accident, another case), and neither is a round-up of the day's news that only mentions it in passing.
+Reply with JSON only: {"about":[the numbers of the reports about the EVENT]}`;
+
+/** Only the reports about the event itself (5 Nov: a Vadodara car blast's story had a second paragraph on a man swept away
+ *  in a canal nearby and a death in an Ahmedabad fire, reports filed with it because they shared "Vadodara" and "fire").
+ *  Asked of a quick model; when it can't answer, every report is kept, as before. */
+export async function aboutEvent(sql: Sql | null, event: string, src: SourceText[]): Promise<SourceText[]> {
+  const news = src.filter((s) => !s.background);
+  if (news.length < 2) return src;
+  const res = await askJson(sql, {
+    system: ABOUT, small: true, maxTokens: 80,
+    user: `EVENT: ${event}\n\nREPORTS:\n${news.map((s, i) => `${i + 1}. ${s.title.slice(0, 160)} -- ${s.text.slice(0, 300).replace(/\s+/g, " ")}`).join("\n")}`,
+  }, (v) => {
+    const a = (v as { about?: unknown })?.about;
+    return Array.isArray(a) && a.every((n) => Number.isInteger(n) && n >= 1 && n <= news.length) ? (a as number[]) : null;
+  });
+  if (!res.ok || !res.value.length) return src;
+  const keep = new Set(res.value.map((n) => news[n - 1]));
+  return src.filter((s) => s.background || keep.has(s));
 }
 
 const WRITER = (lo: number, hi: number) => {
   return `તમે ગાંધીનગરના ગુજરાતી દૈનિક "કેપિટલ ક્રાંતિ"ની વેબસાઇટના ઉપતંત્રી છો.
 You write ONE news story in Gujarati from the sources given, for the website.
 Rules:
+- Write ONLY about the EVENT named. A source may also report other incidents (a round-up of the day's news, another accident
+  or case in the same city): leave every other incident out entirely. One story, one event.
 - Use ONLY facts stated in the sources. Never add a fact, number, name, quote or cause that isn't in them. If sources differ, say so or use the official one.
 - Write in your own words: never copy a sentence from a source. Quote people only where a source quotes them, and keep the quote's meaning exactly.
 - House style: headline (active, specific, no exclamation marks, up to 12 words) > deck (one line: the next most important fact) > body.
@@ -365,10 +403,17 @@ export async function writeChecked(sql: Sql | null, src: SourceText[], level: Le
     const c = await check(sql, w, src, date);
     // the checker couldn't run (every Gemma busy): the event waits for the next run, not the editor
     if (c.busy) return { ok: false as const, why: c.problems.join("; "), retry: true };
+    // checked, but shorter than any story that goes up (5 Nov): written again, else not put up
+    if (c.ok && words(w.body) < MIN_WORDS * 0.9) {
+      last = { w, c: { ...c, ok: false, problems: [`too short: ${words(w.body)} words`] } };
+      note = `\n\nYOUR LAST VERSION WAS ONLY ${words(w.body)} WORDS. Write the full story, ${lo} words or more, with every fact the sources give about the event.`;
+      continue;
+    }
     last = { w, c };
     if (c.ok) return { ok: true as const, written: w, checked: c };
-    // only a few lines the sources don't hold (the code's own checks passed): those lines come out and the rest goes up
-    const trimmed = c.problems.every((p) => p.startsWith("not in the sources:")) ? cutUnsupported(w, c.claims, Math.max(WORDS.brief[0] * 0.6, lo * 0.5)) : null;
+    // only a few lines the sources don't hold (the code's own checks passed): those lines come out and the rest goes up,
+    // when what's left is still a full story (5 Nov: cut down to 60 words, two short paragraphs went up)
+    const trimmed = c.problems.every((p) => p.startsWith("not in the sources:")) ? cutUnsupported(w, c.claims, Math.max(MIN_WORDS, lo * 0.6)) : null;
     if (trimmed) return { ok: true as const, written: trimmed.written,
       checked: { ...c, ok: true, problems: [], claims: c.claims.filter((x) => x.supported), cut: trimmed.cut } };
     note = `\n\nYOUR LAST VERSION HAD THESE PROBLEMS -- fix every one, using only what the sources say:\n- ${c.problems.join("\n- ")}`;
