@@ -2,10 +2,10 @@
 // an entry of its own naming all its versions; a story or article not yet translated is listed in Gujarati only.
 import type { MetadataRoute } from "next";
 import type { Lang } from "@/lib/types.ts";
-import { issueDates, sitemapEntries } from "@/lib/db.ts";
+import { archiveDays, sitemapEntries } from "@/lib/db.ts";
 import { href } from "@/lib/i18n.ts";
 import { langsOf } from "@/lib/meta.ts";
-import { SECTIONS } from "@/lib/sections.ts";
+import { ALL_SECTIONS } from "@/lib/sections.ts";
 import { SITE_URL } from "@/lib/site.ts";
 import { POLICY } from "@/views/Policy.tsx";
 import { BEATS, features } from "@/lib/flagship.ts";
@@ -17,10 +17,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     const languages = { ...Object.fromEntries(langs.map((l) => [l, `${SITE_URL}${href(l, path)}`])), "x-default": `${SITE_URL}${href("gu", path)}` };
     return langs.map((l) => ({ url: `${SITE_URL}${href(l, path)}`, lastModified, alternates: { languages } }));
   };
-  const [stories, days, flagship] = await Promise.all([sitemapEntries(), issueDates(), features({ limit: 500 })]);
+  const [stories, days, flagship] = await Promise.all([sitemapEntries(), archiveDays(), features({ limit: 500 })]);
   return [
     page("/"), page("/latest"), page("/archive"),
-    ...SECTIONS.map((k) => page(`/section/${k}`)),
+    ...ALL_SECTIONS.map((k) => page(`/section/${k}`)),
     ...Object.keys(POLICY).map((p) => page(`/${p}`)),
     ...days.map((d) => page(`/archive/${d.date}`)),
     ...stories.map((s) => page(`/news/${s.id}`, s.updatedAt, langsOf(s))),

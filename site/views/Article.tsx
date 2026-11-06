@@ -7,7 +7,7 @@ import { missingMeta, pageMeta, langsOf } from "../lib/meta.ts";
 import { article, breadcrumbs, JsonLd } from "../lib/jsonld.tsx";
 import { moreOnSubject, storiesIn, storyById as loadStory } from "../lib/db.ts";
 import { href, t } from "../lib/i18n.ts";
-import { sectionName } from "../lib/sections.ts";
+import { placeOf, sectionName } from "../lib/sections.ts";
 import { dateText, minutes, num, paragraphs, timeText } from "../lib/format.ts";
 import { PAPER, PREFERRED_SOURCE, SITE_URL } from "../lib/site.ts";
 import { Cmp, Credit, Head, MoreOn, Std, strong, words } from "../components/cards.tsx";
@@ -34,15 +34,17 @@ export async function articleMeta(id: string, lang: Lang) {
 /** NewsArticle and its breadcrumbs for Google; an untranslated copy describes the Gujarati page it shows. */
 function articleLd(s: Story, lang: Lang) {
   const shown: Lang = langsOf(s).includes(lang) ? lang : "gu";
+  const place = placeOf(s);
   const w = words(s, shown);
   return [
     article({ url: `${SITE_URL}${href(shown, `/news/${s.id}`)}`, lang: shown, headline: w.headline, description: w.deck, section: sectionName(s.tier, shown),
               publishedAt: s.publishedAt, updatedAt: s.updatedAt,
               // its photo, else its own picture with its headline (made for the Gujarati only)
               image: s.photo ? shareCopy(s.photo) : shown === "gu" && s.share ? `${SITE_URL}${s.share}` : null, basedOn: s.source?.url ?? s.sources[0]?.url,
-              author: s.byEditor ? "editor" : undefined,
+              author: s.byEditor ? "editor" : { name: t(shown, "desk"), url: `${SITE_URL}${href(shown, "/desk")}` },
               words: w.body.split(/\s+/).filter(Boolean).length }),
-    breadcrumbs(shown, [{ name: PAPER[shown].name, path: "/" }, { name: sectionName(s.tier, shown), path: `/section/${s.tier}` }, { name: w.headline, path: `/news/${s.id}` }]),
+    breadcrumbs(shown, [{ name: PAPER[shown].name, path: "/" }, { name: sectionName(s.tier, shown), path: `/section/${s.tier}` },
+      ...(place ? [{ name: sectionName(place, shown), path: `/section/${place}` }] : []), { name: w.headline, path: `/news/${s.id}` }]),
   ];
 }
 
@@ -57,6 +59,7 @@ export default async function Article({ id, lang }: { id: string; lang: Lang }) 
     .map((k) => [k, t(lang, k)])) as Parameters<typeof ArticleTools>[0]["words"];
   const others = related.filter((x) => x.id !== s.id && !more.some((m) => m.id === x.id));
   const paras = paragraphs(w.body);
+  const place = placeOf(s);
   // a long story carries one related story inside it, after its third paragraph (as news sites do)
   const inline = paras.length >= 5 ? others.find((x) => x.photo) ?? others[0] : undefined;
   const after = others.filter((x) => x !== inline).slice(0, 3);
@@ -70,7 +73,8 @@ export default async function Article({ id, lang }: { id: string; lang: Lang }) 
       <ReadProgress target=".art" />
       <CountRead id={s.id} />
         <article className="art" lang={w.translated || lang === "gu" ? lang : "gu"}>
-          <Link prefetch={false} className="crumbs" href={href(lang, `/section/${s.tier}`)}>{sectionName(s.tier, lang)}</Link>
+          <div className="crumbs"><Link prefetch={false} href={href(lang, `/section/${s.tier}`)}>{sectionName(s.tier, lang)}</Link>
+            {place && <><span className="secsep" aria-hidden="true">›</span><Link prefetch={false} href={href(lang, `/section/${place}`)}>{sectionName(place, lang)}</Link></>}</div>
           {lang !== "gu" && !w.translated && <p className="fix" lang={lang}>{t(lang, "noEnglish")}</p>}
           {s.corrections.map((c, i) => (
             <p key={i} className="fix">{t(lang, "correction")}, {dateText(c.at, lang)}: {lang === "en" && c.en ? c.en : c.gu}</p>
@@ -78,7 +82,7 @@ export default async function Article({ id, lang }: { id: string; lang: Lang }) 
           <h1>{w.headline}</h1>
           {w.deck && <p className="stand">{w.deck}</p>}
           {/* the editor's own reports carry the editor's name; the engine's stories the desk's, with the editor who answers for the paper */}
-          <p className="byl">{t(lang, "by")} <b>{s.byEditor ? PAPER.editor[lang] : t(lang, "desk")}</b>, {PAPER[lang].place}
+          <p className="byl">{t(lang, "by")} <b>{s.byEditor ? PAPER.editor[lang] : <Link prefetch={false} href={href(lang, "/desk")}>{t(lang, "desk")}</Link>}</b>, {PAPER[lang].place}
             {!s.byEditor && <> · {t(lang, "editorTitle")}: {PAPER.editor[lang]}</>}</p>
           <p className="byt">{dateText(s.publishedAt, lang)}, {timeText(s.publishedAt, lang)}
             {changed && <> · {t(lang, "updatedAt")} {timeText(s.updatedAt, lang)}</>}

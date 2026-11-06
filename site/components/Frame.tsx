@@ -68,7 +68,8 @@ export default async function Frame({ lang, path, section, active, bottomBar = t
           <Link prefetch={false} className="wm" href={L("/")}><b>{PAPER.gu.name}</b></Link>
           <div className="fcols">
             <div><b>{t(lang, "f1")}</b><Link prefetch={false} href={L("/about")}>{t(lang, "fAbout")}</Link><Link prefetch={false} href={L("/editorial-policy")}>{t(lang, "fPolicy")}</Link>
-              <Link prefetch={false} href={L("/how-we-check")}>{t(lang, "fHow")}</Link><Link prefetch={false} href={L("/corrections")}>{t(lang, "fFix")}</Link><Link prefetch={false} href={L("/contact")}>{t(lang, "fContact")}</Link></div>
+              <Link prefetch={false} href={L("/how-we-check")}>{t(lang, "fHow")}</Link>
+              <Link prefetch={false} href={L("/desk")}>{t(lang, "desk")}</Link><Link prefetch={false} href={L("/corrections")}>{t(lang, "fFix")}</Link><Link prefetch={false} href={L("/contact")}>{t(lang, "fContact")}</Link></div>
             <div><b>{t(lang, "f2")}</b>{SECTIONS.map((k) => <Link prefetch={false} key={k} href={L(`/section/${k}`)}>{sectionName(k, lang)}</Link>)}<Link prefetch={false} href={L("/aavtikal")}>{flw(lang).name}</Link></div>
             <div><b>{t(lang, "f3")}</b><Link prefetch={false} href={L("/archive")}>{t(lang, "archive")}</Link>
               <Link prefetch={false} href={L("/classifieds")}>{t(lang, "classifieds")}</Link>

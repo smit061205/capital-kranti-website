@@ -3,19 +3,30 @@ import type { Lang, Story } from "./types.ts";
 import { href } from "./i18n.ts";
 import { PAPER, SITE_URL } from "./site.ts";
 import { sectionName } from "./sections.ts";
+import { shareCopy } from "./photo.ts";
 
 const x = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
-export function rss(stories: Story[], lang: Lang, title?: string) {
-  const items = stories.map((s) => {
+/** A feed of the newest stories (`self`: the feed's own path, e.g. "/en/rss.xml"). 6 Nov: newest first by the time each
+ *  was published (it was the printed paper's order); an English or Hindi feed holds only the stories translated into it
+ *  (the others would be Gujarati under an English title); each story's picture is the site's own 1200-wide copy with its
+ *  real size; the feed says when it was made and where it lives. */
+export function rss(stories: Story[], lang: Lang, self: string, title?: string) {
+  const list = stories.filter((s) => lang === "gu" || (lang === "en" ? s.en : s.hi)?.headline)
+    .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)).slice(0, 50);
+  const items = list.map((s) => {
     const e = lang === "en" ? s.en : lang === "hi" ? s.hi : null;
     const link = `${SITE_URL}${href(lang, `/news/${s.id}`)}`;
+    const w = s.photo ? Math.min(s.photo.width, 1200) : 0;
+    const picture = s.photo ? `<media:content url="${x(new URL(shareCopy(s.photo), SITE_URL).href)}" medium="image" width="${w}" height="${Math.round((s.photo.height * w) / s.photo.width)}"/>` : "";
     return `<item><title>${x(e?.headline || s.headline)}</title><link>${link}</link><guid isPermaLink="true">${link}</guid>` +
       `<pubDate>${new Date(s.publishedAt).toUTCString()}</pubDate><category>${x(sectionName(s.tier, lang))}</category>` +
-      `<description>${x(e?.deck || s.deck)}</description>${s.photo ? `<enclosure url="${x(new URL(s.photo.url, SITE_URL).href)}" type="image/jpeg" length="0"/>` : ""}</item>`;
+      `<description>${x(e?.deck || s.deck)}</description>${picture}</item>`;
   }).join("");
-  return `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0"><channel><title>${x(title ?? PAPER[lang].name)}</title>` +
-    `<link>${SITE_URL}${href(lang, "/")}</link><description>${x(PAPER[lang].tagline)}</description><language>${lang}-IN</language>${items}</channel></rss>`;
+  const built = list[0] ? new Date(list[0].publishedAt).toUTCString() : new Date().toUTCString();
+  return `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/"><channel>` +
+    `<title>${x(title ?? PAPER[lang].name)}</title><link>${SITE_URL}${href(lang, "/")}</link><atom:link href="${SITE_URL}${self}" rel="self" type="application/rss+xml"/>` +
+    `<description>${x(PAPER[lang].tagline)}</description><language>${lang}-IN</language><lastBuildDate>${built}</lastBuildDate><ttl>15</ttl>${items}</channel></rss>`;
 }
 
 /** Google News: the last two days' stories in one language (5 Nov: one file for all three held its 1,000 URLs, the most
