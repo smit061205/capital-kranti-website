@@ -52,8 +52,10 @@ export default function Write({ lang, back, kind = "news", beats = [] }:
   const loaded = useRef(false);
   const picker = useRef<HTMLInputElement>(null);
 
-  // the unfinished words (and the photos already up) kept on the phone, and brought back
+  // the unfinished words (and the photos already up) kept on the phone, and brought back once, when the page opens
+  // (6 Nov: it ran again after every key, with the words kept a key earlier, so the boxes jumped between the two)
   useEffect(() => {
+    if (loaded.current) return;
     try {
       const k = JSON.parse(localStorage.getItem(KEEP) ?? "null") as Kept | null;
       if (k && (k.headline || k.body || k.photos?.length)) {
@@ -66,7 +68,8 @@ export default function Write({ lang, back, kind = "news", beats = [] }:
       }
     } catch { /* nothing kept */ }
     loaded.current = true;
-  }, [KEEP, beats]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [KEEP]);
   useEffect(() => {
     if (!loaded.current) return;
     const photos = shots.filter((x) => x.state === "ok" && x.url).map((x) => ({ url: x.url!, width: x.width!, height: x.height! }));
