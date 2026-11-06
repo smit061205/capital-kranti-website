@@ -3,6 +3,7 @@
 // can be called directly, not only from the page.
 import { cookies } from "next/headers";
 import { refresh, revalidatePath } from "next/cache";
+import { classifiedPaths, listPaths, renew as renewPages, storyPaths } from "@/lib/renew.ts";
 import { db } from "@/lib/db.ts";
 import { redirect } from "next/navigation";
 import { addFeature, addStory, COOKIE, decideFeature, editorOf, restoreStory, saveFeature, saveStory, setPaused, withdrawStory, type NewFeature, type NewStory, type Words } from "@/lib/editor.ts";
@@ -19,18 +20,19 @@ async function signedIn() {
   if (!who) throw new Error("not signed in");
   return { who, sql: db() };
 }
-/** the site's pages renewed, and this page shown again */
-function renew(aavtikal = false) {
-  for (const p of ["/", "/en", "/hi"]) revalidatePath(p, "layout");
+/** the pages that list stories renewed, and the story's own pages when one changed (lib/renew.ts), and this page shown
+ *  again */
+function renew(aavtikal = false, story?: string) {
+  renewPages([...listPaths(), ...classifiedPaths(), ...(story ? storyPaths(story) : [])]);
   if (aavtikal) for (const p of ["/aavtikal", "/en/aavtikal", "/hi/aavtikal"]) revalidatePath(p, "layout");
   refresh();
 }
 
-export async function removeStory(id: string) { const { who, sql } = await signedIn(); if (sql) await withdrawStory(sql, id, who); renew(); }
+export async function removeStory(id: string) { const { who, sql } = await signedIn(); if (sql) await withdrawStory(sql, id, who); renew(false, id); }
 export async function publishFeature(id: string) { const { sql } = await signedIn(); if (sql) await decideFeature(sql, id, "published"); renew(true); }
 export async function removeFeature(id: string) { const { sql } = await signedIn(); if (sql) await decideFeature(sql, id, "withdrawn"); renew(true); }
 export async function pauseEngine(paused: boolean) { const { sql } = await signedIn(); if (sql) await setPaused(sql, paused); refresh(); }
-export async function putBackStory(id: string) { const { sql } = await signedIn(); if (sql) await restoreStory(sql, id); renew(); }
+export async function putBackStory(id: string) { const { sql } = await signedIn(); if (sql) await restoreStory(sql, id); renew(false, id); }
 
 const words = (f: FormData): Words => {
   const v = (k: string) => String(f.get(k) ?? "").replace(/\r\n/g, "\n").trim();
@@ -42,7 +44,7 @@ export async function changeStory(id: string, back: string, f: FormData) {
   const w = words(f);
   if (!w.headline || !w.body) redirect(`/editor/story/${encodeURIComponent(id)}?${back ? `${back}&` : ""}missing=1`);
   const ok = sql ? await saveStory(sql, id, w, who) : false;
-  renew();
+  renew(false, id);
   redirect(`/editor?${back ? `${back}&` : ""}tab=news&saved=${ok ? "1" : "0"}`);
 }
 export async function changeFeature(id: string, back: string, f: FormData) {
@@ -73,7 +75,7 @@ export async function writeStory(x: NewStory): Promise<{ id: string } | { error:
   if (!sql) return { error: "failed" };
   try {
     const id = await addStory(sql, story, who);
-    renew();
+    renew(false, id);
     return { id };
   } catch (e) {
     console.error(`a written story not saved: ${e}`);

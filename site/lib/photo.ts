@@ -53,9 +53,11 @@ export const SIZES = {
   card: "(max-width: 800px) 60vw, 33vw",
   /** Aavtikal's cards: two across on a phone, three on a tablet */
   pair: "(max-width: 560px) 45vw, (max-width: 800px) 28vw, 33vw",
-  lead: "(max-width: 800px) 70vw, 66vw",
-  full: "(max-width: 800px) 70vw, 100vw",
-  inside: "(max-width: 800px) 70vw, 760px",
+  // a phone's big photos ask for 60% of the screen's dots, not 70: most phones then take the 720-wide copy, not the 960
+  // (6 Nov: on mobile data the home page's lead photo came last, at 4.6 seconds); still sharper than the screen's width
+  lead: "(max-width: 800px) 60vw, 66vw",
+  full: "(max-width: 800px) 60vw, 100vw",
+  inside: "(max-width: 800px) 60vw, 760px",
 };
 
 /** A Commons author's name as a credit shows it: the field is free text ("This photo was taken by …. Please credit …",
