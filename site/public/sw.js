@@ -10,6 +10,9 @@ const MAX_PAGES = 40, MAX_PHOTOS = 120, WAIT = 4000;
 self.addEventListener("install", () => self.skipWaiting());
 self.addEventListener("activate", (e) => {
   e.waitUntil((async () => {
+    // a page's download starts while this helper is still waking up, not after (6 Nov: on a slow phone that wait came
+    // before every page)
+    if (self.registration.navigationPreload) await self.registration.navigationPreload.enable().catch(() => {});
     for (const k of await caches.keys()) if (!k.startsWith(V)) await caches.delete(k);
     await self.clients.claim();
   })());
@@ -68,7 +71,8 @@ self.addEventListener("fetch", (e) => {
   if (url.origin !== self.location.origin || url.pathname.startsWith("/api/")) return;
 
   if (req.mode === "navigate") {
-    const net = fetch(req).then((res) => { e.waitUntil(keep(PAGES, req, res.clone(), MAX_PAGES)); return res; });
+    const net = Promise.resolve(e.preloadResponse).then((pre) => pre || fetch(req))
+      .then((res) => { e.waitUntil(keep(PAGES, req, res.clone(), MAX_PAGES)); return res; });
     e.waitUntil(net.catch(() => {}));
     e.respondWith((async () => {
       const copy = (await caches.match(req, { cacheName: PAGES })) || (await caches.match(req, { cacheName: SAVED }));

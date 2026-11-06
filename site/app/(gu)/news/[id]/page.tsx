@@ -1,6 +1,7 @@
 import Article, { articleMeta } from "@/views/Article.tsx";
 
-export const revalidate = 3600;
+// made again once a day at most, unless it is new or changed (lib/renew.ts)
+export const revalidate = 86400;
 export const dynamicParams = true;
 export async function generateStaticParams() { return []; }
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }) { return articleMeta((await params).id, "gu"); }

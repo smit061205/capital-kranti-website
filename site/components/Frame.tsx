@@ -48,8 +48,8 @@ export default async function Frame({ lang, path, section, active, bottomBar = t
         links={{ home: L("/"), latest: L("/latest"), archive: L("/archive"), search: L("/search"), saved: L("/saved"), classifieds: L("/classifieds"), advertise: L("/advertise"),
                  about: L("/about"), how: L("/how-we-check"), policy: L("/editorial-policy"), corrections: L("/corrections"), contact: L("/contact") }}
       />
-      {brk && <BreakingBar id={brk.id} headline={bw || brk.headline} href={L(`/news/${brk.id}`)} until={Date.parse(brk.publishedAt) + BREAKING_HOURS * 3600_000}
-        label={t(lang, "brk")} close={t(lang, "close")} />}
+      <BreakingBar first={brk && { id: brk.id, headline: bw || brk.headline, href: L(`/news/${brk.id}`), until: Date.parse(brk.publishedAt) + BREAKING_HOURS * 3600_000 }}
+        made={Date.now()} lang={lang} label={t(lang, "brk")} close={t(lang, "close")} />
       {bottomBar && <nav className="wrap secs" aria-label={t(lang, "sections")}>
         {SECTIONS.map((k) => <Link prefetch={false} key={k} href={L(`/section/${k}`)} className={section === k ? "on" : undefined}>{sectionName(k, lang)}</Link>)}
         {/* the flagship section (views/Flagship.tsx), set apart at the end */}
@@ -89,6 +89,10 @@ export default async function Frame({ lang, path, section, active, bottomBar = t
 
 /** Runs before the first paint: the reader's text size, so nothing jumps. The site is light only
  *  (the user, 29 Oct); a theme saved by its old switch is forgotten, so Aavtikal, the one part
- *  with a dark look, simply follows the phone. */
+ *  with a dark look, simply follows the phone. And the fades between pages (the ViewTransition above): when one would
+ *  start while the tab is in the background, the browser skips it and React reports "Transition was aborted because of
+ *  invalid state" as an uncaught error (6 Nov, the user saw it); the page still changes, so that report is marked handled. */
 export const PREPAINT = `try{var s=localStorage.getItem("ck-size"),r=document.documentElement;localStorage.removeItem("ck-theme");var t=localStorage.getItem("fl-theme");if(t==="light"||t==="dark")r.setAttribute("data-theme",t);` +
-  `if(s==="2"||s==="3")r.setAttribute("data-size",s)}catch(e){}`;
+  `if(s==="2"||s==="3")r.setAttribute("data-size",s)}catch(e){}` +
+  `var q=function(x){return x&&x.name==="InvalidStateError"&&/Transition was aborted/.test(x.message)};` +
+  `addEventListener("unhandledrejection",function(e){if(q(e.reason))e.preventDefault()});addEventListener("error",function(e){if(q(e.error))e.preventDefault()});`;
