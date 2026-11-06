@@ -154,7 +154,7 @@ export default async function Home({ lang }: { lang: Lang }) {
           {pair.length === 2 && (
             <div className={`mpair${pair.every(decent) ? "" : " nop"}`}>
               <Card s={pair[0]} lang={lang} cls="a" photo={pair.every(decent)} dek={false} sizes={SIZES.lead} />
-              <Card s={pair[1]} lang={lang} cls="b" photo={pair.every(decent)} sizes="(max-width: 800px) 100vw, 45vw" />
+              <Card s={pair[1]} lang={lang} cls="b" photo={pair.every(decent)} sizes="(max-width: 800px) 60vw, 45vw" />
             </div>
           )}
           {three.length === 3 && <div className="m3 top3">{three.map((s) => <Card key={s.id} s={s} lang={lang} cls="" photo={false} />)}</div>}
