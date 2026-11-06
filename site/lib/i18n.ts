@@ -5,6 +5,7 @@ import type { Lang } from "./types.ts";
 const WORDS = {
   gu: {
     skip: "મુખ્ય સમાચાર પર જાઓ", menu: "મેનુ", sections: "વિભાગો", search: "શોધો", close: "બંધ કરો", 
+    pageNo: "પાનું", newer: "← નવા સમાચાર", older: "જૂના સમાચાર →", cities: "શહેર અને જિલ્લા", prevDay: "← અગાઉનો દિવસ", nextDay: "પછીનો દિવસ →",
     home: "હોમ", latest: "તાજા", latestTitle: "તાજા સમાચાર", allLatest: "બધા તાજા સમાચાર", archive: "જૂના અંકો",
     updated: "દિવસભર નવા સમાચાર", more: "વધુ", none: "આ વિભાગમાં હજી સમાચાર નથી.", back: "હોમ પર જાઓ",
     searchPlaceholder: "સમાચાર શોધો", found: "સમાચાર મળ્યા", notFound: "કોઈ સમાચાર ન મળ્યા. બીજો શબ્દ અજમાવો.", searchTitle: "શોધ",
@@ -31,6 +32,7 @@ const WORDS = {
   },
   en: {
     skip: "Skip to the news", menu: "Menu", sections: "Sections", search: "Search", close: "Close", 
+    pageNo: "Page", newer: "← Newer stories", older: "Older stories →", cities: "Cities and districts", prevDay: "← The day before", nextDay: "The day after →",
     home: "Home", latest: "Latest", latestTitle: "Latest news", allLatest: "All the latest", archive: "Past issues",
     updated: "News all day", more: "More", none: "No stories in this section yet.", back: "Go to the home page",
     searchPlaceholder: "Search the news", found: "stories found", notFound: "No stories found. Try another word.", searchTitle: "Search",
@@ -57,6 +59,7 @@ const WORDS = {
   },
   hi: {
     skip: "मुख्य समाचार पर जाएँ", menu: "मेन्यू", sections: "विभाग", search: "खोजें", close: "बंद करें", 
+    pageNo: "पेज", newer: "← नए समाचार", older: "पुराने समाचार →", cities: "शहर और ज़िले", prevDay: "← पिछला दिन", nextDay: "अगला दिन →",
     home: "होम", latest: "ताज़ा", latestTitle: "ताज़ा समाचार", allLatest: "सभी ताज़ा समाचार", archive: "पुराने अंक",
     updated: "दिन भर नए समाचार", more: "और", none: "इस विभाग में अभी कोई समाचार नहीं है।", back: "होम पर जाएँ",
     searchPlaceholder: "समाचार खोजें", found: "समाचार मिले", notFound: "कोई समाचार नहीं मिला। कोई दूसरा शब्द आज़माएँ।", searchTitle: "खोज",

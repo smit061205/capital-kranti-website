@@ -78,6 +78,31 @@ export const POLICY: Record<string, Record<Lang, Page>> = {
       "समाचार बिकाऊ नहीं: पैसे लेकर समाचार नहीं छापे जाते। विज्ञापन हमेशा विज्ञापन के रूप में पहचाना जाएगा।",
     ] },
   },
+  // the byline of the engine's stories links here, and their structured data names it as the author (Phase 3, 6 Nov):
+  // who writes them, how, and who answers for them; no made-up reporters' names
+  desk: {
+    gu: { title: "કેપિટલ ક્રાંતિ ડેસ્ક", paras: [
+      "“કેપિટલ ક્રાંતિ ડેસ્ક” નામ સાથેના સમાચાર અમારી વેબસાઇટનું સમાચાર ડેસ્ક તૈયાર કરે છે. આ ડેસ્ક AI (કૃત્રિમ બુદ્ધિ)ની મદદથી ચાલે છે: તે સત્તાવાર જાહેરાતો (પત્ર સૂચના કાર્યાલય – PIB, ગુજરાત સરકાર, મંત્રાલયો, રિઝર્વ બેંક) અને અમારી યાદીનાં વિશ્વસનીય માધ્યમોના અહેવાલ વાંચીને સમાચાર સરળ ગુજરાતીમાં લખે છે.",
+      "દરેક સમાચાર પ્રકાશિત થતાં પહેલાં તપાસાય છે: તેનો દરેક દાવો અને દરેક આંકડો મૂળ સ્રોત સાથે મેળવાય છે, અને લખનાર સિવાયની બીજી તપાસ તેને ફરી તપાસે છે. મેળ ન ખાય તો સમાચાર પ્રકાશિત થતા નથી. આખી રીત “અમે સમાચાર કેવી રીતે ચકાસીએ છીએ” પાના પર છે.",
+      "દરેક સમાચારના અંતે તેના મૂળ સ્રોતની લિંક હોય છે, જેથી વાચક જાતે ખાતરી કરી શકે. ડેસ્ક પોતાનો અભિપ્રાય લખતું નથી; ફક્ત સ્રોતમાં કહેલી હકીકતો આપે છે.",
+      `જવાબદારી: ડેસ્કના બધા સમાચારની જવાબદારી અખબારના તંત્રી ${PAPER.editor.gu}ની છે. તંત્રીએ પોતે લખેલા અહેવાલ પર તંત્રીનું નામ હોય છે.`,
+      `ભૂલ દેખાય તો દરેક સમાચારના અંતે આપેલા બટનથી, અથવા ${PAPER.email} પર જણાવો; અમે તપાસીને સુધારીએ છીએ અને સુધારો સમાચાર પર જ લખીએ છીએ.`,
+    ] },
+    en: { title: "Capital Kranti desk", paras: [
+      "Stories with the byline “Capital Kranti desk” are prepared by our website's news desk. The desk works with AI: it reads official releases (the Press Information Bureau – PIB, the Government of Gujarat, the ministries, the Reserve Bank) and the reports of the trusted outlets on our list, and writes the news in plain Gujarati, with English and Hindi versions.",
+      "Every story is checked before it is published: each claim and each number is matched against the original sources, and a second check, separate from the writing, goes over it again. If anything doesn't match, the story isn't published. The whole process is on the “How we check the news” page.",
+      "Every story ends with links to its original sources, so readers can check it themselves. The desk doesn't write opinions; it gives only the facts its sources state.",
+      `Responsibility: the editor of the paper, ${PAPER.editor.en}, answers for every story of the desk. Reports the editor writes carry the editor's own name.`,
+      `If you spot a mistake, tell us with the button at the end of each story, or at ${PAPER.email}; we check it, correct it and note the correction on the story itself.`,
+    ] },
+    hi: { title: "कैपिटल क्रांति डेस्क", paras: [
+      "“कैपिटल क्रांति डेस्क” नाम वाले समाचार हमारी वेबसाइट का समाचार डेस्क तैयार करता है। यह डेस्क AI (कृत्रिम बुद्धि) की मदद से चलता है: यह आधिकारिक घोषणाएँ (पत्र सूचना कार्यालय – PIB, गुजरात सरकार, मंत्रालय, रिज़र्व बैंक) और हमारी सूची के विश्वसनीय माध्यमों की ख़बरें पढ़कर समाचार सरल गुजराती में लिखता है, हिंदी और अंग्रेज़ी में भी।",
+      "हर समाचार प्रकाशित होने से पहले जाँचा जाता है: उसका हर दावा और हर आँकड़ा मूल स्रोत से मिलाया जाता है, और लिखने से अलग एक दूसरी जाँच उसे फिर से जाँचती है। मेल न खाए तो समाचार प्रकाशित नहीं होता। पूरी प्रक्रिया “हम समाचार कैसे जाँचते हैं” पेज पर है।",
+      "हर समाचार के अंत में उसके मूल स्रोत की लिंक होती है, ताकि पाठक ख़ुद जाँच सकें। डेस्क अपनी राय नहीं लिखता; केवल स्रोत में कहे गए तथ्य देता है।",
+      `ज़िम्मेदारी: डेस्क के सभी समाचारों की ज़िम्मेदारी अख़बार के संपादक ${PAPER.editor.hi} की है। संपादक के अपने लिखे समाचारों पर संपादक का नाम होता है।`,
+      `ग़लती दिखे तो हर समाचार के अंत में दिए बटन से, या ${PAPER.email} पर बताएँ; हम जाँचकर सुधारते हैं और सुधार समाचार पर ही लिखते हैं।`,
+    ] },
+  },
   "how-we-check": {
     gu: { title: "અમે સમાચાર કેવી રીતે ચકાસીએ છીએ", paras: [
       `કોણ લખે છે: વેબસાઇટના મોટા ભાગના તાજા સમાચાર AI (કૃત્રિમ બુદ્ધિ) સત્તાવાર જાહેરાતો અને નીચેની યાદીનાં માધ્યમોના અહેવાલ પરથી લખે છે, અને નીચે જણાવ્યા મુજબ ચકાસાય છે; તેના પર “કેપિટલ ક્રાંતિ ડેસ્ક” લખેલું હોય છે. તંત્રીના પોતાના અહેવાલ પર તેમનું નામ હોય છે. પેપર માટે જવાબદાર તંત્રી ${PAPER.editor.gu} છે.`,

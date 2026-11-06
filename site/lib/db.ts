@@ -96,26 +96,27 @@ export async function storyById(id: string): Promise<Story | null> {
 
 /** A section: a tier (gujarat, india, world), a place (Gujarat stories naming it in the headline, kicker or sub-heading;
  *  not only in the opening, where a government release's "Gandhinagar" dateline names it for news from anywhere) or a genre. */
-export async function storiesIn(key: string, limit = 40, full = false): Promise<Story[]> {
+/** offset: for a section's further pages (views/Lists.tsx Section) */
+export async function storiesIn(key: string, limit = 40, full = false, offset = 0): Promise<Story[]> {
   if (isPlace(key)) {
     const words = PLACE_WORDS[key];
     const names = (s: Story) => words.some((w) => [s.headline, s.kicker, s.deck].some((x) => x.includes(w)));
-    if (sampleOn()) return sample().stories.filter((s) => s.tier === "gujarat" && names(s)).slice(0, limit);
+    if (sampleOn()) return sample().stories.filter((s) => s.tier === "gujarat" && names(s)).slice(offset, offset + limit);
     const sql = db();
     if (!sql) return [];
     const like = words.map((w) => `%${w}%`);
     const rows = await sql.query(
       `select ${full ? COLUMNS : LIST} from stories where status = 'published' and tier = 'gujarat'
          and (headline ilike any($1) or kicker ilike any($1) or deck ilike any($1))
-       order by issue_date desc, published_at desc, rank asc nulls last limit $2`, [like, limit]);
+       order by issue_date desc, published_at desc, rank asc nulls last limit $2 offset $3`, [like, limit, offset]);
     return rows.map(storyOf);
   }
-  if (sampleOn()) return sample().stories.filter((s) => s.tier === key || s.genres.includes(key as Genre)).slice(0, limit);
+  if (sampleOn()) return sample().stories.filter((s) => s.tier === key || s.genres.includes(key as Genre)).slice(offset, offset + limit);
   const sql = db();
   if (!sql) return [];
   const rows = await sql.query(
-    `select ${full ? COLUMNS : LIST} from stories where status = 'published' and (tier = $1 or $1 = any(genres)) order by issue_date desc, published_at desc, rank asc nulls last limit $2`,
-    [key, limit]);
+    `select ${full ? COLUMNS : LIST} from stories where status = 'published' and (tier = $1 or $1 = any(genres)) order by issue_date desc, published_at desc, rank asc nulls last limit $2 offset $3`,
+    [key, limit, offset]);
   return rows.map(storyOf);
 }
 
@@ -175,7 +176,7 @@ export async function storiesOn(date: string): Promise<Story[]> {
   if (sampleOn()) return sample().stories.filter((s) => s.issueDate === date);
   const sql = db();
   if (!sql) return [];
-  const rows = await sql.query(`select ${LIST} from stories where issue_date = $1 and status = 'published' order by page asc nulls last, rank asc nulls last`, [date]);
+  const rows = await sql.query(`select ${LIST} from stories where issue_date = $1 and status = 'published' order by page asc nulls last, rank asc nulls last, published_at desc`, [date]);
   return rows.map(storyOf);
 }
 
@@ -210,7 +211,19 @@ export async function issueDates(limit = 400): Promise<{ date: string; number: n
   return rows.map((r) => ({ date: day(r.date), number: r.number as number, stories: r.stories as number, pdf: (r.pdf as string | null) ?? null }));
 }
 
-/** Every story's id and last change, for the sitemaps. */
+/** Every day with stories, newest first, with its printed issue if there was one (6 Nov: the archive listed the printed
+ *  issues only, so the days of web stories had pages that nothing linked to). */
+export async function archiveDays(limit = 400): Promise<{ date: string; number: number | null; stories: number; pdf: string | null }[]> {
+  if (sampleOn()) return issueDates(limit);
+  const sql = db();
+  if (!sql) return [];
+  const rows = await sql.query(
+    `select d.date, i.number, i.pdf, d.stories from
+       (select issue_date as date, count(*)::int as stories from stories where status = 'published' group by issue_date) d
+       left join issues i on i.date = d.date order by d.date desc limit $1`, [limit]);
+  return rows.map((r) => ({ date: day(r.date), number: (r.number as number | null) ?? null, stories: r.stories as number, pdf: (r.pdf as string | null) ?? null }));
+}
+
 /** The published stories for the sitemaps, newest first: sinceDays for the news sitemap (Google News reads two days). */
 export async function sitemapEntries(sinceDays?: number): Promise<{ id: string; updatedAt: string; publishedAt: string; headline: string; en: string | null; hi: string | null }[]> {
   const sql = db();

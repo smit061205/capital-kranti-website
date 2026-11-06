@@ -3,5 +3,5 @@ import { rss } from "@/lib/feeds.ts";
 
 export const revalidate = 3600;
 export async function GET() {
-  return new Response(rss(await latestStories(50), "en"), { headers: { "content-type": "application/xml; charset=utf-8" } });
+  return new Response(rss(await latestStories(120), "en", "/en/rss.xml"), { headers: { "content-type": "application/xml; charset=utf-8" } });
 }

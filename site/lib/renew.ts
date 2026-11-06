@@ -10,8 +10,8 @@ const LANGS = ["", "/en", "/hi"];
 /** India's date today, for the day's archive page */
 const today = () => new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
 
-/** the pages that list stories, in the three languages (a section's topic pages and its feed, seldom visited, renew
- *  themselves every hour) */
+/** the pages that list stories, in the three languages (a section's topic pages, its further pages, its feed and the
+ *  city and district pages, seldom visited, renew themselves) */
 export const listPaths = (): string[] => LANGS.flatMap((l) => [
   l || "/", `${l}/latest`, `${l}/archive`, `${l}/archive/${today()}`, `${l}/rss.xml`, ...SECTIONS.map((k) => `${l}/section/${k}`),
 ]);

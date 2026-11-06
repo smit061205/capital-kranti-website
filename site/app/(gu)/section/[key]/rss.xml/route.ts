@@ -9,6 +9,6 @@ export function generateStaticParams() { return SECTIONS.map((key) => ({ key }))
 export async function GET(_: Request, { params }: { params: Promise<{ key: string }> }) {
   const key = (await params).key;
   if (!isSection(key)) return new Response("not found", { status: 404 });
-  return new Response(rss(await storiesIn(key, 50), "gu", `${PAPER.gu.name}: ${sectionName(key, "gu")}`),
+  return new Response(rss(await storiesIn(key, 100), "gu", `/section/${key}/rss.xml`, `${PAPER.gu.name}: ${sectionName(key, "gu")}`),
                       { headers: { "content-type": "application/xml; charset=utf-8" } });
 }
