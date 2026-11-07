@@ -1,5 +1,5 @@
-// The breaking story now (lib/db.ts breakingNow), for the bar of a page kept from earlier (components/BreakingBar.tsx):
-// a story's page is made again only once a day (lib/renew.ts), so the bar asks for itself. Kept by the CDN for a minute,
+// The breaking story now (lib/db.ts breakingNow), for the bar across the top of every page (components/BreakingBar.tsx):
+// the reader's browser asks for it, so the pages don't carry it (7 Nov). Kept by the CDN for a minute,
 // so the database is asked at most about once a minute however many read.
 import { breakingNow } from "@/lib/db.ts";
 import { href } from "@/lib/i18n.ts";

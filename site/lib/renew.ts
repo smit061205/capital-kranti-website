@@ -1,7 +1,7 @@
 // Which kept-ready pages are renewed when the news changes (6 Nov: every page under the site's layout was marked stale
 // with each round, up to four times an hour, and each of the ~4,500 then made again at its next visit, mostly by search
 // engines' crawlers; that went past Vercel's free 200,000 "ISR writes" a month). Now only the pages that list stories are
-// renewed, and a story's own page only when it's new or was changed; the rest renew themselves once a day (news/[id]).
+// renewed, and a story's own page only when it's new or was changed; the rest renew themselves once a week (news/[id]).
 // Marked stale, not expired: the reader gets the kept page at once while the new one is made behind them.
 import { revalidateTag } from "next/cache";
 import { SECTIONS } from "./sections.ts";
