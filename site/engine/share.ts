@@ -8,20 +8,27 @@ import { put } from "@vercel/blob";
 import sharp from "sharp";
 import { db } from "../lib/db.ts";
 import { FIT, SHARE_LOOK, shareHtml, type ShareCard } from "../lib/share.ts";
-import { touched } from "../lib/write.ts";
+import { count, touched } from "../lib/write.ts";
 
 /** at most this many a run, so a run never holds Instagram's work up for long */
 const MOST = 12;
+/** at most this many a day: each picture is an upload to the photo store, whose free plan allows 2,000 a month for
+ *  everything (7 Nov: a picture for every story without a photo, about 200 a day, took it to 1,700) */
+export const SHARE_A_DAY = 12;
+/** only the stories that matter most get one (the engine's importance, 0 to 10); the rest share the paper's own card */
+const IMPORTANT = 7;
 
-/** Published stories of the last two days with no photo, after the engine has looked for one, and no picture yet; and
- *  the last day's whose picture has an older look (6 Nov: the new look made again for them; not further back, as each
- *  picture is an upload to the photo store, whose free uses are counted). */
+/** Published stories of the last day that matter most, with no photo after the engine has looked for one, and no picture
+ *  yet; none once the day's pictures are made. */
 export async function waiting(sql: NonNullable<ReturnType<typeof db>>, limit = MOST): Promise<ShareCard[]> {
+  const [{ n }] = await sql.query(`select coalesce(sum(n), 0)::int as n from usage where kind = 'share_upload' and day = (now() at time zone 'Asia/Kolkata')::date`);
+  const left = Math.min(limit, SHARE_A_DAY - (n as number));
+  if (left <= 0) return [];
   const rows = await sql.query(
     `select id, tier, kicker, headline, deck, published_at from stories
-      where status = 'published' and photo is null and photo_tried and published_at > now() - interval '2 days'
-        and (share is null or (share not like $2 and published_at > now() - interval '1 day'))
-      order by share is not null, published_at desc limit $1`, [limit, `%-${SHARE_LOOK}-%`]);
+      where status = 'published' and photo is null and photo_tried and share is null and published_at > now() - interval '1 day'
+        and coalesce(importance, 0) >= $2
+      order by importance desc, published_at desc limit $1`, [left, IMPORTANT]);
   return rows.map((r) => ({ id: r.id as string, tier: r.tier, kicker: (r.kicker as string) ?? "", headline: r.headline as string,
                             deck: (r.deck as string) ?? "", publishedAt: new Date(r.published_at as string).toISOString() }));
 }
@@ -59,6 +66,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
       const jpg = await sharp(png).jpeg({ quality: 88, mozjpeg: true }).toBuffer();
       const name = `share/${c.publishedAt.slice(0, 10)}/${c.id.toLowerCase().replace(/[^a-z0-9-]/g, "-")}-${SHARE_LOOK}-${createHash("sha256").update(jpg).digest("hex").slice(0, 10)}.jpg`;
       await put(name, jpg, { access: "private", contentType: "image/jpeg", addRandomSuffix: false, allowOverwrite: true });
+      await count(sql, "share_upload");
       await sql.query(`update stories set share = $2 where id = $1 and photo is null`, [c.id, `/media/${name}`]);
       made++;
     }

@@ -1,8 +1,8 @@
 "use client";
 // Breaking news across the top of every page (DESIGN.md §3.1, "breaking bar"; ROADMAP §4): the story the engine
 // scored 9.5 or more in the last three hours. Closed, that story's bar stays away on this phone; it goes by itself
-// when the three hours are up, even on a page kept from earlier. A page made more than ten minutes ago asks for the
-// breaking story now (app/api/breaking), as a story's page is made again only once a day (lib/renew.ts, 6 Nov).
+// when the three hours are up. The reader's browser asks for it (app/api/breaking, kept by the CDN for a minute), so no
+// page carries it or the time it was made: a page made again with nothing changed costs Vercel no "ISR write" (7 Nov).
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import type { Lang } from "../lib/types.ts";
@@ -10,15 +10,14 @@ import type { Lang } from "../lib/types.ts";
 const KEY = "ck-brk";
 export interface Brk { id: string; headline: string; href: string; until: number }
 
-export default function BreakingBar({ first, made, lang, label, close }: { first: Brk | null; made: number; lang: Lang; label: string; close: string }) {
-  const [brk, setBrk] = useState(first);
+export default function BreakingBar({ lang, label, close }: { lang: Lang; label: string; close: string }) {
+  const [brk, setBrk] = useState<Brk | null>(null);
   const [on, setOn] = useState(true);
   useEffect(() => {
-    if (Date.now() - made < 10 * 60_000) return;
     let live = true;
     fetch(`/api/breaking?lang=${lang}`).then((r) => r.json() as Promise<Brk | null>).then((b) => { if (live) setBrk(b); }).catch(() => {});
     return () => { live = false; };
-  }, [made, lang]);
+  }, [lang]);
   useEffect(() => {
     if (!brk) return;
     try { if (localStorage.getItem(KEY) === brk.id) { setOn(false); return; } } catch { /* shown */ }

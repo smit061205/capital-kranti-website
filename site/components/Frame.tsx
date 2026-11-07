@@ -15,8 +15,6 @@ import ServiceWorker from "./ServiceWorker.tsx";
 import InstallPrompt from "./InstallPrompt.tsx";
 import ToTop from "./ToTop.tsx";
 import BreakingBar from "./BreakingBar.tsx";
-import { breakingNow } from "../lib/db.ts";
-import { BREAKING_HOURS } from "../lib/push.ts";
 
 export interface FrameProps {
   lang: Lang;
@@ -35,8 +33,6 @@ export default async function Frame({ lang, path, section, active, bottomBar = t
   const words = Object.fromEntries((["menu", "sections", "search", "close", "home", "latest", "latestTitle", "archive", "searchPlaceholder",
     "settings", "size", "language", "services", "about", "savedTitle", "fHow", "fPolicy", "fFix", "fContact", "editorPage", "classifieds", "advertise"] as const)
     .map((k) => [k, t(lang, k)])) as Parameters<typeof Chrome>[0]["words"];
-  const brk = await breakingNow();
-  const bw = brk && (lang === "gu" ? brk.headline : lang === "en" ? brk.en?.headline : brk.hi?.headline);
   return (
     <>
       <a className="skip" href="#main">{t(lang, "skip")}</a>
@@ -48,8 +44,9 @@ export default async function Frame({ lang, path, section, active, bottomBar = t
         links={{ home: L("/"), latest: L("/latest"), archive: L("/archive"), search: L("/search"), saved: L("/saved"), classifieds: L("/classifieds"), advertise: L("/advertise"),
                  about: L("/about"), how: L("/how-we-check"), policy: L("/editorial-policy"), corrections: L("/corrections"), contact: L("/contact") }}
       />
-      <BreakingBar first={brk && { id: brk.id, headline: bw || brk.headline, href: L(`/news/${brk.id}`), until: Date.parse(brk.publishedAt) + BREAKING_HOURS * 3600_000 }}
-        made={Date.now()} lang={lang} label={t(lang, "brk")} close={t(lang, "close")} />
+      {/* asked for by the reader's browser, so a page made again with nothing changed is the same page (7 Nov: the time it
+          was made, written into every page, made Vercel count each renewal as a new page: 306,000 "ISR writes" of 200,000) */}
+      <BreakingBar lang={lang} label={t(lang, "brk")} close={t(lang, "close")} />
       {bottomBar && <nav className="wrap secs" aria-label={t(lang, "sections")}>
         {SECTIONS.map((k) => <Link prefetch={false} key={k} href={L(`/section/${k}`)} className={section === k ? "on" : undefined}>{sectionName(k, lang)}</Link>)}
         {/* the flagship section (views/Flagship.tsx), set apart at the end */}
