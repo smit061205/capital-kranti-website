@@ -1,1 +1,4 @@
-{ "regions": ["sin1"] }
+{
+  "regions": ["sin1"],
+  "ignoreCommand": "[ -n \"$VERCEL_GIT_PREVIOUS_SHA\" ] && git diff --quiet \"$VERCEL_GIT_PREVIOUS_SHA\" HEAD -- . ':!engine' ':!pipeline' ':!*.md' && git diff --quiet \"$VERCEL_GIT_PREVIOUS_SHA\" HEAD -- engine/sources.ts"
+}
