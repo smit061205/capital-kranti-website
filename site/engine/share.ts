@@ -8,27 +8,26 @@ import { put } from "@vercel/blob";
 import sharp from "sharp";
 import { db } from "../lib/db.ts";
 import { FIT, SHARE_LOOK, shareHtml, type ShareCard } from "../lib/share.ts";
-import { count, touched } from "../lib/write.ts";
+import { BLOB_KEEP, blobRoom, count, touched } from "../lib/write.ts";
 
 /** at most this many a run, so a run never holds Instagram's work up for long */
 const MOST = 12;
-/** at most this many a day: each picture is an upload to the photo store, whose free plan allows 2,000 a month for
- *  everything (7 Nov: a picture for every story without a photo, about 200 a day, took it to 1,700) */
-export const SHARE_A_DAY = 12;
-/** only the stories that matter most get one (the engine's importance, 0 to 10); the rest share the paper's own card */
-const IMPORTANT = 7;
+/** at most this many a day: each picture is an upload to the photo store, whose free plan allows 2,000 in any 30 days
+ *  for everything (7 Nov: a picture for every story without a photo, about 200 a day, took it to 1,700) */
+export const SHARE_A_DAY = 40;
 
-/** Published stories of the last day that matter most, with no photo after the engine has looked for one, and no picture
- *  yet; none once the day's pictures are made. */
+/** Published stories of the last day with no photo after the engine has looked for one, and no picture yet, the most
+ *  important first; none once the day's pictures are made or while the photo store is short of room (lib/write.ts
+ *  blobRoom: until 4 to 6 Dec, when 4 to 6 Nov's uploads leave its 30 days). */
 export async function waiting(sql: NonNullable<ReturnType<typeof db>>, limit = MOST): Promise<ShareCard[]> {
+  const room = (await blobRoom(sql)) - BLOB_KEEP.share;
   const [{ n }] = await sql.query(`select coalesce(sum(n), 0)::int as n from usage where kind = 'share_upload' and day = (now() at time zone 'Asia/Kolkata')::date`);
-  const left = Math.min(limit, SHARE_A_DAY - (n as number));
+  const left = Math.min(limit, SHARE_A_DAY - (n as number), room);
   if (left <= 0) return [];
   const rows = await sql.query(
     `select id, tier, kicker, headline, deck, published_at from stories
       where status = 'published' and photo is null and photo_tried and share is null and published_at > now() - interval '1 day'
-        and coalesce(importance, 0) >= $2
-      order by importance desc, published_at desc limit $1`, [left, IMPORTANT]);
+      order by coalesce(importance, 0) desc, published_at desc limit $1`, [left]);
   return rows.map((r) => ({ id: r.id as string, tier: r.tier, kicker: (r.kicker as string) ?? "", headline: r.headline as string,
                             deck: (r.deck as string) ?? "", publishedAt: new Date(r.published_at as string).toISOString() }));
 }

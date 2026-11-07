@@ -7,7 +7,7 @@ import { put } from "@vercel/blob";
 import sharp from "sharp";
 import { WEBSITE } from "../lib/config.ts";
 import type { English, Photo, Tier } from "../lib/types.ts";
-import { count } from "../lib/write.ts";
+import { BLOB_KEEP, blobRoom, count } from "../lib/write.ts";
 import { UA } from "./fetch.ts";
 import { officialHost } from "./sources.ts";
 import type { Checked, SourceText, Written } from "./newsroom.ts";
@@ -51,7 +51,7 @@ export async function linkPhoto(url: string): Promise<Photo | null> {
  *  small or the day's uploads are used up. */
 export async function storePhoto(sql: Sql, url: string, storyId: string, ua = UA, width = 1200): Promise<Photo | null> {
   if (!process.env.BLOB_READ_WRITE_TOKEN) return null;
-  if ((await count(sql, "upload", 0)) >= WEBSITE.dailyUploads) return null;
+  if ((await count(sql, "upload", 0)) >= WEBSITE.dailyUploads || (await blobRoom(sql)) <= BLOB_KEEP.photos) return null;
   try {
     const res = await fetch(url, { headers: { "user-agent": ua }, signal: AbortSignal.timeout(20_000) });
     if (!res.ok) return null;
@@ -64,7 +64,7 @@ export async function storePhoto(sql: Sql, url: string, storyId: string, ua = UA
 /** An image already in hand made a JPEG and kept in the photo store (storePhoto's second half). */
 export async function storeImage(sql: Sql, image: Buffer, storyId: string, width = 1200): Promise<Photo | null> {
   if (!process.env.BLOB_READ_WRITE_TOKEN) return null;
-  if ((await count(sql, "upload", 0)) >= WEBSITE.dailyUploads) return null;
+  if ((await count(sql, "upload", 0)) >= WEBSITE.dailyUploads || (await blobRoom(sql)) <= BLOB_KEEP.photos) return null;
   try {
     const { data, info } = await sharp(image).rotate()
       .resize({ width, withoutEnlargement: true }).jpeg({ quality: width > 1200 ? 82 : 78, mozjpeg: true }).toBuffer({ resolveWithObject: true });
