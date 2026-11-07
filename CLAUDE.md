@@ -21,5 +21,6 @@ you know: read `site/node_modules/next/dist/docs` before changing Next code (`si
 - Run servers with `preview_start`, never from a shell.
 - Work on a branch; merge to `main` and push when it's finished and checked: `npx --prefix site tsc -p site/engine`, `node --experimental-strip-types --no-warnings site/engine/selftest.ts`, and `npm run build` in `site/`.
 - The engine reads `main` every round, so anything pushed to `main` reaches the running news within about 15 minutes.
+- **Vercel's free plan (7 Nov):** each website deploy empties the page cache, and every page made again counts against 200,000 "ISR writes" a month. Merge website changes together, not one by one; engine-only changes skip the deploy (`site/vercel.json` `ignoreCommand`). Never write the time or anything random into a page's HTML.
 - `engine/text.ts` was copied from the app on 31 Oct. A fix there doesn't reach the app, or the other way round.
 - Commit messages describe the change in plain words.
