@@ -62,6 +62,29 @@ export async function count(sql: NeonQueryFunction<false, false>, kind: string, 
   return rows[0].n as number;
 }
 
+/** Vercel's free photo store allows 2,000 uploads ("advanced operations") in any 30 days, all kinds together. Counted
+ *  here as `upload` (the engine's, Aavtikal's, the editor's), `share_upload` and `insta_upload`; up to 7 Nov, as
+ *  Vercel's usage page showed them (all kinds, so the counts for those days are left out) (share pictures for every story then took it to 1,700). */
+const BLOB_LIMIT = 2000;
+const BLOB_BEFORE: Record<string, number> = {
+  "2026-10-25": 45, "2026-10-28": 15, "2026-10-29": 35, "2026-10-30": 18, "2026-10-31": 12, "2026-11-01": 25,
+  "2026-11-02": 35, "2026-11-03": 15, "2026-11-04": 180, "2026-11-05": 410, "2026-11-06": 700, "2026-11-07": 210,
+};
+/** what each kind of upload leaves free: share pictures stop first, then the engine's and Aavtikal's photos, so the
+ *  editor's own photos and Instagram's sets always have room */
+export const BLOB_KEEP = { share: 400, photos: 120, essential: 10 } as const;
+
+/** How many uploads the photo store has left in the last 30 days. */
+export async function blobRoom(sql: NeonQueryFunction<false, false>): Promise<number> {
+  await prepared(sql);
+  const rows = await sql.query(
+    `select coalesce(sum(n), 0)::int as n from usage where kind in ('upload', 'share_upload', 'insta_upload')
+       and day > (now() at time zone 'Asia/Kolkata')::date - 30 and day > '2026-11-07'`); // the days before: BLOB_BEFORE
+  const since = new Date(Date.now() + 5.5 * 3600_000 - 30 * 86400_000).toISOString().slice(0, 10);
+  const before = Object.entries(BLOB_BEFORE).reduce((t, [day, n]) => t + (day > since ? n : 0), 0);
+  return BLOB_LIMIT - (rows[0].n as number) - before;
+}
+
 /** This month's total of something limited (India time). */
 export async function monthTotal(sql: NeonQueryFunction<false, false>, kind: string): Promise<number> {
   await prepared(sql);

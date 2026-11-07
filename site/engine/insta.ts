@@ -19,6 +19,7 @@ import {
 import { num } from "../lib/format.ts";
 import { sectionName, TIERS } from "../lib/sections.ts";
 import { tell } from "../lib/telegram.ts";
+import { count } from "../lib/write.ts";
 import type { Story, Tier } from "../lib/types.ts";
 import { askGemini, type GeminiImage } from "./ai.ts";
 import { UA as WIKI_UA, commonsAt, commonsPictures, subjectOf } from "./wikiphoto.ts";
@@ -182,6 +183,7 @@ async function render(sql: Sql, sets: InstaSet[], report = true) {
         .jpeg({ quality: 90, mozjpeg: true }).toBuffer();
       const name = `instagram/${set.edition.slice(0, 10)}/${set.id}-${createHash("sha256").update(tall).digest("hex").slice(0, 10)}.jpg`;
       await put(name, tall, { access: "private", contentType: "image/jpeg", addRandomSuffix: false, allowOverwrite: true });
+      await count(sql, "insta_upload");
       const old = set.image;
       set.image = `/media/${name}`;
       set.state = "waiting";
