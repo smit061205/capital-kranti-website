@@ -12,7 +12,7 @@ import type { Lang } from "@/lib/types.ts";
 import { AUTHORS, BEATS, beatName, featureById as loadFeature, featureWords, features, flw, isAuthor, isBeat, readMinutes, searchFeatures, type Beat, type Figure, type L3 } from "@/lib/flagship.ts";
 import { dateText, num, paragraphs } from "@/lib/format.ts";
 import { SITE_URL, WHATSAPP_CHANNEL } from "@/lib/site.ts";
-import { langsOf, pageMeta } from "@/lib/meta.ts";
+import { langsOf, missingMeta, pageMeta } from "@/lib/meta.ts";
 import { pic, shareCopy, SIZES } from "@/lib/photo.ts";
 import { article, breadcrumbs, JsonLd } from "@/lib/jsonld.tsx";
 
@@ -253,7 +253,9 @@ export async function flMeta(lang: Lang, path: string, o: { title?: string; desc
   let more: Pick<Parameters<typeof pageMeta>[0], "article" | "langs"> = {};
   if (o.id) {
     const f = await featureById(o.id);
-    if (f) {
+    // an article that isn't there: out of search (10 Nov: any /aavtikal/p/<anything> was a page Google could index)
+    if (!f) return missingMeta(lang);
+    {
       const t = featureWords(f, lang);
       o = { title: t.headline, description: t.dek || t.body.slice(0, 160), image: f.photo && shareCopy(f.photo) };
       more = { article: f, langs: langsOf(f) };

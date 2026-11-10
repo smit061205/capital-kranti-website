@@ -5,6 +5,13 @@ import { PAPER, SITE_URL } from "./site.ts";
 import { sectionName } from "./sections.ts";
 import { shareCopy } from "./photo.ts";
 
+/** A feed or sitemap as it's sent: made when asked for and kept by the CDN for a few minutes, never as a kept-ready
+ *  page (10 Nov: a kept-ready file is renewed only after someone asks for it, so the Hindi news sitemap Google read was
+ *  30 hours old and the feed two and a half days; and each renewal was a paid "ISR write"). */
+export const xml = (body: string, seconds = 600) => new Response(body, {
+  headers: { "content-type": "application/xml; charset=utf-8", "cache-control": `public, max-age=0, s-maxage=${seconds}` },
+});
+
 const x = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /** A feed of the newest stories (`self`: the feed's own path, e.g. "/en/rss.xml"). 6 Nov: newest first by the time each
@@ -46,4 +53,14 @@ const NEWS_SITEMAP_LANGS = ["gu", "en", "hi"] as const;
 export function newsSitemapIndex(newest: string | null) {
   const files = NEWS_SITEMAP_LANGS.map((lang) => `<sitemap><loc>${SITE_URL}/news-sitemap-${lang}.xml</loc>${newest ? `<lastmod>${newest}</lastmod>` : ""}</sitemap>`).join("");
   return `<?xml version="1.0" encoding="UTF-8"?><sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">${files}</sitemapindex>`;
+}
+
+/** The whole site's sitemap: each page in each of its languages, naming all its versions. */
+export function siteMap(pages: { path: string; lastModified?: string; langs?: Lang[] }[]) {
+  const urls = pages.flatMap(({ path, lastModified, langs = ["gu", "en", "hi"] }) => {
+    const links = [...langs.map((l) => `<xhtml:link rel="alternate" hreflang="${l}" href="${x(SITE_URL + href(l, path))}" />`),
+                   `<xhtml:link rel="alternate" hreflang="x-default" href="${x(SITE_URL + href("gu", path))}" />`].join("");
+    return langs.map((l) => `<url><loc>${x(SITE_URL + href(l, path))}</loc>${links}${lastModified ? `<lastmod>${lastModified}</lastmod>` : ""}</url>`);
+  }).join("\n");
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">\n${urls}\n</urlset>`;
 }

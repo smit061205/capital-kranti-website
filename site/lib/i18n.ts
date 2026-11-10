@@ -93,3 +93,6 @@ export const t = (lang: Lang, key: WordKey): string => WORDS[lang][key];
 export const href = (lang: Lang, path: string) => (lang === "gu" ? path : path === "/" ? `/${lang}` : `/${lang}${path}`);
 /** The same page in the other language. */
 export const otherLang = (lang: Lang): Lang => (lang === "gu" ? "en" : "gu");
+
+/** the letter on the text-size buttons, in each language's script (10 Nov: English and Hindi pages showed "અ") */
+export const SIZE_LETTER: Record<Lang, string> = { gu: "અ", en: "A", hi: "अ" };

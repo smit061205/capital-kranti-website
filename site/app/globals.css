@@ -205,6 +205,8 @@ main{padding-block:8px 48px}
 .ph,.cmp img,.thumb,.short img,.river img,.insta img{object-position:50% 22%}
 .ph{width:100%;aspect-ratio:3/2;object-fit:cover;background:var(--surface);filter:var(--photo)}
 .phw{display:block;overflow:hidden;border-radius:var(--r);background:var(--surface)}
+/* a photo that didn't come leaves its place (components/PhotoMend.tsx); a small one beside a headline keeps its room */
+.nophoto{display:none!important}.nophoto-in{visibility:hidden}
 .phw .ph{display:block;transition:transform var(--slow) var(--ease),filter var(--move) ease;border-radius:0}
 .display,.h2,.h3,.h4{transition:color var(--quick) ease}
 a.h:hover .display,a.h:hover .h2,a.h:hover .h3,a.h:hover .h4{color:var(--soft)}
@@ -316,6 +318,8 @@ a.h:active{opacity:.85}
 .river img{width:96px;height:96px;object-fit:cover;filter:var(--photo);border-radius:var(--r);background:var(--surface)}
 @media (min-width:740px){ .river > a{grid-template-columns:110px minmax(0,1fr) 220px;gap:var(--gut)} .river img{width:220px;height:auto;aspect-ratio:3/2} .river .when{display:block!important} }
 .river .when{display:none;font-size:var(--t1);color:var(--muted)}
+/* a wide row shows its time at the left, so not again under the words (10 Nov: it stood twice) */
+@media (min-width:740px){ .river .meta time,.river .meta .dot{display:none} .river .meta:has(time):not(:has(.sec)){display:none} }
 .empty{font-family:var(--serif);font-size:var(--t3);color:var(--soft);padding-block:24px}
 
 /* ---------- article ---------- */
@@ -477,18 +481,6 @@ time.fresh{display:inline-flex}.livedot{display:none}
 
 /* the sections far down the front page aren't drawn until the reader nears them (2 Nov) */
 .wide{content-visibility:auto;contain-intrinsic-size:auto 480px}
-/* the page on its way: its shapes, shimmering */
-.sk{display:block;border-radius:var(--r);background:linear-gradient(100deg,var(--surface) 30%,color-mix(in srgb,var(--surface) 55%,var(--bg)) 50%,var(--surface) 70%) 0 0/300% 100%;animation:shimmer 1.4s linear infinite}
-.skel-top{border-bottom:1px solid var(--rule)}.skel-bar{display:flex;justify-content:space-between;align-items:center;height:56px}
-.skel-wm{font-family:var(--serif);font-weight:800;font-size:27px;color:var(--strong);opacity:.55}
-.sk-ib{width:32px;height:32px;border-radius:50%}
-.skel-secs{display:flex;gap:18px;padding-block:14px;border-bottom:1px solid var(--rule);overflow:hidden}.sk-chip{width:56px;height:16px;flex:none}
-.skel-lead{display:grid;gap:16px;margin-top:20px}.skel-lead > div{display:grid;gap:10px;align-content:start}
-.sk-h{height:30px}.sk-line{height:14px}.w40{width:40%}.w60{width:60%}.w80{width:80%}
-.sk-photo{aspect-ratio:3/2;width:100%}
-.skel-cards{display:grid;gap:24px;margin-top:28px}.skel-cards > div{display:grid;gap:10px}
-@media (min-width:740px){ .skel-lead{grid-template-columns:4fr 5fr} .skel-cards{grid-template-columns:repeat(3,1fr)} }
-@media (min-width:1024px){ .skel-bar{height:68px} .skel-wm{font-size:var(--t6)} .sk-h{height:42px} }
 
 /* page transitions, kept short (2 Nov: a page change spent 0.4 s on these alone): the page's content crossfades; the header stays put; a photo
    grows from its card into the story (React's ViewTransition, where the browser has it) */

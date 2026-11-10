@@ -19,6 +19,9 @@ export function words(s: Story, lang: Lang) {
            body: e?.body || s.body, caption: e?.caption || s.caption, translated: !!e };
 }
 const storyHref = (s: Story, lang: Lang) => href(lang, `/news/${s.id}`);
+/** The stories a language's lists show: in English and Hindi only those written in it (10 Nov: a story whose translation
+ *  hadn't come, or never came, stood in Gujarati among the Hindi headlines). Its own page still opens, with a note. */
+export const inLang = (list: Story[], lang: Lang) => (lang === "gu" ? list : list.filter((s) => (lang === "en" ? s.en : s.hi)));
 
 /** "(ફોટો: …)" after a caption: who took the photo, else the story's source. An Unsplash photo links its photographer and
  *  Unsplash, as Unsplash's rules ask, wherever the credit isn't already inside a link (`links`). */
@@ -32,11 +35,11 @@ export function Credit({ s, lang, links = true }: { s: Story; lang: Lang; links?
   );
 }
 
-export function Meta({ s, lang, sec = true }: { s: Story; lang: Lang; sec?: boolean }) {
+export function Meta({ s, lang, sec = true, clock = false }: { s: Story; lang: Lang; sec?: boolean; clock?: boolean }) {
   return (
     <div className="meta">
-      {sec && <><span className="sec">{sectionName(s.tier, lang)}</span><span aria-hidden="true">·</span></>}
-      <TimeAgo iso={s.publishedAt} lang={lang} fallback={timeText(s.publishedAt, lang)} />
+      {sec && <><span className="sec">{sectionName(s.tier, lang)}</span><span className="dot" aria-hidden="true">·</span></>}
+      {clock ? <time dateTime={s.publishedAt}>{timeText(s.publishedAt, lang)}</time> : <TimeAgo iso={s.publishedAt} lang={lang} fallback={timeText(s.publishedAt, lang)} />}
     </div>
   );
 }
@@ -192,16 +195,17 @@ export function Head({ label, to, extra }: { label: string; to?: string; extra?:
   );
 }
 
-/** A river: newest first, a time, the headline and summary, a photo. */
-export function River({ stories, lang, sec = false }: { stories: Story[]; lang: Lang; sec?: boolean }) {
+/** A river: newest first, a time, the headline and summary, a photo. `clock`: the time of day as written, for one day's
+ *  list (10 Nov: every row of yesterday's archive said "yesterday"). */
+export function River({ stories, lang, sec = false, clock = false }: { stories: Story[]; lang: Lang; sec?: boolean; clock?: boolean }) {
   return (
     <div className="river">
       {stories.map((s) => {
         const w = words(s, lang);
         return (
           <Link prefetch={false} key={s.id} className="h" href={storyHref(s, lang)}>
-            <span className="when"><TimeAgo iso={s.publishedAt} lang={lang} fallback={timeText(s.publishedAt, lang)} /></span>
-            <div><h3 className="h3">{w.headline}</h3>{w.deck && <p className="dek">{w.deck}</p>}<Meta s={s} lang={lang} sec={sec} /></div>
+            <span className="when">{clock ? <time dateTime={s.publishedAt}>{timeText(s.publishedAt, lang)}</time> : <TimeAgo iso={s.publishedAt} lang={lang} fallback={timeText(s.publishedAt, lang)} />}</span>
+            <div><h3 className="h3">{w.headline}</h3>{w.deck && <p className="dek">{w.deck}</p>}<Meta s={s} lang={lang} sec={sec} clock={clock} /></div>
             {s.photo ? <img {...pic(s.photo, SIZES.thumb)} alt="" loading="lazy" decoding="async" /> : <span />}
           </Link>
         );

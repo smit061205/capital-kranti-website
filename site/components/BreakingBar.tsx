@@ -15,11 +15,22 @@ export default function BreakingBar({ lang, label, close }: { lang: Lang; label:
   const [on, setOn] = useState(true);
   useEffect(() => {
     let live = true;
-    fetch(`/api/breaking?lang=${lang}`).then((r) => r.json() as Promise<Brk | null>).then((b) => { if (live) setBrk(b); }).catch(() => {});
+    // the answer is kept a minute in this tab, so the next page shows the bar as it opens instead of a moment after
+    const NOW = `ck-brk-now-${lang}`;
+    try {
+      const kept = JSON.parse(sessionStorage.getItem(NOW) ?? "null") as { at: number; b: Brk | null } | null;
+      if (kept && Date.now() - kept.at < 60_000) { setBrk(kept.b); return; }
+    } catch { /* asked for below */ }
+    fetch(`/api/breaking?lang=${lang}`).then((r) => r.json() as Promise<Brk | null>).then((b) => {
+      try { sessionStorage.setItem(NOW, JSON.stringify({ at: Date.now(), b })); } catch { /* private window */ }
+      if (live) setBrk(b);
+    }).catch(() => {});
     return () => { live = false; };
   }, [lang]);
   useEffect(() => {
     if (!brk) return;
+    // not on the breaking story's own page (10 Nov: the bar there linked to the page it was on)
+    if (location.pathname.endsWith(`/news/${brk.id}`)) { setOn(false); return; }
     try { if (localStorage.getItem(KEY) === brk.id) { setOn(false); return; } } catch { /* shown */ }
     setOn(true);
     const left = brk.until - Date.now();

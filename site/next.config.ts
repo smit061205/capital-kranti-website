@@ -8,8 +8,17 @@ const nextConfig: NextConfig = {
   },
   // two root layouts (Gujarati, English): a web address matching neither gets app/global-not-found.tsx
   // the service worker is always fetched fresh, so a new release reaches every phone
+  // every answer: not read as another kind of file, not shown inside another site's page (the editor page's buttons
+  // could be pressed there unseen), and other sites told only the site's name, not the page a reader came from (10 Nov);
+  // the paper's own icons and pictures kept a day by browsers (they were asked for again with every page)
+  poweredByHeader: false,
   async headers() {
-    return [{ source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }, { key: "Content-Type", value: "application/javascript; charset=utf-8" }] }];
+    return [
+      { source: "/sw.js", headers: [{ key: "Cache-Control", value: "no-cache, no-store, must-revalidate" }, { key: "Content-Type", value: "application/javascript; charset=utf-8" }] },
+      { source: "/:path*", headers: [{ key: "X-Content-Type-Options", value: "nosniff" }, { key: "X-Frame-Options", value: "SAMEORIGIN" },
+                                     { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" }] },
+      { source: "/:file(icon|icon-192|icon-maskable|apple-icon|favicon-32|logo|og).png", headers: [{ key: "Cache-Control", value: "public, max-age=86400, stale-while-revalidate=604800" }] },
+    ];
   },
   // the e-paper left the website (31 Oct): its old addresses go to the past issues
   // the site's own address (2 Nov): a page opened at the old Vercel address goes to the same page on www.capitalkranti.co.in

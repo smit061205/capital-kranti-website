@@ -39,6 +39,7 @@ function storyOf(r: Row): Story {
     issueDate: day(r.issue_date),
     publishedAt: iso(r.published_at),
     updatedAt: iso(r.updated_at),
+    editedAt: r.edited ? iso(r.edited) : null,
     tier: (r.tier as Tier) ?? "india",
     genres: (r.genres as Genre[]) ?? [],
     kicker: (r.kicker as string) ?? "",
@@ -70,7 +71,7 @@ function issueOf(r: Row): Issue {
 }
 
 const COLUMNS = `id, issue_date, published_at, updated_at, tier, genres, kicker, headline, deck, body, caption, photo, source,
-                 checked, page, rank, en, en_status, hi, hi_status, corrections, origin, sources, importance, gallery, checks->>'by' as by, share`;
+                 checked, page, rank, en, en_status, hi, hi_status, corrections, origin, sources, importance, gallery, checks->>'by' as by, checks->>'edited' as edited, share`;
 /** A list's columns: no story's text, which no list shows (5 Nov: the front page read 200 whole stories, three languages
  *  each, for their headlines). A story's own page and the engine read COLUMNS. */
 const LIST = COLUMNS.replace("deck, body,", "deck, '' as body,").replace("en, en_status, hi,", "en - 'body' as en, en_status, hi - 'body' as hi,")

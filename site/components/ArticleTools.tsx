@@ -12,6 +12,8 @@ interface Props {
   headline: string;
   /** the reader's saved stories page, in their language */
   savedHref: string;
+  /** the letter on the text-size buttons, in the page's script */
+  letter: string;
   words: Record<"share" | "shareShort" | "copy" | "copied" | "save" | "saved" | "savedToast" | "unsavedToast" | "size" | "seeSaved" | "savedOffline", string>;
 }
 
@@ -28,7 +30,7 @@ function mark(id: string, on: boolean) {
 }
 export const forget = (id: string) => mark(id, false);
 
-export default function ArticleTools({ id, url, headline, savedHref, words: w }: Props) {
+export default function ArticleTools({ id, url, headline, savedHref, letter, words: w }: Props) {
   const [size, setSize] = useState("1");
   const [saved, setSaved] = useState(false);
   // a saved story's note says it reads offline too (only where the offline helper runs) and leads to the saved stories
@@ -55,7 +57,7 @@ export default function ArticleTools({ id, url, headline, savedHref, words: w }:
         <a className="tool wa" href={wa} target="_blank" rel="noopener"><WhatsApp />{w.shareShort}</a>
         <button type="button" className="tool" onClick={copy} aria-label={w.copy} title={w.copy}><LinkIcon /></button>
         <span className="sizes" role="group" aria-label={w.size}>
-          {["1", "2", "3"].map((n) => <button key={n} type="button" aria-pressed={size === n} onClick={() => setTo(n)}>અ</button>)}
+          {["1", "2", "3"].map((n) => <button key={n} type="button" aria-pressed={size === n} onClick={() => setTo(n)}>{letter}</button>)}
         </span>
         <button type="button" className={`tool save${saved ? " on" : ""}`} onClick={save} aria-pressed={saved}><SaveIcon on={saved} />{saved ? w.saved : w.save}</button>
       </div>
