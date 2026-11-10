@@ -57,7 +57,11 @@ export function gate(items: ClusterItem[], debunks: Debunk[]): Gate {
 export type Level = "lead" | "top" | "normal" | "brief";
 export function importance(maxScore: number, tier: Tier, groups: number, official: boolean): number {
   const weight = tier === "gujarat" ? 1.15 : tier === "world" ? 0.85 : 1;
-  return Math.round((maxScore * weight + Math.log2(Math.max(1, groups)) * 0.8 + (official ? 0.4 : 0)) * 10) / 10;
+  const imp = Math.round((maxScore * weight + Math.log2(Math.max(1, groups)) * 0.8 + (official ? 0.4 : 0)) * 10) / 10;
+  // a "lead" (9.5: breaking news on every page, an alert on readers' phones, the biggest headline) only when a report
+  // itself was judged a major event (9 or 10): many outlets on a middling one don't make it breaking (10 Nov: the Chief
+  // Minister's New Year temple visits, with PIB and five outlets, went out as breaking news with an alert)
+  return maxScore < 8.5 ? Math.min(imp, 9.4) : imp;
 }
 export const levelOf = (imp: number): Level | null => (imp >= 9.5 ? "lead" : imp >= 7.5 ? "top" : imp >= 5 ? "normal" : imp >= 3 ? "brief" : null);
 // longer, like the sources themselves (the user, 29 Oct: "can't it have the original length?"; 5 Nov: fewer, fuller stories
@@ -203,6 +207,11 @@ Rules:
 - caption: one line for the photo if a source has an official photo, else "".
 - Numbers in Gujarati digits (૦-૯) as the paper prints them, with ₹, કરોડ and લાખ as Indian papers write them. Keep every number exactly as the source has it.
 - Never mention AI, and never say "according to sources" vaguely: name the source (e.g. "PIB મુજબ", "બીબીસીના અહેવાલ મુજબ").
+- The story's first words are the news itself (who did what, where), never a list of outlets: name the source inside or
+  after the first sentence, one or two names, not every outlet. Wikipedia is never named as a report of the news.
+- A suicide or a suicide attempt (the Press Council of India's norms): say plainly that the person died by suicide; never
+  describe the method, never quote or describe a note, never give one simple cause as the reason, nothing dramatic in the
+  headline. Keep what the police or the family officially said.
 Reply with JSON only: {"kicker":"","headline":"","deck":"","body":"","caption":""}`;
 };
 
@@ -303,6 +312,9 @@ export async function check(sql: Sql | null, w: Written, src: SourceText[], date
   // and Russian, Greek, Arabic, Thai, Chinese, Japanese or Korean letters, or a stray accent (4 Nov: "виста́р" reached a headline)
   const stray = `${w.headline} ${w.deck} ${w.body}`.match(new RegExp(`[${OTHER}_]+|[\u0A80-\u0AFF]+[A-Za-z]+`, "g"));
   if (stray) problems.push(`letters from another script: ${[...new Set(stray)].slice(0, 3).join(", ")}`);
+  // a misspelt word where every reader sees it (10 Nov: "ઉત્સવનોારંભ" and "પિયરસાાઇટ" reached headlines)
+  const broken = brokenWords(`${w.headline} ${w.deck}`);
+  if (broken.length) problems.push(`misspelt words in the headline or summary (two vowel signs in a row): ${broken.slice(0, 3).join(", ")}`);
   for (const s of src.filter((s) => s.source.lang === "gu")) {
     const share = copiedShare(w.body, s.text);
     if (share > 0.12) problems.push(`copies ${Math.round(share * 100)}% of ${s.source.name}'s wording`);
@@ -326,6 +338,11 @@ export async function check(sql: Sql | null, w: Written, src: SourceText[], date
   return { ok: problems.length === 0, problems, claims: res.value, model: res.model };
 }
 
+/** Words no Gujarati spelling allows: two vowel signs in a row (a model's slip, as when two words run together). */
+export const brokenWords = (text: string): string[] => [...new Set(text.match(/[\u0A80-\u0AFF]*[\u0ABE-\u0ACC]{2,}[\u0A80-\u0AFF]*/g) ?? [])];
+/** the same vowel sign written twice is written once ("સાા" is "સા"): needs no model */
+const once = (s: string) => s.replace(/([\u0ABE-\u0ACC])\1+/g, "$1");
+
 /** letters no Gujarati story has: Indian scripts but Gujarati, and Russian, Greek, Arabic, Thai, East Asian, a loose accent */
 const OTHER = "\\u0300-\\u036F\\u0370-\\u03FF\\u0400-\\u04FF\\u0600-\\u06FF\\u0900-\\u097F\\u0980-\\u0A7F\\u0B00-\\u0DFF\\u0E00-\\u0E7F\\u3040-\\u30FF\\u4E00-\\u9FFF\\uAC00-\\uD7AF";
 export const STRAY = new RegExp(`[${OTHER}]|[\\u0A80-\\u0AFF][A-Za-z]`);
@@ -343,7 +360,8 @@ export const toGujarati = (s: string) => s.replace(/[\u0964\u0965]/g, ".").repla
 /** A few words in another script (1 Nov: Hindi names in a Gujarati story, one failure in four) put into Gujarati letters, at
  *  once, instead of the whole story being thrown away. The story is checked afterwards like any other. */
 export async function mendLetters(sql: Sql | null, written: Written): Promise<Written> {
-  const w = { ...written, kicker: toGujarati(written.kicker), headline: toGujarati(written.headline), deck: toGujarati(written.deck), body: toGujarati(written.body), caption: toGujarati(written.caption) };
+  const fix = (x: string) => once(toGujarati(x));
+  const w = { ...written, kicker: fix(written.kicker), headline: fix(written.headline), deck: fix(written.deck), body: fix(written.body), caption: fix(written.caption) };
   const words = [...new Set([w.kicker, w.headline, w.deck, w.body, w.caption].join(" ").split(/[\s,.;:!?()'"‘’“”।—-]+/).filter((x) => STRAY.test(x)))];
   if (!sql || !words.length) return w;
   const res = await askGemini(sql, "lite", { system: MEND, user: JSON.stringify(words), maxTokens: 2000, temperature: 0 }, (v) => {
@@ -424,7 +442,8 @@ export async function writeChecked(sql: Sql | null, src: SourceText[], level: Le
 // ---- §3.2: English and Hindi for every story (the user, 29 Oct: the other languages show everything in them) ----
 
 const TRANSLATE = (lang: "en" | "hi") => `You translate a Gujarati news story for Capital Kranti's website into ${lang === "en" ? "English, in the style of a careful Indian English newspaper" : "Hindi (Devanagari), in the style of a careful Hindi newspaper"}.
-Keep every fact, name and number exactly; write numbers in figures as the Gujarati does (₹8,941 crore, 2.5 lakh${lang === "hi" ? "; Hindi uses करोड़ and लाख" : ""}); keep paragraphs separated by a blank line; translate an empty field as "". Add nothing, leave nothing out.
+Keep every fact, name and number exactly; write numbers in figures as the Gujarati does (₹8,941 crore, 2.5 lakh${lang === "hi" ? "; Hindi uses करोड़ and लाख" : ""}); keep paragraphs separated by a blank line; translate an empty field as "". Add nothing, leave nothing out.${lang === "en" ? `
+The headline in sentence case (only the first word and names capitalised). A suicide is "died by suicide", never "committed suicide".` : ""}
 Reply with JSON only: {"kicker":"","headline":"","deck":"","body":"","caption":""}`;
 
 export const needsTranslation = (_tier: Tier) => true;
@@ -435,6 +454,7 @@ const TRANSLATE_BOTH = `You translate a Gujarati news story for Capital Kranti's
 newspaper, and into Hindi (Devanagari), in the style of a careful Hindi newspaper.
 Keep every fact, name and number exactly; write numbers in figures as the Gujarati does (₹8,941 crore, 2.5 lakh; Hindi uses करोड़ and
 लाख); keep paragraphs separated by a blank line; translate an empty field as "". Add nothing, leave nothing out.
+English headlines in sentence case (only the first word and names capitalised). A suicide is "died by suicide", never "committed suicide".
 Reply with JSON only: {"en":{"kicker":"","headline":"","deck":"","body":"","caption":""},"hi":{"kicker":"","headline":"","deck":"","body":"","caption":""}}`;
 
 /** A translation as given, or null when it isn't one: still Gujarati, wholly or in part (2 Nov: a model gave the Gujarati back,

@@ -1,14 +1,12 @@
 import { storiesIn } from "@/lib/db.ts";
-import { rss } from "@/lib/feeds.ts";
+import { rss, xml } from "@/lib/feeds.ts";
 import { PAPER } from "@/lib/site.ts";
-import { SECTIONS, isSection, sectionName } from "@/lib/sections.ts";
+import { isSection, sectionName } from "@/lib/sections.ts";
 
-export const revalidate = 3600;
-export const dynamicParams = false;
-export function generateStaticParams() { return SECTIONS.map((key) => ({ key })); }
+// made when asked for, kept ten minutes by the CDN (lib/feeds.ts xml)
+export const dynamic = "force-dynamic";
 export async function GET(_: Request, { params }: { params: Promise<{ key: string }> }) {
   const key = (await params).key;
   if (!isSection(key)) return new Response("not found", { status: 404 });
-  return new Response(rss(await storiesIn(key, 100), "en", `/en/section/${key}/rss.xml`, `${PAPER.en.name}: ${sectionName(key, "en")}`),
-                      { headers: { "content-type": "application/xml; charset=utf-8" } });
+  return xml(rss(await storiesIn(key, 100), "en", `/en/section/${key}/rss.xml`, `${PAPER.en.name}: ${sectionName(key, "en")}`));
 }

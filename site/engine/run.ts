@@ -25,7 +25,7 @@ import { indiaDate, linkPhoto, photoOf, saveLive } from "./publish.ts";
 import { sourceById } from "./sources.ts";
 import { alertBreaking } from "../lib/push.ts";
 import { birthdays, leaders } from "../lib/leaders.ts";
-import { background, fitsStory, freePhoto, leadPhoto, UNFIT } from "./wikiphoto.ts";
+import { background, fitsStory, freePhoto, leadPhoto, notPhoto, UNFIT } from "./wikiphoto.ts";
 import { cluster, nearEvent, placeTier, sameEvent, triage, type Triage } from "./triage.ts";
 
 const url = process.env.DATABASE_URL;
@@ -276,6 +276,23 @@ async function photos(until = finish, most = 4) {
         en = case when en is null then en else jsonb_set(en, '{caption}', '""') end, hi = case when hi is null then hi else jsonb_set(hi, '{caption}', '""') end
       where origin = 'live' and published_at > now() - interval '3 days' and photo->>'credit' like '%Wikimedia Commons%' and coalesce(en->>'caption', '') ~* '\\mlogo\\M'`);
     await sql.query(`insert into state (key, value) values ('photo_logo_off', '1') on conflict (key) do nothing`);
+  }
+  // once (10 Nov): a logo or a map that went up as a subject's own Wikipedia picture comes off (Indian Railways' logo, a
+  // map of Narmada district), and the story is looked at again with the rule that now covers those too (wikiphoto.ts notPhoto)
+  const [maps] = await sql.query(`select value from state where key = 'photo_notphoto_off'`);
+  if (!maps) {
+    const had = await sql.query(`select id, photo->>'url' as url from stories
+      where origin = 'live' and published_at > now() - interval '7 days' and photo->>'credit' like '%Wikimedia Commons%'`);
+    const file = (u: string) => { try { return decodeURIComponent(u.replace(/\?.*$/, "").split("/").pop() ?? "").replace(/^\d+px-/, ""); } catch { return ""; } };
+    const off = had.filter((r) => notPhoto(file(String(r.url)))).map((r) => r.id);
+    if (off.length) {
+      await sql.query(`update stories set photo = null, caption = '', photo_tried = false, updated_at = now(),
+          en = case when en is null then en else jsonb_set(en, '{caption}', '""') end, hi = case when hi is null then hi else jsonb_set(hi, '{caption}', '""') end
+        where id = any($1)`, [off]);
+      await touched(sql);
+    }
+    log(`    logos and maps taken off: ${off.join(", ") || "none"}`);
+    await sql.query(`insert into state (key, value) values ('photo_notphoto_off', '1') on conflict (key) do nothing`);
   }
   const rows = await sql.query(
     `select s.id, s.kicker, s.headline, s.deck, s.body from stories s left join clusters c on c.story_id = s.id

@@ -29,10 +29,13 @@ export async function pushKeys(sql: Sql): Promise<{ publicKey: string; privateKe
   return JSON.parse(kept.value as string);
 }
 
+/** the browsers' own push services (Chrome and Android, Firefox, Safari and iPhone, Edge and Windows): a sign-up naming
+ *  any other address isn't one, and the engine would otherwise send a message to it with every alert (10 Nov) */
+const PUSH_HOST = /^https:\/\/(fcm\.googleapis\.com|updates\.push\.services\.mozilla\.com|web\.push\.apple\.com|[a-z0-9-]+\.notify\.windows\.com|[a-z0-9.-]+\.push\.apple\.com)\//;
 export interface PushSub { endpoint: string; keys: { p256dh: string; auth: string } }
 const valid = (x: unknown): x is PushSub => {
   const s = x as PushSub;
-  return typeof s?.endpoint === "string" && /^https:\/\//.test(s.endpoint) && s.endpoint.length < 1000
+  return typeof s?.endpoint === "string" && PUSH_HOST.test(s.endpoint) && s.endpoint.length < 1000
     && typeof s.keys?.p256dh === "string" && typeof s.keys?.auth === "string" && s.keys.p256dh.length < 200 && s.keys.auth.length < 100;
 };
 

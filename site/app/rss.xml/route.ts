@@ -1,7 +1,8 @@
 import { latestStories } from "@/lib/db.ts";
-import { rss } from "@/lib/feeds.ts";
+import { rss, xml } from "@/lib/feeds.ts";
 
-export const revalidate = 3600;
+// made when asked for, kept ten minutes by the CDN (lib/feeds.ts xml)
+export const dynamic = "force-dynamic";
 export async function GET() {
-  return new Response(rss(await latestStories(120), "gu", "/rss.xml"), { headers: { "content-type": "application/xml; charset=utf-8" } });
+  return xml(rss(await latestStories(120), "gu", "/rss.xml"));
 }

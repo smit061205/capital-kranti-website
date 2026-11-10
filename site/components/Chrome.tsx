@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { Lang } from "../lib/types.ts";
 import LangLink from "./LangLink.tsx";
+import { SIZE_LETTER } from "../lib/i18n.ts";
 import { Archive, Chev, Clock, CloseIcon, HomeIcon, LockIcon, MenuIcon, SearchIcon } from "./icons.tsx";
 
 export interface ChromeProps {
@@ -143,7 +144,7 @@ export default function Chrome(p: ChromeProps) {
           <LangLink to="en" className="seglink" href={p.paths.en} aria-current={p.lang === "en" ? "true" : undefined} hrefLang="en">English</LangLink>
         </div>
         <h3>{w.size}</h3>
-        {seg(w.size, [["1", <span key="1" style={{ fontSize: 14 }}>અ</span>], ["2", <span key="2" style={{ fontSize: 17 }}>અ</span>], ["3", <span key="3" style={{ fontSize: 20 }}>અ</span>]],
+        {seg(w.size, [["1", <span key="1" style={{ fontSize: 14 }}>{SIZE_LETTER[p.lang]}</span>], ["2", <span key="2" style={{ fontSize: 17 }}>{SIZE_LETTER[p.lang]}</span>], ["3", <span key="3" style={{ fontSize: 20 }}>{SIZE_LETTER[p.lang]}</span>]],
              size, (v) => { setSize(v); write("ck-size", v); applySize(v); })}
         <h3>{w.services}</h3>
         <div className="links">

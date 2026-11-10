@@ -2,11 +2,15 @@
 // India Hindi, the rest of the world English, on the same page in that language. A language the reader picks is kept
 // (lib/langchoice.ts) and wins after that; a returning reader's home page opens in it. Search engines and link
 // previews are never moved, so every language stays findable. It runs only on a first visit or a home page in
-// another language than the one kept, so other pages open as fast as before.
+// another language than the one kept, so other pages open as fast as before. Only a language the reader picked moves a
+// home page: one taken from the place never does after the first visit (10 Nov: a reader in Gujarat who typed /en, or
+// followed a link to it, was sent back to the Gujarati page without ever having chosen Gujarati).
 import { NextResponse, type NextRequest } from "next/server";
 
 type Lang = "gu" | "en" | "hi";
 const COOKIE = "ck_lang";
+// beside it while the language came from the place, not the reader's own pick (lib/langchoice.ts clears it on a pick)
+const AUTO = "ck_auto";
 const BOTS = /bot|crawl|spider|slurp|preview|facebookexternalhit|whatsapp|telegram|twitter|linkedin|embedly|lighthouse|headless/i;
 
 const langOf = (path: string): Lang => (/^\/en(\/|$)/.test(path) ? "en" : /^\/hi(\/|$)/.test(path) ? "hi" : "gu");
@@ -35,7 +39,10 @@ export function proxy(req: NextRequest) {
   // the place moves any page on a first visit; a kept choice moves only the home page
   const move = want !== here && (!saved || base === "/");
   const res = move ? NextResponse.redirect(new URL(inLang(want, base) + req.nextUrl.search, req.url), 307) : NextResponse.next();
-  if (!saved) res.cookies.set(COOKIE, want, { path: "/", maxAge: 365 * 24 * 3600, sameSite: "lax" });
+  if (!saved) {
+    res.cookies.set(COOKIE, want, { path: "/", maxAge: 365 * 24 * 3600, sameSite: "lax" });
+    res.cookies.set(AUTO, "1", { path: "/", maxAge: 365 * 24 * 3600, sameSite: "lax" });
+  }
   return res;
 }
 
@@ -44,8 +51,8 @@ export const config = {
     // a first visit: no language kept yet (not the editor, the site's own files or its API)
     { source: "/((?!api|_next|media|editor|.*\\..*).*)", missing: [{ type: "cookie", key: "ck_lang" }] },
     // a home page in another language than the one kept
-    { source: "/", has: [{ type: "cookie", key: "ck_lang", value: "en|hi" }] },
-    { source: "/en", has: [{ type: "cookie", key: "ck_lang", value: "gu|hi" }] },
-    { source: "/hi", has: [{ type: "cookie", key: "ck_lang", value: "gu|en" }] },
+    { source: "/", has: [{ type: "cookie", key: "ck_lang", value: "en|hi" }], missing: [{ type: "cookie", key: "ck_auto" }] },
+    { source: "/en", has: [{ type: "cookie", key: "ck_lang", value: "gu|hi" }], missing: [{ type: "cookie", key: "ck_auto" }] },
+    { source: "/hi", has: [{ type: "cookie", key: "ck_lang", value: "gu|en" }], missing: [{ type: "cookie", key: "ck_auto" }] },
   ],
 };

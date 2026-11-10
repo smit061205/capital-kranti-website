@@ -7,7 +7,7 @@ import assert from "node:assert/strict";
 import { readJson } from "./ai.ts";
 import { ownItem } from "./collect.ts";
 import { parseFeed, pageText } from "./feed.ts";
-import { copiedShare, cutUnsupported, doubledWord, enough, gate, importance, lengthFor, levelOf, sentencesOf, thin, toGujarati, type ClusterItem, type SourceText } from "./newsroom.ts";
+import { copiedShare, cutUnsupported, doubledWord, enough, gate, importance, lengthFor, levelOf, sentencesOf, thin, toGujarati, brokenWords, type ClusterItem, type SourceText } from "./newsroom.ts";
 import { SOURCES, sourceById } from "./sources.ts";
 import { numbersNotIn } from "./text.ts";
 import { keySet, placeTier, similarity, SAME_EVENT } from "./triage.ts";
@@ -98,9 +98,16 @@ test("one event across languages groups by its English keywords", () => {
   assert.ok(similarity(a, b) >= SAME_EVENT);
   assert.ok(similarity(a, c) < SAME_EVENT);
 });
+test("a misspelt Gujarati word: two vowel signs in a row", () => {
+  assert.deepEqual(brokenWords("ખેડાના ફાગવેલ ધામ ખાતે જાયણી ઉત્સવનોારંભ"), ["ઉત્સવનોારંભ"]);
+  assert.deepEqual(brokenWords("ગુજરાતના મુખ્યમંત્રીએ પંચદેવ મંદિરની મુલાકાત લીધી"), []);
+});
 test("importance: Gujarat news weighs more; more independent sources raise it", () => {
   assert.ok(importance(8, "gujarat", 1, true) > importance(8, "world", 1, true));
   assert.ok(importance(6, "india", 3, false) > importance(6, "india", 1, false));
+  // many outlets on a middling event never make it breaking news; a major one is
+  assert.ok(importance(6.5, "gujarat", 5, true) < 9.5);
+  assert.ok(importance(9, "gujarat", 2, true) >= 9.5);
   assert.equal(levelOf(2), null);
   assert.equal(levelOf(9.6), "lead");
 });

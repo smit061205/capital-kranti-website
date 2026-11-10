@@ -236,6 +236,22 @@ export const POLICY: Record<string, Record<Lang, Page>> = {
   },
 };
 
+/** A paragraph with its email addresses, web addresses and the paper's phone numbers as links (10 Nov: they were plain
+ *  words, so a reader on a phone couldn't tap to write, call or copy a feed's address). */
+const TEL: Record<string, string> = { [PAPER.phone]: "+919825608744", [PAPER.landline]: "+917923210071" };
+function linked(text: string, lang: Lang) {
+  const phones = Object.keys(TEL).flatMap((n) => [n, num(n, lang)]);
+  const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const parts = text.split(new RegExp(`([\\w.+-]+@[\\w-]+\\.[\\w.]*\\w|https://[^\\s]*[^\\s.,;:।]|${[...new Set(phones)].map(esc).join("|")})`, "g"));
+  return parts.map((x, i) => {
+    if (i % 2 === 0) return x;
+    if (x.startsWith("https://")) return <a key={i} href={x}>{x}</a>;
+    if (x.includes("@")) return <a key={i} href={`mailto:${x}`}>{x}</a>;
+    const tel = Object.entries(TEL).find(([n]) => n === x || num(n, lang) === x)?.[1];
+    return tel ? <a key={i} href={`tel:${tel}`}>{x}</a> : x;
+  });
+}
+
 export default function Policy({ page, lang }: { page: string; lang: Lang }) {
   const p = POLICY[page]?.[lang];
   if (!p) notFound();
@@ -243,7 +259,7 @@ export default function Policy({ page, lang }: { page: string; lang: Lang }) {
     <Frame lang={lang} path={`/${page}`}>
       <article className="art prose" style={{ paddingTop: 20 }}>
         <h1>{p.title}</h1>
-        <div className="body">{p.paras.map((x, i) => <p key={i}>{x}</p>)}</div>
+        <div className="body">{p.paras.map((x, i) => <p key={i}>{linked(x, lang)}</p>)}</div>
       </article>
     </Frame>
   );

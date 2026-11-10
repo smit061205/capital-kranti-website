@@ -6,7 +6,7 @@ import { archiveDays, issueOn, latestStories, search, storiesIn, storiesInBoth, 
 import { href, t } from "../lib/i18n.ts";
 import { GENRES, isPlace, isSection, PLACES, SECTIONS, sectionAbout, sectionName, TIERS } from "../lib/sections.ts";
 import { dateText, num } from "../lib/format.ts";
-import { Lead, River, Std } from "../components/cards.tsx";
+import { inLang, Lead, River, Std } from "../components/cards.tsx";
 import Frame from "../components/Frame.tsx";
 import { topScore } from "../lib/rank.ts";
 import Saved from "../components/Saved.tsx";
@@ -28,9 +28,9 @@ export async function Section({ k, sub, page = 1, lang }: { k: string; sub?: str
   if (!Number.isInteger(page) || page < 1 || page > MAX_PAGES || (sub && page > 1)) notFound();
   // one more than a page holds, to know whether there's an older page
   const got = sub ? await storiesInBoth(tier!, sub as Genre, 60) : await storiesIn(k, PER_PAGE + 1, false, (page - 1) * PER_PAGE);
-  const list = got.slice(0, PER_PAGE);
   const older = !sub && got.length > PER_PAGE && page < MAX_PAGES;
-  if (page > 1 && !list.length) notFound();
+  if (page > 1 && !got.length) notFound();
+  const list = inLang(got.slice(0, PER_PAGE), lang);
   // the chips: from the whole section's stories (a region-and-subject page shows its region's other subjects)
   const all = sub ? await storiesIn(k, 120) : list;
   // a place's page has no subject chips: all its stories are Gujarat's
@@ -84,7 +84,7 @@ export async function Section({ k, sub, page = 1, lang }: { k: string; sub?: str
 }
 
 export async function Latest({ lang }: { lang: Lang }) {
-  const list = (await latestStories(80)).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt));
+  const list = inLang(await latestStories(lang === "gu" ? 80 : 100), lang).sort((a, b) => b.publishedAt.localeCompare(a.publishedAt)).slice(0, 80);
   return (
     <Frame lang={lang} path="/latest" active="latest">
       <div className="sechead"><h1>{t(lang, "latestTitle")}</h1></div>
@@ -95,7 +95,7 @@ export async function Latest({ lang }: { lang: Lang }) {
 }
 
 export async function Search({ q, lang }: { q: string; lang: Lang }) {
-  const list = q ? await search(q) : [];
+  const list = q ? inLang(await search(q, 50), lang) : [];
   return (
     <Frame lang={lang} path="/search">
       <div className="sechead"><h1>{q ? `“${q}”` : t(lang, "searchTitle")}</h1></div>
@@ -132,21 +132,38 @@ export async function Archive({ lang }: { lang: Lang }) {
   );
 }
 
+/** a real day, as the archive's addresses write it */
+export const isDay = (date: string) => /^\d{4}-\d{2}-\d{2}$/.test(date) && !Number.isNaN(Date.parse(`${date}T00:00:00Z`));
+/** A day's stories on each of its pages (10 Nov: a day of 666 stories was one page of 1.7 MB); the further pages are
+ *  /archive/<date>/page/2 and on. */
+export const DAY_PAGE = 100;
+const dayHref = (lang: Lang, date: string, n: number) => href(lang, n > 1 ? `/archive/${date}/page/${n}` : `/archive/${date}`);
+
 /** One day's stories, the printed issue's first in its order, with the days before and after. */
-export async function ArchiveDay({ date, lang }: { date: string; lang: Lang }) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) notFound();
-  const [issue, list, days] = await Promise.all([issueOn(date), storiesOn(date), archiveDays()]);
-  if (!issue && !list.length) notFound();
+export async function ArchiveDay({ date, page = 1, lang }: { date: string; page?: number; lang: Lang }) {
+  if (!isDay(date) || !Number.isInteger(page) || page < 1) notFound();
+  const [issue, all, days] = await Promise.all([issueOn(date), storiesOn(date), archiveDays()]);
+  if (!issue && !all.length) notFound();
+  const pages = Math.max(1, Math.ceil(all.length / DAY_PAGE));
+  if (page > pages) notFound();
+  const list = inLang(all.slice((page - 1) * DAY_PAGE, page * DAY_PAGE), lang);
   // the list is newest first: the day before is the next one in it
   const i = days.findIndex((d) => d.date === date);
   const before = i >= 0 ? days[i + 1] : days.find((d) => d.date < date);
   const after = i > 0 ? days[i - 1] : i < 0 ? [...days].reverse().find((d) => d.date > date) : undefined;
   return (
-    <Frame lang={lang} path={`/archive/${date}`} active="archive">
-      <div className="sechead"><h1>{dateText(date, lang, true)}</h1></div>
-      {issue && <p className="note" style={{ margin: 0 }}>{t(lang, "issue")} {num(issue.number, lang)}</p>}
-      {issue?.pdf && <a className="pdfbtn" href={issue.pdf} download={`capital-kranti-${date}.pdf`}>{t(lang, "pdf")}</a>}
-      <div className="ctr" style={{ marginTop: 16 }}><River stories={list} lang={lang} sec /></div>
+    <Frame lang={lang} path={page > 1 ? `/archive/${date}/page/${page}` : `/archive/${date}`} active="archive">
+      <div className="sechead"><h1>{page > 1 ? <><Link prefetch={false} href={href(lang, `/archive/${date}`)}>{dateText(date, lang, true)}</Link><span className="secsep" aria-hidden="true">›</span>{t(lang, "pageNo")} {num(page, lang)}</> : dateText(date, lang, true)}</h1></div>
+      {page === 1 && issue && <p className="note" style={{ margin: 0 }}>{t(lang, "issue")} {num(issue.number, lang)}</p>}
+      {page === 1 && issue?.pdf && <a className="pdfbtn" href={issue.pdf} download={`capital-kranti-${date}.pdf`}>{t(lang, "pdf")}</a>}
+      <div className="ctr" style={{ marginTop: 16 }}><River stories={list} lang={lang} sec clock /></div>
+      {pages > 1 && (
+        <nav className="pager" aria-label={t(lang, "pageNo")}>
+          {page > 1 ? <Link prefetch={false} rel="prev" href={dayHref(lang, date, page - 1)}>{t(lang, "newer")}</Link> : <span />}
+          <span className="pgno">{t(lang, "pageNo")} {num(page, lang)} / {num(pages, lang)}</span>
+          {page < pages ? <Link prefetch={false} rel="next" href={dayHref(lang, date, page + 1)}>{t(lang, "older")}</Link> : <span />}
+        </nav>
+      )}
       {(before || after) && (
         <nav className="pager" aria-label={t(lang, "archive")}>
           {before ? <Link prefetch={false} href={href(lang, `/archive/${before.date}`)}>{t(lang, "prevDay")}</Link> : <span />}

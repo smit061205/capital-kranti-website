@@ -20,6 +20,8 @@ export interface Story {
   issueDate: string;
   publishedAt: string;
   updatedAt: string;
+  /** when the editor last changed its words, if ever (the "Updated" a reader sees) */
+  editedAt?: string | null;
   tier: Tier;
   genres: Genre[];
   kicker: string;

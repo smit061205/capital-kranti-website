@@ -2,7 +2,6 @@
 // with each round, up to four times an hour, and each of the ~4,500 then made again at its next visit, mostly by search
 // engines' crawlers; that went past Vercel's free 200,000 "ISR writes" a month). Now only the pages that list stories are
 // renewed, and a story's own page only when it's new or was changed; the rest renew themselves once a week (news/[id]).
-// Marked stale, not expired: the reader gets the kept page at once while the new one is made behind them.
 import { revalidateTag } from "next/cache";
 import { SECTIONS } from "./sections.ts";
 
@@ -10,16 +9,23 @@ const LANGS = ["", "/en", "/hi"];
 /** India's date today, for the day's archive page */
 const today = () => new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
 
-/** the pages that list stories, in the three languages (a section's topic pages, its further pages, its feed and the
- *  city and district pages, seldom visited, renew themselves) */
+/** the pages that list stories, in the three languages (a section's topic pages, its further pages and the city and
+ *  district pages, seldom visited, renew themselves; the feeds and sitemaps are made when asked for, lib/feeds.ts) */
 export const listPaths = (): string[] => LANGS.flatMap((l) => [
-  l || "/", `${l}/latest`, `${l}/archive`, `${l}/archive/${today()}`, `${l}/rss.xml`, ...SECTIONS.map((k) => `${l}/section/${k}`),
+  l || "/", `${l}/latest`, `${l}/archive`, `${l}/archive/${today()}`, ...SECTIONS.map((k) => `${l}/section/${k}`),
 ]);
+/** the two pages read all day: a reader there gets the kept page at once while the new one is made behind them */
+const BUSY = new Set(["/", "/latest"]);
 /** a story's own page, in the three languages */
 export const storyPaths = (id: string): string[] => LANGS.map((l) => `${l}/news/${id}`);
 export const classifiedPaths = (): string[] => LANGS.map((l) => `${l}/classifieds`);
 
-/** These pages marked stale: each is made again at its next visit (the tag Next gives every page for its address). */
+/** These pages renewed at their next visit (the tag Next gives every page for its address). The busy pages and the
+ *  stories' own are marked stale: the reader gets the kept page at once and the next reader the new one. The quieter
+ *  lists (a section, the Hindi and English pages, the archive) are made again for the reader who opens them: on a page
+ *  opened a few times a day, "the next reader" was reading news hours old (10 Nov: Gujarat's section five and a half
+ *  hours behind, the archive's count half the day's). */
 export function renew(paths: string[]) {
-  for (const p of new Set(paths)) revalidateTag(`_N_T_${p}`, "max");
+  const lists = new Set(listPaths());
+  for (const p of new Set(paths)) revalidateTag(`_N_T_${p}`, lists.has(p) && !BUSY.has(p) ? { expire: 0 } : "max");
 }

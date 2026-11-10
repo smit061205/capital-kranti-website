@@ -5,7 +5,7 @@ import type { Lang, Story } from "../lib/types.ts";
 import { elsewhere, latestStories, moreOnSubject, mostRead } from "../lib/db.ts";
 import { href, t } from "../lib/i18n.ts";
 import { sectionName } from "../lib/sections.ts";
-import { Credit, decent, ElsewhereRow, Join, Meta, MoreOn, strong, words } from "../components/cards.tsx";
+import { Credit, decent, ElsewhereRow, inLang, Join, Meta, MoreOn, strong, words } from "../components/cards.tsx";
 import { frontTop, topScore } from "../lib/rank.ts";
 import Link from "next/link";
 import { pic, SIZES } from "../lib/photo.ts";
@@ -113,7 +113,7 @@ function AavtikalBand({ list, lang }: { list: Feature[]; lang: Lang }) {
 }
 
 export default async function Home({ lang }: { lang: Lang }) {
-  const stories = await latestStories(200);
+  const stories = inLang(await latestStories(200), lang);
   const day = stories[0]?.issueDate;
   const today = stories.filter((s) => s.issueDate === day);
   // the top: the lead, a pair and a row of three, ranked by how much each matters, how fresh it is and how many outlets
@@ -126,7 +126,7 @@ export default async function Home({ lang }: { lang: Lang }) {
   // the latest: newest first, without what's above; most read and the sections leave out what's already shown (2 Nov)
   const latest = stories.filter((s) => !shown.has(s.id)).sort(newest).slice(0, 8);
   latest.forEach((s) => shown.add(s.id));
-  const most = read.filter((s) => !shown.has(s.id)).slice(0, 5);
+  const most = inLang(read, lang).filter((s) => !shown.has(s.id)).slice(0, 5);
   most.forEach((s) => shown.add(s.id));
   const { wide, few } = sectionBoxes(stories, shown);
   const av = [...articles.filter((f) => f.photo), ...articles.filter((f) => !f.photo)].slice(0, 3);

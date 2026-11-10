@@ -15,6 +15,7 @@ import ServiceWorker from "./ServiceWorker.tsx";
 import InstallPrompt from "./InstallPrompt.tsx";
 import ToTop from "./ToTop.tsx";
 import BreakingBar from "./BreakingBar.tsx";
+import PhotoMend from "./PhotoMend.tsx";
 
 export interface FrameProps {
   lang: Lang;
@@ -58,6 +59,7 @@ export default async function Frame({ lang, path, section, active, bottomBar = t
       </ViewTransition>
       <ToTop label={t(lang, "toTop")} />
       <ServiceWorker />
+      <PhotoMend />
       {/* on every page, stories too: most readers arrive straight on a story from Google or WhatsApp */}
       <InstallPrompt words={Object.fromEntries((["installTitle", "installText", "installBtn", "installIos", "installSteps", "later"] as const).map((k) => [k, t(lang, k)])) as Parameters<typeof InstallPrompt>[0]["words"]} />
       <div className="foot"><div className="wrap">
@@ -92,5 +94,5 @@ export default async function Frame({ lang, path, section, active, bottomBar = t
  *  invalid state" as an uncaught error (6 Nov, the user saw it); the page still changes, so that report is marked handled. */
 export const PREPAINT = `try{var s=localStorage.getItem("ck-size"),r=document.documentElement;localStorage.removeItem("ck-theme");var t=localStorage.getItem("fl-theme");if(t==="light"||t==="dark")r.setAttribute("data-theme",t);` +
   `if(s==="2"||s==="3")r.setAttribute("data-size",s)}catch(e){}` +
-  `var q=function(x){return x&&x.name==="InvalidStateError"&&/Transition was aborted/.test(x.message)};` +
+  `var q=function(x){return x&&(x.name==="InvalidStateError"||x.name==="TimeoutError")&&/Transition was aborted/.test(x.message)};` +
   `addEventListener("unhandledrejection",function(e){if(q(e.reason))e.preventDefault()});addEventListener("error",function(e){if(q(e.error))e.preventDefault()});`;

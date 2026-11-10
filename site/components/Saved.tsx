@@ -32,7 +32,7 @@ export default function Saved({ lang, empty, remove, count }: { lang: Lang; empt
   const off = (id: string) => { forget(id); setItems(items.filter((x) => x.id !== id)); };
   return (
     <>
-      <p className="savedn">{num(items.length, lang)} {count}</p>
+      <p className="savedn">{num(items.length, lang)} {lang === "en" && items.length === 1 ? "saved story" : count}</p>
       <ul className="saved">
         {items.map((s) => (
           <li key={s.id}>

@@ -201,7 +201,8 @@ export interface Words { headline: string; deck: string; body: string; caption: 
  *  'pending'), and its Hindi set aside: until then those pages show the Gujarati. */
 export async function saveStory(sql: Sql, id: string, w: Words, by: string): Promise<boolean> {
   const done = await sql.query(
-    `update stories set headline = $2, deck = $3, body = $4, caption = $5, updated_at = now(), en_status = 'pending', hi_status = 'none'
+    `update stories set headline = $2, deck = $3, body = $4, caption = $5, updated_at = now(), en_status = 'pending', hi_status = 'none',
+        checks = coalesce(checks, '{}'::jsonb) || jsonb_build_object('edited', now())
       where id = $1 and status <> 'withdrawn' returning id`, [id, w.headline, w.deck, w.body, w.caption]);
   if (done.length) console.log(`story ${id} changed by ${by}`);
   if (done.length) await touched(sql);

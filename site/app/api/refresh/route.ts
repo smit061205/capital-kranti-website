@@ -26,8 +26,7 @@ export async function POST() {
   await sql.query(`insert into state (key, value) values ('refreshed_at', $1) on conflict (key) do update set value = excluded.value`, [new Date(now).toISOString()]);
   const lists = listsDue && !(now - at.lists_refreshed_at < LISTS_EVERY);
   if (lists) await sql.query(`insert into state (key, value) values ('lists_refreshed_at', $1) on conflict (key) do update set value = excluded.value`, [new Date(now).toISOString()]);
-  // marked stale rather than expired: readers get the kept page at once while the new one is made behind them (29 Oct:
-  // expired pages kept the first reader after each renewal waiting 3 seconds or more while the page was made)
+  // the busy pages and the stories are marked stale, the quieter lists made again for their next reader (lib/renew.ts)
   const since = new Date(Number.isFinite(at.refreshed_at) ? at.refreshed_at : now - 6 * 3600_000).toISOString();
   const recent = await sql.query(`select id from stories where published_at > $1 or updated_at > $1 order by published_at desc limit 120`, [since]);
   renew([...(lists ? listPaths() : []), ...recent.flatMap((r) => storyPaths(r.id as string))]);

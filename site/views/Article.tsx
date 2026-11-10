@@ -6,7 +6,7 @@ import { largest, pic, shareCopy, SIZES } from "../lib/photo.ts";
 import { missingMeta, pageMeta, langsOf } from "../lib/meta.ts";
 import { article, breadcrumbs, JsonLd } from "../lib/jsonld.tsx";
 import { moreOnSubject, storiesIn, storyById as loadStory } from "../lib/db.ts";
-import { href, t } from "../lib/i18n.ts";
+import { href, SIZE_LETTER, t } from "../lib/i18n.ts";
 import { placeOf, sectionName } from "../lib/sections.ts";
 import { dateText, minutes, num, paragraphs, timeText } from "../lib/format.ts";
 import { PAPER, PREFERRED_SOURCE, SITE_URL } from "../lib/site.ts";
@@ -19,12 +19,21 @@ import PhotoZoom from "../components/PhotoZoom.tsx";
 import { cache, ViewTransition } from "react";
 import Frame from "../components/Frame.tsx";
 
+const STORY_ID = /^[a-z][a-z0-9-]{1,40}$/;
+/** A story of a suicide ends with where help is (the Press Council of India's norms for reporting suicide, after the
+ *  WHO's; 10 Nov): Tele-MANAS, the Government of India's free mental-health helpline, 14416, day and night. */
+const ABOUT_SUICIDE = /આત્મહત્યા|આપઘાત|જીવન ટૂંકાવ|જીવનલીલા સંકેલ|ગળાફાંસો/;
+const HELP: Record<Lang, [string, string]> = {
+  gu: ["મદદ ઉપલબ્ધ છે: તમે કે તમારું કોઈ ઓળખીતું મુશ્કેલ સમયમાંથી પસાર થતું હોય તો ભારત સરકારની ટેલી-માનસ હેલ્પલાઇન ", " પર ફોન કરો (૨૪ કલાક, નિઃશુલ્ક)."],
+  en: ["Help is available: if you or someone you know is going through a hard time, call Tele-MANAS, the Government of India's helpline, on ", " (24 hours, free)."],
+  hi: ["मदद उपलब्ध है: अगर आप या आपका कोई परिचित कठिन समय से गुज़र रहा है, तो भारत सरकार की टेली-मानस हेल्पलाइन ", " पर कॉल करें (24 घंटे, निःशुल्क)।"],
+};
 /** A story read once per page, though its title data and its page both ask for it */
 const storyById = cache(loadStory);
 
 /** A story page's title, description, language versions and share preview. */
 export async function articleMeta(id: string, lang: Lang) {
-  const s = await storyById(id);
+  const s = STORY_ID.test(id) ? await storyById(id) : null;
   if (!s) return missingMeta(lang);
   const w = words(s, lang);
   return pageMeta({ lang, path: `/news/${s.id}`, title: w.headline, description: w.deck || w.body.slice(0, 160),
@@ -49,12 +58,15 @@ function articleLd(s: Story, lang: Lang) {
 }
 
 export default async function Article({ id, lang }: { id: string; lang: Lang }) {
-  const s = await storyById(id);
+  // an address that can't be a story's isn't looked up (10 Nov)
+  const s = STORY_ID.test(id) ? await storyById(id) : null;
   if (!s) notFound();
   const [related, more] = await Promise.all([storiesIn(s.tier, 6), moreOnSubject(s.id)]);
   const w = words(s, lang);
   const url = `${SITE_URL}${href(lang, `/news/${s.id}`)}`;
-  const changed = s.updatedAt && Date.parse(s.updatedAt) - Date.parse(s.publishedAt) > 5 * 60_000;
+  // "Updated" only when the editor changed the story's words (10 Nov: its translation, photo or one more source coming
+  // in minutes later moved the story's own clock, and nearly every story said "Updated")
+  const changed = !!s.editedAt && Date.parse(s.editedAt) - Date.parse(s.publishedAt) > 5 * 60_000;
   const toolWords = Object.fromEntries((["share", "shareShort", "copy", "copied", "save", "saved", "savedToast", "unsavedToast", "size", "seeSaved", "savedOffline"] as const)
     .map((k) => [k, t(lang, k)])) as Parameters<typeof ArticleTools>[0]["words"];
   const others = related.filter((x) => x.id !== s.id && !more.some((m) => m.id === x.id));
@@ -85,11 +97,11 @@ export default async function Article({ id, lang }: { id: string; lang: Lang }) 
           <p className="byl">{t(lang, "by")} <b>{s.byEditor ? PAPER.editor[lang] : <Link prefetch={false} href={href(lang, "/desk")}>{t(lang, "desk")}</Link>}</b>, {PAPER[lang].place}
             {!s.byEditor && <> · {t(lang, "editorTitle")}: {PAPER.editor[lang]}</>}</p>
           <p className="byt">{dateText(s.publishedAt, lang)}, {timeText(s.publishedAt, lang)}
-            {changed && <> · {t(lang, "updatedAt")} {timeText(s.updatedAt, lang)}</>}
+            {changed && <> · {t(lang, "updatedAt")} {timeText(s.editedAt!, lang)}</>}
             {" · "}{num(minutes(w.body), lang)} {t(lang, "min")}</p>
           {/* the engine's stories say how they were made (Google's guidance on AI content, and Google News's transparency rules) */}
           {!s.byEditor && <p className="ainote">{t(lang, "aiNote")} <Link prefetch={false} href={href(lang, "/how-we-check")}>{t(lang, "aiHow")}</Link></p>}
-          <ArticleTools id={s.id} url={url} headline={w.headline} savedHref={href(lang, "/saved")} words={toolWords} />
+          <ArticleTools id={s.id} url={url} headline={w.headline} savedHref={href(lang, "/saved")} letter={SIZE_LETTER[lang]} words={toolWords} />
           {s.photo && (
             <figure className={strong(s) ? "wide-ph" : "in-ph"}>
               <PhotoZoom src={largest(s.photo)} width={s.photo.width} height={s.photo.height} alt={w.caption || w.headline}
@@ -118,6 +130,9 @@ export default async function Article({ id, lang }: { id: string; lang: Lang }) 
               </div>
             ))}
           </div>
+          {ABOUT_SUICIDE.test(`${s.headline} ${s.deck} ${s.body.slice(0, 700)}`) && (
+            <p className="fix" lang={lang}>{HELP[lang][0]}<a href="tel:14416"><b>{num("14416", lang)}</b></a>{HELP[lang][1]}</p>
+          )}
           {more.length > 0 && <MoreOn stories={more} lang={lang} />}
           <div className="srcbox">
             <h2>{t(lang, "srcTitle")}</h2>
