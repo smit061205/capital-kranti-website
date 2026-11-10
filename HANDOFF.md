@@ -6,7 +6,51 @@ The paper's website and its Aavtikal section, with their own news engine. Split 
 
 ## Where it stands
 
-### Where it stands now (4 Nov; read this first)
+### Where it stands now (11 Nov; read this first)
+
+*For whoever takes over next (two Claude Code accounts take turns). Where this block and the older ones below disagree,
+this block is right. The commit messages are the fullest record: `git log --no-merges --since=2026-11-04`.*
+
+- **Live:** https://www.capitalkranti.co.in. Everything in the 4 Nov block below about the address, the look, the fonts,
+  Instagram / Facebook and the editor page still holds.
+- **The engine since 5 Nov:** NVIDIA's free Gemma 4 31B (`NVIDIA_API_KEY`) writes first; Google's and OpenRouter's Gemmas,
+  Flash Lite and the paid Gemma 4 26B (₹30 a day, usually ₹24–31 used) stand behind it. Reports are sorted by Flash Lite,
+  40 at a time. A story is written only from the reports of its own event, nothing under 150 words goes up, Gujarat's
+  news goes first. 10 Nov: breaking news (importance 9.5: the bar, a phone alert) only when a report itself scored 8.5 or
+  more; logos, flags, seals and maps are never photos (`wikiphoto.ts notPhoto`); a headline with a misspelt word (two
+  vowel signs in a row) is written again; the writer opens with the news and follows the Press Council's suicide norms.
+- **Vercel's free plan is the tightest limit** (memory note "Vercel free limits"). ISR writes were 306K of 200K on 7 Nov
+  and the photo store's uploads 1.7K of 2K, both counted over the last 30 days. Since then:
+  - a page never carries the time or anything that changes by itself (an unchanged page made again costs nothing);
+  - `/api/refresh` renews only the stories changed since its last call, and the list pages at most every 20 minutes;
+    the two busy pages (`/`, `/latest`) and stories are marked stale, the quieter lists expire (`lib/renew.ts`);
+  - a story's page renews itself weekly; engine-only pushes skip the deploy (`site/vercel.json`);
+  - feeds and sitemaps are plain answers kept ten to thirty minutes by the CDN, not kept-ready pages (`lib/feeds.ts xml`);
+  - every upload is counted (`lib/write.ts blobRoom`): share pictures stop below 400 left, the engine's photos below 120.
+    Share pictures are paused until about 4–6 Dec.
+- **No `loading.tsx` anywhere (10 Nov), and don't add one.** With it Next kept every page as a grey skeleton with the real
+  page hidden inside, shown by a script 0.3 s or more later: slow to open, hidden from Google's first read, links doing
+  full reloads until it ran, and missing pages answering 200. Without it a missing story, day or article is a real 404.
+- **Search:** Search Console is verified, sitemaps in. 10 Nov: 59 clicks and 1,120 impressions a day; 2.4K pages indexed,
+  1.9K "discovered, not indexed" and 447 "crawled, not indexed" (expected to improve now that pages are whole in their
+  HTML; ask the user for a new screenshot in a week).
+- **Lists in English and Hindi show only translated stories**; a day's archive is in pages of 100
+  (`/archive/<date>/page/2`); "Updated" under a headline shows only when the editor changed the words
+  (`checks.edited`); a story about suicide ends with the Tele-MANAS line (14416), which the editor may want reworded.
+
+**Open, as of 11 Nov:**
+1. **A share picture for every story without a photo, without the photo store** (for Google Discover and WhatsApp
+   previews): draw it when asked for and let the CDN keep it. Gujarati letters must be shaped right (Next's own picture
+   maker gets them wrong); show the user the result beside today's card first.
+2. **The printed paper's e-paper stopped at 22 Oct** on the site; the About page still says it comes every evening.
+3. **Twin story** `live-9b37374e98fe` / `live-c589c1c61d30` (2 Nov) and the 2 Nov Hodeidah photo: check they're gone.
+4. **The user's own steps, not confirmed:** the Google sign-in redirect for the new address, BigRock auto-renew,
+   `FACEBOOK_PAGE_ID` / `FACEBOOK_PAGE_TOKEN` in Vercel, `UNSPLASH_ACCESS_KEY` in GitHub.
+5. **Ideas put to the user, not decided:** a "new stories" notice on open pages, a contact and correction form, topic
+   and person pages, a WhatsApp channel, a weather / gold / fuel strip, listen-to-this-story, live update pages.
+6. Search reads every story for each query (fine at 3,000 stories; needs an index before 50,000).
+
+### Where it stood on 4 Nov (older)
 
 *Written for a new Claude Code account taking over (the first one hit its usage limit on 4 Nov). Where this block and
 the older notes below disagree, this block is right. The commit messages are written in plain words and are the
