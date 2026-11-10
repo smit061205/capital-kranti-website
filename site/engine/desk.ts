@@ -318,7 +318,10 @@ async function checkedFigures(sql: Sql, made: (Figure | null)[], pics: Picture[]
   for (const g of made) {
     if (g?.kind === "image") {
       const p = pics.find((x) => x.n === g.pick);
-      const kept = p && !used.has(p.n) ? await keep(sql, p, `${id}-${p.n}`) : null;
+      // not a picture already shown, under its number or as the same file offered twice (10 Nov: an article's top
+      // picture stood again as its first figure)
+      const shown = new Set(pics.filter((x) => used.has(x.n)).map((x) => pictureKey(x.url)));
+      const kept = p && !used.has(p.n) && !shown.has(pictureKey(p.url)) ? await keep(sql, p, `${id}-${p.n}`) : null;
       if (kept && p) { used.add(p.n); g.photo = kept; delete g.pick; out.push(g); } else out.push(null);
     } else if (g && unsourced(figureText([g]), all, date).length) {
       log(`  a ${g.kind} left out: its numbers aren't all in the sources`);
@@ -899,6 +902,9 @@ async function lookAgain(sql: Sql, log: (s: string) => void): Promise<"none" | "
     photo = null; caption = ""; enCap = ""; hiCap = "";
     log(`  no real picture (${seen.why}): the top picture is taken off for now`);
   } else log(`  no better real picture (${seen.why}); kept as it was`);
+  // the picture now at the top isn't shown again in the body
+  const keyOf = (u: string) => pictureKey(u.startsWith("/") ? `${WEBSITE.url}${u}` : u);
+  if (photo) figs.forEach((g, i) => { if (g.kind === "image" && g.photo && keyOf(g.photo.url) === keyOf(photo!.url)) drop.add(i + 1); });
   if (drop.size) log(`  ${drop.size} picture(s) in the body taken out`);
   // held for its picture: off the site without one, back with one; a story held for another reason stays held
   const waiting = (r.checks as { held_for?: string } | null)?.held_for === "picture";

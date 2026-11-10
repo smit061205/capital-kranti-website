@@ -57,6 +57,13 @@ export async function background(sql: Sql, event: string, reports: string): Prom
 
 export const plain = (html: string) => html.replace(/<[^>]+>/g, "").replace(/&amp;/g, "&").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/\s+/g, " ").trim();
 
+/** Not a photo, by the file's name or by what it's said to show: a logo, a flag, a seal, a map or a place's locator
+ *  drawing (10 Nov: Indian Railways' logo and a map of Narmada district went up as stories' photos; they came as the
+ *  subject's own picture on Wikipedia, which wasn't checked this way). */
+export const notPhoto = (file: string, shows = "") =>
+  /(^|[^a-z])(logos?|icons?|flags?|symbols?|seal|emblem|signature|wordmark|locator|coat[ _]of[ _]arms|location[ _]map|map[ _]of)([^a-z]|$)|[ _]map\.|[ _](district|taluka|state|division|constituency)[ _]?(map)?\.(png|svg|gif)$/i.test(file)
+  || /\b(logo|logotype|icon|emblem|seal|insignia|coat of arms|wordmark|banner|poster|infographic|screenshot|locator map|location map|map of|map showing)\b/i.test(shows);
+
 /** The article's main photo, when it's a free one on Commons: its address (1600 px wide), its credit and what it shows. */
 export async function leadPhoto(title: string): Promise<{ url: string; width: number; height: number; credit: string; about: string } | null> {
   const get = async (u: string) => {
@@ -71,7 +78,7 @@ export async function leadPhoto(title: string): Promise<{ url: string; width: nu
   // the file's own name: the address may be a resized copy's, ".../thumb/d/db/<file>/3840px-<file>"
   const parts = new URL(src).pathname.split("/");
   const file = decodeURIComponent(parts.includes("thumb") ? parts.at(-2)! : parts.at(-1)!);
-  if (!/\.(jpe?g|png|webp)$/i.test(file)) return null;
+  if (!/\.(jpe?g|png|webp)$/i.test(file) || notPhoto(file)) return null;
   // 1920 wide, a width Commons makes (4 Nov: Google shows a story's photo large only from 1200 wide)
   const q = new URLSearchParams({ action: "query", titles: `File:${file}`, prop: "imageinfo", iiprop: "url|size|extmetadata", iiurlwidth: "1920", format: "json", origin: "*" });
   const info = (await get(`https://commons.wikimedia.org/w/api.php?${q}`)) as
@@ -79,7 +86,7 @@ export async function leadPhoto(title: string): Promise<{ url: string; width: nu
   const ii = Object.values(info?.query?.pages ?? {})[0]?.imageinfo?.[0];
   const meta = ii?.extmetadata ?? {};
   const licence = plain(meta.LicenseShortName?.value ?? "");
-  if (!ii || !FREE.test(licence)) return null;
+  if (!ii || !FREE.test(licence) || notPhoto(file, plain(meta.ImageDescription?.value ?? ""))) return null;
   // the photo itself must be of the subject: a word of its name in the file's name or description
   const bare = (x: string) => x.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
   const about = bare(`${file} ${plain(meta.ImageDescription?.value ?? "")} ${plain(meta.ObjectName?.value ?? "")}`);
@@ -127,9 +134,8 @@ function freeOnes(pages: CommonsPage[], max: number): CommonsPicture[] {
     const meta = ii?.extmetadata ?? {};
     const licence = plain(meta.LicenseShortName?.value ?? "");
     if (!ii?.thumburl || !ii.thumbwidth || !ii.thumbheight || (ii.width ?? 0) < 500 || !FREE.test(licence)) continue;
-    if (!/\.(jpe?g|png)$/i.test(pg.title) || /logo|icon|flag|symbol|seal|emblem|signature|coat of arms|wordmark|map of|locator/i.test(pg.title)) continue;
-    // and by what it shows (4 Nov: "National Livestock Mission logo" under a plain file name went up as a story's photo)
-    if (/\b(logo|logotype|icon|emblem|seal|insignia|coat of arms|wordmark|banner|poster|infographic|screenshot)\b/i.test(plain(meta.ImageDescription?.value ?? ""))) continue;
+    // by its name and by what it shows (4 Nov: "National Livestock Mission logo" under a plain file name went up as a story's photo)
+    if (!/\.(jpe?g|png)$/i.test(pg.title) || notPhoto(pg.title, plain(meta.ImageDescription?.value ?? ""))) continue;
     if (ii.thumbheight > ii.thumbwidth * 1.6 || ii.thumbwidth > ii.thumbheight * 3.5) continue;
     const alt = plain(meta.ImageDescription?.value ?? "").slice(0, 160) || pg.title.replace(/^File:|\.\w+$/g, "");
     const artist = authorName(plain(meta.Artist?.value ?? ""));
