@@ -19,6 +19,9 @@ this block is right. The commit messages are the fullest record: `git log --no-m
   news goes first. 10 Nov: breaking news (importance 9.5: the bar, a phone alert) only when a report itself scored 8.5 or
   more; logos, flags, seals and maps are never photos (`wikiphoto.ts notPhoto`); a headline with a misspelt word (two
   vowel signs in a row) is written again; the writer opens with the news and follows the Press Council's suicide norms.
+  11 Nov: the free models and the paid ₹30 ran out by evening (one or two stories an hour from eight to midnight);
+  OpenRouter's free requests and the paid backup are now spread over the day, an hour's slice at a time
+  (`engine/ai.ts dayShare`). Watch the evening hours on `/api/status` (`last_day.per_hour`) to see whether it's enough.
 - **Vercel's free plan is the tightest limit** (memory note "Vercel free limits"). ISR writes were 306K of 200K on 7 Nov
   and the photo store's uploads 1.7K of 2K, both counted over the last 30 days. Since then:
   - a page never carries the time or anything that changes by itself (an unchanged page made again costs nothing);
