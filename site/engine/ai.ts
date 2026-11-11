@@ -53,8 +53,13 @@ const GOOGLE_THINKING_ROOM = 8192;
 const thinkingOf = (model: string) => WEBSITE.googleThinking[model.slice(7)] ?? null;
 /** which daily allowance a model's requests count against */
 const counter = (m: string) => (isGoogle(m) ? "ai_google" : isGroq(m) ? "ai_groq" : isNvidia(m) ? "ai_nvidia" : "ai_free");
+/** The share of a day's allowance that may be used by now (India time): a twelfth at midnight, one more twenty-fourth
+ *  with every hour, all of it from ten at night, so each hour has its own slice and the evening's news still has models
+ *  to write it (11 Nov: OpenRouter's free 900 and the paid backup's ₹30 were gone by late afternoon, and from eight to
+ *  midnight one or two stories an hour went up). */
+export const dayShare = (now = Date.now()) => Math.min(1, (new Date(now + 5.5 * 3600_000).getUTCHours() + 2) / 24);
 const ceiling = (m: string) => (isGoogle(m) ? WEBSITE.dailyGoogleRequests : isGroq(m) ? WEBSITE.dailyGroqRequests
-  : isNvidia(m) ? WEBSITE.dailyNvidiaRequests : WEBSITE.dailyFreeRequests);
+  : isNvidia(m) ? WEBSITE.dailyNvidiaRequests : Math.round(WEBSITE.dailyFreeRequests * dayShare()));
 /** the free routes allow 20-30 requests a minute, each its own */
 const GAP_MS = 2500;
 /** how long a Gemma has to answer before the next model is asked (4 Nov: 200 seconds, and a story's check sat three
@@ -485,7 +490,7 @@ let paidOff = "";
 async function askPaid<T>(sql: Sql, a: { system: string; user: string; temperature: number; maxTokens: number; images?: GeminiImage[] },
   check: (v: unknown) => T | null, small = false): Promise<AiResult<T> | null> {
   if (!KEY || paidOff) return null;
-  const cap = WEBSITE.paidDailyRupees * (small ? 0.5 : 1);
+  const cap = WEBSITE.paidDailyRupees * (small ? 0.5 : 1) * dayShare();
   if ((await paidToday(sql)) >= cap) return null;
   if (left() < 10_000) return null;
   const content = a.images?.length
