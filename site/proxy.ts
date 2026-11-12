@@ -11,7 +11,9 @@ type Lang = "gu" | "en" | "hi";
 const COOKIE = "ck_lang";
 // beside it while the language came from the place, not the reader's own pick (lib/langchoice.ts clears it on a pick)
 const AUTO = "ck_auto";
-const BOTS = /bot|crawl|spider|slurp|preview|facebookexternalhit|whatsapp|telegram|twitter|linkedin|embedly|lighthouse|headless/i;
+// (13 Nov: Google's other fetchers, its ads crawler and feed fetchers have no "bot" in their names, and from an American
+// address were sent to the English page)
+const BOTS = /bot|crawl|spider|slurp|preview|facebookexternalhit|whatsapp|telegram|twitter|linkedin|embedly|lighthouse|headless|google|mediapartners|bingpreview|yandex|archiver|feedfetcher|feedly|inoreader|curl|wget|python|okhttp|axios|node-fetch/i;
 
 const langOf = (path: string): Lang => (/^\/en(\/|$)/.test(path) ? "en" : /^\/hi(\/|$)/.test(path) ? "hi" : "gu");
 const inLang = (lang: Lang, base: string) => (lang === "gu" ? base : base === "/" ? `/${lang}` : `/${lang}${base}`);

@@ -12,6 +12,12 @@ export const xml = (body: string, seconds = 600) => new Response(body, {
   headers: { "content-type": "application/xml; charset=utf-8", "cache-control": `public, max-age=0, s-maxage=${seconds}` },
 });
 
+/** The feeds' hub (WebSub): feed readers and search engines that listen there hear of a new story at once (app/api/refresh). */
+export const HUB = "https://pubsubhubbub.appspot.com/";
+/** IndexNow (Bing, Yandex, Seznam, Naver and those they feed, DuckDuckGo and ChatGPT's search among them): the site says
+ *  which pages are new, proved its own by the file of this name in public/. Not a secret: it is the file's own address. */
+export const INDEXNOW_KEY = "4f9d1c4852f5e327678dfb52ebb99461";
+
 const x = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /** A feed of the newest stories (`self`: the feed's own path, e.g. "/en/rss.xml"). 6 Nov: newest first by the time each
@@ -32,20 +38,21 @@ export function rss(stories: Story[], lang: Lang, self: string, title?: string) 
   }).join("");
   const built = list[0] ? new Date(list[0].publishedAt).toUTCString() : new Date().toUTCString();
   return `<?xml version="1.0" encoding="UTF-8"?><rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:media="http://search.yahoo.com/mrss/"><channel>` +
-    `<title>${x(title ?? PAPER[lang].name)}</title><link>${SITE_URL}${href(lang, "/")}</link><atom:link href="${SITE_URL}${self}" rel="self" type="application/rss+xml"/>` +
+    `<title>${x(title ?? PAPER[lang].name)}</title><link>${SITE_URL}${href(lang, "/")}</link><atom:link href="${SITE_URL}${self}" rel="self" type="application/rss+xml"/><atom:link rel="hub" href="${HUB}"/>` +
     `<description>${x(PAPER[lang].tagline)}</description><language>${lang}-IN</language><lastBuildDate>${built}</lastBuildDate><ttl>15</ttl>${items}</channel></rss>`;
 }
 
 /** Google News: the last two days' stories in one language (5 Nov: one file for all three held its 1,000 URLs, the most
  *  Google reads in a file, within twelve hours, so the stories of the day before were missing from it). */
-export function newsSitemap(stories: { id: string; publishedAt: string; headline: string; en: string | null; hi: string | null }[], lang: Lang) {
+export function newsSitemap(stories: { id: string; publishedAt: string; headline: string; en: string | null; hi: string | null; photo?: { url: string; width: number } | null }[], lang: Lang) {
   const urls = stories.flatMap((s) => {
     const title = lang === "gu" ? s.headline : s[lang];
     if (!title) return [];
     return [`<url><loc>${SITE_URL}${href(lang, `/news/${s.id}`)}</loc><news:news><news:publication><news:name>${x(PAPER[lang].name)}</news:name>` +
-      `<news:language>${lang}</news:language></news:publication><news:publication_date>${s.publishedAt}</news:publication_date><news:title>${x(title)}</news:title></news:news></url>`];
+      `<news:language>${lang}</news:language></news:publication><news:publication_date>${s.publishedAt}</news:publication_date><news:title>${x(title)}</news:title></news:news>` +
+      `${s.photo ? `<image:image><image:loc>${x(new URL(shareCopy(s.photo), SITE_URL).href)}</image:loc></image:image>` : ""}</url>`];
   }).slice(0, 1000).join("");
-  return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9">${urls}</urlset>`;
+  return `<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">${urls}</urlset>`;
 }
 
 /** The news sitemap's address (the one in Search Console and robots.txt) lists one file per language. */

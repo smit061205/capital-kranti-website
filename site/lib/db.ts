@@ -226,16 +226,19 @@ export async function archiveDays(limit = 400): Promise<{ date: string; number: 
 }
 
 /** The published stories for the sitemaps, newest first: sinceDays for the news sitemap (Google News reads two days). */
-export async function sitemapEntries(sinceDays?: number): Promise<{ id: string; updatedAt: string; publishedAt: string; headline: string; en: string | null; hi: string | null }[]> {
+export async function sitemapEntries(sinceDays?: number): Promise<{ id: string; updatedAt: string; publishedAt: string; headline: string; en: string | null; hi: string | null; photo: Photo | null }[]> {
   const sql = db();
   if (!sql) return [];
-  const cols = `id, updated_at, published_at, headline, case when en_status = 'done' then en->>'headline' end as en_h, case when hi_status = 'done' then hi->>'headline' end as hi_h`;
+  // "last changed" is when it went up, or when the editor changed its words: not the story's own clock, which also moves
+  // with every source added and every translation or photo that comes later (13 Nov: a sitemap whose dates move for no
+  // change a reader sees is one Google learns to ignore)
+  const cols = `id, coalesce((checks->>'edited')::timestamptz, published_at) as updated_at, published_at, headline, photo, case when en_status = 'done' then en->>'headline' end as en_h, case when hi_status = 'done' then hi->>'headline' end as hi_h`;
   const rows = sinceDays
     ? await sql.query(`select ${cols} from stories where status = 'published' and published_at > now() - make_interval(days => $1) order by published_at desc limit 3000`, [sinceDays])
     : await sql.query(`select ${cols} from stories where status = 'published' order by published_at desc limit 15000`);
   // the English and Hindi only when written (a copy not yet translated shows the Gujarati and isn't a version of its own)
   return rows.map((r) => ({ id: r.id as string, updatedAt: iso(r.updated_at), publishedAt: iso(r.published_at), headline: r.headline as string,
-                            en: (r.en_h as string | null) || null, hi: (r.hi_h as string | null) || null }));
+                            en: (r.en_h as string | null) || null, hi: (r.hi_h as string | null) || null, photo: (r.photo as Photo | null) ?? null }));
 }
 
 /** A headline elsewhere: another trusted outlet's item, linked to its own page (ROADMAP §4, "from other outlets"). */

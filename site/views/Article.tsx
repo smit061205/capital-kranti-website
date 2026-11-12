@@ -37,7 +37,8 @@ export async function articleMeta(id: string, lang: Lang) {
   if (!s) return missingMeta(lang);
   const w = words(s, lang);
   return pageMeta({ lang, path: `/news/${s.id}`, title: w.headline, description: w.deck || w.body.slice(0, 160),
-                    image: s.photo ? shareCopy(s.photo) : lang === "gu" && s.share ? `${SITE_URL}${s.share}` : null, article: s, langs: langsOf(s) });
+                    image: s.photo ? shareCopy(s.photo) : lang === "gu" && s.share ? `${SITE_URL}${s.share}` : null,
+                    article: { publishedAt: s.publishedAt, updatedAt: s.editedAt ?? s.publishedAt }, langs: langsOf(s) });
 }
 
 /** NewsArticle and its breadcrumbs for Google; an untranslated copy describes the Gujarati page it shows. */
@@ -47,7 +48,7 @@ function articleLd(s: Story, lang: Lang) {
   const w = words(s, shown);
   return [
     article({ url: `${SITE_URL}${href(shown, `/news/${s.id}`)}`, lang: shown, headline: w.headline, description: w.deck, section: sectionName(s.tier, shown),
-              publishedAt: s.publishedAt, updatedAt: s.updatedAt,
+              publishedAt: s.publishedAt, updatedAt: s.editedAt ?? s.publishedAt,
               // its photo, else its own picture with its headline (made for the Gujarati only)
               image: s.photo ? shareCopy(s.photo) : shown === "gu" && s.share ? `${SITE_URL}${s.share}` : null, basedOn: s.source?.url ?? s.sources[0]?.url,
               author: s.byEditor ? "editor" : { name: t(shown, "desk"), url: `${SITE_URL}${href(shown, "/desk")}` },
