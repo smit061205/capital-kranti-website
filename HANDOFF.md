@@ -37,6 +37,12 @@ this block is right. The commit messages are the fullest record: `git log --no-m
 - **Search:** Search Console is verified, sitemaps in. 10 Nov: 59 clicks and 1,120 impressions a day; 2.4K pages indexed,
   1.9K "discovered, not indexed" and 447 "crawled, not indexed" (expected to improve now that pages are whole in their
   HTML; ask the user for a new screenshot in a week).
+- **Search, 13 Nov:** each `/api/refresh` tells IndexNow (Bing and those it feeds; the key is the file in `site/public/`)
+  and the feeds' WebSub hub of the new stories; a story's `lastmod` and `dateModified` are when it went up or when the
+  editor changed its words (`checks.edited`), never `updated_at`. Indexing on 9 Nov: 3.68K indexed, 3.85K "discovered,
+  not indexed": the site adds 250–500 stories a day in three languages, more than Google crawls on a new site. Put to
+  the user, not decided: fewer and better stories, translating only the important ones, first-visit language only on
+  the home page, topic pages, custom ad slots.
 - **Lists in English and Hindi show only translated stories**; a day's archive is in pages of 100
   (`/archive/<date>/page/2`); "Updated" under a headline shows only when the editor changed the words
   (`checks.edited`); a story about suicide ends with the Tele-MANAS line (14416), which the editor may want reworded.
