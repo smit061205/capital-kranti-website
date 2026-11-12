@@ -31,6 +31,8 @@ const nextConfig: NextConfig = {
       ]),
       // the short addresses on the Instagram cards' last card (lib/cards.ts), easy to type from a phone
       ...["gujarat", "india", "world"].map((k) => ({ source: `/${k}`, destination: `/section/${k}`, permanent: false })),
+      // the old WordPress site's feed address, which feed readers and aggregators may still ask for
+      { source: "/feed", destination: "/rss.xml", permanent: true },
       { source: "/:path((?!api/).*)", has: [{ type: "host" as const, value: "capital-kranti.vercel.app" }], destination: "https://www.capitalkranti.co.in/:path", permanent: true },
     ];
   },
