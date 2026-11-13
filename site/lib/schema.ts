@@ -174,6 +174,21 @@ export const SCHEMA = [
      added_at timestamptz not null default now(),
      added_by text not null default ''
    )`,
+  // the paper's own banner ads, put up by the editor (lib/banners.ts; the user, 13 Nov)
+  `create table if not exists banners (
+     id text primary key,
+     image text not null,                           -- /media/live/<day>/ed-….jpg (app/api/editor/photo)
+     width int not null,
+     height int not null,
+     link text not null,                            -- where a click leads
+     name text not null default '',                 -- the advertiser, read out for the picture
+     slots text[] not null,                         -- home | mid | end
+     starts date not null,
+     until date not null,                           -- shown up to and including this day
+     clicks int not null default 0,
+     added_at timestamptz not null default now(),
+     added_by text not null default ''
+   )`,
   // the Instagram sets, made twice a day and approved by the editor (lib/insta.ts, engine/insta.ts; the user, 3 Nov)
   `create table if not exists insta_sets (
      id text primary key,

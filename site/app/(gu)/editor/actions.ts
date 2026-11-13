@@ -11,6 +11,7 @@ import { help, type Draft, type Help } from "@/lib/aihelp.ts";
 import { GENRES, sectionName, TIERS } from "@/lib/sections.ts";
 import { dropLeader, findLeader, saveLeader, type FoundLeader, type Leader } from "@/lib/leaders.ts";
 import { addAd, dropAd } from "@/lib/classifieds.ts";
+import { addBanner, dropBanner } from "@/lib/banners.ts";
 import { askInsta, captionFor, instaLog, cleanTiers, cleanTimes, getSet, instaSettings, MIN_KEPT, saveInstaSettings, saveSet } from "@/lib/insta.ts";
 import { instagramOn, postSet } from "@/lib/instagram.ts";
 import { facebookOn, postSetFacebook } from "@/lib/facebook.ts";
@@ -132,6 +133,17 @@ export async function addAdAction(back: string, f: FormData) {
   redirect(`/editor?${back ? `${back}&` : ""}tab=ads&ad=${ok ? 1 : 0}`);
 }
 export async function dropAdAction(id: string) { const { sql } = await signedIn(); if (sql) await dropAd(sql, id); renew(); }
+
+/** the banner ads (lib/banners.ts): one put up from the form, one taken down. No page is made again: the pages ask
+ *  for the day's banners themselves (components/AdSlot.tsx). */
+export async function addBannerAction(x: { image: string; width: number; height: number; link: string; name: string; slots: string[]; days: number }): Promise<boolean> {
+  const { who, sql } = await signedIn();
+  const ok = sql ? await addBanner(sql, { image: String(x.image ?? ""), width: Number(x.width), height: Number(x.height), link: String(x.link ?? "").trim(),
+                                           name: String(x.name ?? ""), slots: Array.isArray(x.slots) ? x.slots.map(String) : [], days: Number(x.days) }, who) : false;
+  if (ok) refresh();
+  return ok;
+}
+export async function dropBannerAction(id: string) { const { sql } = await signedIn(); if (sql) await dropBanner(sql, String(id)); refresh(); }
 
 // Instagram's sets (Insta.tsx, lib/insta.ts)
 async function instaSet(id: string) {

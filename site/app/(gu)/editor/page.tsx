@@ -10,12 +10,14 @@ import { W } from "./words.ts";
 import Birthday from "./Birthday.tsx";
 import LeaderForm from "./LeaderForm.tsx";
 import Insta from "./Insta.tsx";
-import { addAdAction, dropAdAction, dropLeaderAction, pauseEngine, publishFeature, putBackStory, removeFeature, removeStory } from "./actions.ts";
+import { addAdAction, dropAdAction, dropBannerAction, dropLeaderAction, pauseEngine, publishFeature, putBackStory, removeFeature, removeStory } from "./actions.ts";
 import { db } from "@/lib/db.ts";
 import { COOKIE, desk, editorOf, findFeatures, findStories, PAGE, signInReady, type Found, type Show } from "@/lib/editor.ts";
 import { beatName, isBeat } from "@/lib/flagship.ts";
 import { birthdays, draftEmail, leaders } from "@/lib/leaders.ts";
 import { ads, DAYS, KINDS, KIND_NAMES } from "@/lib/classifieds.ts";
+import { banners, SLOT_NAMES } from "@/lib/banners.ts";
+import BannerForm from "./BannerForm.tsx";
 import { DEFAULT_SETTINGS, instaAsk, instaLogs, instaNews, instaProgress, instaSettings, recentSets } from "@/lib/insta.ts";
 import { instagramWho } from "@/lib/instagram.ts";
 import { facebookWho } from "@/lib/facebook.ts";
@@ -72,8 +74,8 @@ export default async function Editor({ searchParams }: { searchParams: Promise<Q
   const tab: Tab = TABS.includes(q.tab as Tab) ? (q.tab as Tab)
     : q.written || (q.saved && !q.tab) ? "news" : q.wrote ? "aavtikal" : q.ad ? "ads" : "today";
   const sql = db();
-  const [d, news, arts, people, adList, instaSets] = await Promise.all([desk(sql), findStories(sql, words, show, n), findFeatures(sql, fwords, fshow, fn), leaders(sql), ads(sql, true),
-    sql ? recentSets(sql, 20) : Promise.resolve([])]);
+  const [d, news, arts, people, adList, instaSets, bannerList] = await Promise.all([desk(sql), findStories(sql, words, show, n), findFeatures(sql, fwords, fshow, fn), leaders(sql), ads(sql, true),
+    sql ? recentSets(sql, 20) : Promise.resolve([]), tab === "ads" ? banners(sql, true).catch(() => []) : Promise.resolve([])]);
   const bday = birthdays(people);
 
   // a link to this page with some of its asks changed (the rest kept)
@@ -297,6 +299,33 @@ export default async function Editor({ searchParams }: { searchParams: Promise<Q
               ))}
             </ul>
           ) : <p className={s.empty}>{w.adsNone}</p>}
+
+          {/* the paper's own banner ads (lib/banners.ts), shown in the pages' ad places */}
+          <h2 id="banners" style={{ marginTop: 40 }}>{w.banners}</h2>
+          <p className={s.help}>{w.bannersNote} <a href="/?adtest=1" target="_blank" rel="noopener">{w.bannerTry}</a></p>
+          <details className={s.addLeader} id="addbanner"><summary className={s.writeBtn}>{w.addBanner}</summary>
+            <BannerForm lang={lang} />
+          </details>
+          <h3 className={s.sub}>{w.bannersAll}</h3>
+          {bannerList.length ? (
+            <ul className={s.list}>
+              {bannerList.map((b) => (
+                <li key={b.id}>
+                  <div className={s.what}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={`${b.image}?w=500`} width={b.width} height={b.height} alt="" loading="lazy" style={{ width: 240, maxWidth: "100%", height: "auto", border: "1px solid var(--rule)" }} />
+                    <span className={s.title}>{b.name || b.link}</span>
+                    <span className={s.when}>{b.slots.map((k) => SLOT_NAMES[k][lang]).join(" · ")} · {b.until < today ? w.adEnded : `${dateText(b.until, lang)} ${w.adUntil}`} · <b>{nn(b.clicks)} {w.bannerClicks}</b></span>
+                    <span className={s.when}><a href={b.link} target="_blank" rel="noopener nofollow">{b.link}</a></span>
+                  </div>
+                  <div className={s.acts}>
+                    <details className={s.confirm}><summary>{w.removeBanner}</summary>
+                      <form action={dropBannerAction.bind(null, b.id)}><button className={s.no}>{w.sure}</button></form></details>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : <p className={s.empty}>{w.bannersNone}</p>}
         </section>
       )}
 
