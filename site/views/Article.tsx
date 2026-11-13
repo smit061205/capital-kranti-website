@@ -18,6 +18,7 @@ import ReadProgress from "../components/ReadProgress.tsx";
 import PhotoZoom from "../components/PhotoZoom.tsx";
 import { cache, ViewTransition } from "react";
 import Frame from "../components/Frame.tsx";
+import AdSlot from "../components/AdSlot.tsx";
 
 const STORY_ID = /^[a-z][a-z0-9-]{1,40}$/;
 /** A story of a suicide ends with where help is (the Press Council of India's norms for reporting suicide, after the
@@ -128,6 +129,8 @@ export default async function Article({ id, lang }: { id: string; lang: Lang }) 
                 {inline && i === 2 && (
                   <aside className="readalso"><b>{t(lang, "readAlso")}</b><Cmp s={inline} lang={lang} /></aside>
                 )}
+                {/* a banner ad after the fifth paragraph of a long story, when one is running (components/AdSlot.tsx) */}
+                {i === 4 && paras.length >= 8 && <AdSlot slot="mid" lang={lang} />}
               </div>
             ))}
           </div>
@@ -144,6 +147,7 @@ export default async function Article({ id, lang }: { id: string; lang: Lang }) 
             <a className="report" href={mail}><Flag />{t(lang, "report")}</a>
           </div>
           <a className="prefsrc" href={PREFERRED_SOURCE} target="_blank" rel="noopener"><Star />{t(lang, "prefSource")}</a>
+          <AdSlot slot="end" lang={lang} />
           {after.length > 0 && (
             <section className="ctr"><Head label={t(lang, "related")} to={href(lang, `/section/${s.tier}`)} />
               <div className="rellist">{after.map((x) => <Std key={x.id} s={x} lang={lang} sec={false} photo={false} />)}</div></section>

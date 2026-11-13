@@ -43,6 +43,10 @@ this block is right. The commit messages are the fullest record: `git log --no-m
   not indexed": the site adds 250–500 stories a day in three languages, more than Google crawls on a new site. Put to
   the user, not decided: fewer and better stories, translating only the important ones, first-visit language only on
   the home page, topic pages, custom ad slots.
+- **Banner ads (13 Nov):** the editor puts up the paper's own banners on the ads tab (`lib/banners.ts`); the pages'
+  ad places (`components/AdSlot.tsx`: front page between sections, inside and at the end of a story) ask
+  `/api/ads` for them, so no page is made again for an ad; clicks are counted through `/api/ads/go`. `?adtest=1` shows
+  a sample in each place. Views aren't counted (each would be a function call on the free plan).
 - **Lists in English and Hindi show only translated stories**; a day's archive is in pages of 100
   (`/archive/<date>/page/2`); "Updated" under a headline shows only when the editor changed the words
   (`checks.edited`); a story about suicide ends with the Tele-MANAS line (14416), which the editor may want reworded.

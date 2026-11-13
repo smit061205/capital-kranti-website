@@ -207,6 +207,12 @@ main{padding-block:8px 48px}
 .phw{display:block;overflow:hidden;border-radius:var(--r);background:var(--surface)}
 /* a photo that didn't come leaves its place (components/PhotoMend.tsx); a small one beside a headline keeps its room */
 .nophoto{display:none!important}.nophoto-in{visibility:hidden}
+/* the paper's own banner ads (components/AdSlot.tsx): set apart by a thin rule above and below, named as an ad, never
+   wider than a banner is made */
+.adslot{max-width:728px;margin:32px auto;padding-block:10px 14px;border-block:1px solid var(--rule);text-align:center}
+.adslot .adlbl{display:block;font-size:var(--t1);color:var(--muted);margin-bottom:8px}
+.adslot a{display:block}.adslot img{display:block;width:100%;height:auto;border-radius:var(--r);background:var(--surface)}
+.ad-home{max-width:970px;margin-block:48px}.art .adslot{max-width:660px}
 .phw .ph{display:block;transition:transform var(--slow) var(--ease),filter var(--move) ease;border-radius:0}
 .display,.h2,.h3,.h4{transition:color var(--quick) ease}
 a.h:hover .display,a.h:hover .h2,a.h:hover .h3,a.h:hover .h4{color:var(--soft)}

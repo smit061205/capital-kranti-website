@@ -73,6 +73,11 @@ export const W = {
     ads: "વર્ગીકૃત જાહેરાતો", adsShort: "જાહેરાતો", adsNote: "અહીં ઉમેરેલી જાહેરાત સાઇટના “વર્ગીકૃત જાહેરાતો” પાના પર તરત દેખાશે, અને પસંદ કરેલા દિવસો પછી જાતે હટી જશે.",
     adsNone: "હમણાં કોઈ જાહેરાત નથી.", addAd: "+ જાહેરાત ઉમેરો", adKind: "પ્રકાર", adText: "જાહેરાતનું લખાણ", adContact: "સંપર્ક નંબર", adPlace: "સ્થળ",
     adDays: "કેટલા દિવસ બતાવવી", adSave: "જાહેરાત મૂકો", removeAd: "જાહેરાત હટાવો", adUntil: "સુધી", adEnded: "પૂરી થઈ", adNotSaved: "જાહેરાત ન મુકાઈ: પ્રકાર અને લખાણ જરૂરી છે.", adSaved: "જાહેરાત મુકાઈ ગઈ.", seeAds: "પાનું જુઓ", dayWord: "દિવસ",
+    banners: "બેનર જાહેરાતો", bannersNote: "અહીં મૂકેલું બેનર (ચિત્રવાળી જાહેરાત) સાઇટ પર પાંચેક મિનિટમાં દેખાશે: હોમ પેજ પર વિભાગો વચ્ચે, અને સમાચારની વચ્ચે કે અંતે. તેના પર “જાહેરાત” લખેલું રહેશે, અને દરેક ક્લિક ગણાશે. પસંદ કરેલા દિવસો પછી તે જાતે હટી જશે.",
+    bannerTry: "જગ્યાઓ જુઓ (નમૂનો)", addBanner: "+ બેનર જાહેરાત ઉમેરો", bannerPicture: "બેનરનું ચિત્ર", bannerSize: "પહોળું ચિત્ર સારું દેખાય છે, જેમ કે ૧૨૦૦ × ૩૦૦. ફોનમાંથી કે કમ્પ્યુટરમાંથી પસંદ કરો.",
+    bannerSending: "મોકલાય છે…", bannerLink: "ક્લિક કરવાથી ક્યાં જવું (વેબસાઇટનું સરનામું)", bannerName: "જાહેરાત આપનારનું નામ", bannerWhere: "ક્યાં બતાવવું",
+    bannerSave: "બેનર મૂકો", bannerSaved: "બેનર મુકાઈ ગયું. પાંચેક મિનિટમાં સાઇટ પર દેખાશે.", bannerNotSaved: "બેનર ન મુકાયું: ચિત્ર, સરનામું (https://…) અને ઓછામાં ઓછી એક જગ્યા જરૂરી છે.",
+    bannersAll: "બધાં બેનર", bannersNone: "હમણાં કોઈ બેનર નથી.", bannerClicks: "ક્લિક", removeBanner: "બેનર હટાવો",
     months: ["જાન્યુઆરી", "ફેબ્રુઆરી", "માર્ચ", "એપ્રિલ", "મે", "જૂન", "જુલાઈ", "ઑગસ્ટ", "સપ્ટેમ્બર", "ઑક્ટોબર", "નવેમ્બર", "ડિસેમ્બર"],
   },
   en: {
@@ -145,6 +150,11 @@ export const W = {
     ads: "Classified ads", adsShort: "Ads", adsNote: "An ad added here shows at once on the site's Classified ads page, and goes by itself after the days you choose.",
     adsNone: "No ads right now.", addAd: "+ Add an ad", adKind: "Kind", adText: "The ad's words", adContact: "Phone number", adPlace: "Place",
     adDays: "Show it for", adSave: "Put the ad up", removeAd: "Take the ad down", adUntil: "until", adEnded: "ended", adNotSaved: "The ad wasn't put up: it needs a kind and its words.", adSaved: "The ad is up.", seeAds: "See the page", dayWord: "days",
+    banners: "Banner ads", bannersNote: "A banner (an ad with a picture) put up here shows on the site within about five minutes: on the front page between sections, and inside or at the end of stories. It is marked “Advertisement”, and every click is counted. It goes by itself after the days you choose.",
+    bannerTry: "See the places (a sample)", addBanner: "+ Add a banner ad", bannerPicture: "The banner's picture", bannerSize: "A wide picture looks best, such as 1200 × 300. Choose it from your phone or computer.",
+    bannerSending: "Sending…", bannerLink: "Where a click leads (a web address)", bannerName: "The advertiser's name", bannerWhere: "Where to show it",
+    bannerSave: "Put the banner up", bannerSaved: "The banner is up. It shows on the site within about five minutes.", bannerNotSaved: "The banner wasn't put up: it needs a picture, an address (https://…) and at least one place.",
+    bannersAll: "All banners", bannersNone: "No banners right now.", bannerClicks: "clicks", removeBanner: "Take the banner down",
     months: ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
   },
 } as const;

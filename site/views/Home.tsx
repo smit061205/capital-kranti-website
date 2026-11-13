@@ -12,6 +12,7 @@ import { pic, SIZES } from "../lib/photo.ts";
 import { num, timeText } from "../lib/format.ts";
 import TimeAgo from "../components/TimeAgo.tsx";
 import Frame from "../components/Frame.tsx";
+import AdSlot from "../components/AdSlot.tsx";
 import { PAPER, SITE_URL } from "../lib/site.ts";
 import { JsonLd, ORG_ID, organization } from "../lib/jsonld.tsx";
 import { beatName, featureWords, features, flw, type Feature } from "../lib/flagship.ts";
@@ -178,6 +179,8 @@ export default async function Home({ lang }: { lang: Lang }) {
               ))}</ol>
             </section>
           )}
+          {/* the paper's own banner ad, when one is running (components/AdSlot.tsx) */}
+          <AdSlot slot="home" lang={lang} />
           {wide.slice(0, 2).map((b, i) => <SectionBlock key={b.k} k={b.k} list={b.list} lang={lang} flip={i % 2 === 1} />)}
         </>
       )}
