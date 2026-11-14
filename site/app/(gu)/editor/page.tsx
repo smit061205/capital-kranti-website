@@ -18,15 +18,17 @@ import { birthdays, draftEmail, leaders } from "@/lib/leaders.ts";
 import { ads, DAYS, KINDS, KIND_NAMES } from "@/lib/classifieds.ts";
 import { banners, SLOT_NAMES } from "@/lib/banners.ts";
 import BannerForm from "./BannerForm.tsx";
+import { mendSets } from "@/lib/instamend.ts";
 import { DEFAULT_SETTINGS, instaAsk, instaLogs, instaNews, instaProgress, instaSettings, recentSets } from "@/lib/insta.ts";
 import { instagramWho } from "@/lib/instagram.ts";
 import { facebookWho } from "@/lib/facebook.ts";
 import { dateText, num, timeText, shortDate, todayIst } from "@/lib/format.ts";
 
 export const dynamic = "force-dynamic";
-// a minute for the buttons (server actions take the page's limit): approving a set puts it up on Instagram, which waits
-// for Instagram to take each card
-export const maxDuration = 60;
+// five minutes for the buttons (server actions take the page's limit): approving a set puts it up on Instagram, which waits
+// for Instagram to take each card (15 Nov: a minute, the free plan's most, ran out while Instagram was still publishing;
+// lib/instamend.ts POSTING_MS is this)
+export const maxDuration = 300;
 
 /** the page's tabs (3 Nov: everything was on one long page): an overview first, then each thing the editor looks after */
 const TABS = ["today", "news", "aavtikal", "insta", "leaders", "ads", "engine"] as const;
@@ -76,6 +78,8 @@ export default async function Editor({ searchParams }: { searchParams: Promise<Q
   const sql = db();
   const [d, news, arts, people, adList, instaSets, bannerList] = await Promise.all([desk(sql), findStories(sql, words, show, n), findFeatures(sql, fwords, fshow, fn), leaders(sql), ads(sql, true),
     sql ? recentSets(sql, 20) : Promise.resolve([]), tab === "ads" ? banners(sql, true).catch(() => []) : Promise.resolve([])]);
+  // sets in fact up on Instagram that the page would show as not up (lib/instamend.ts)
+  if (tab === "insta" && sql) await mendSets(sql, instaSets).catch(() => {});
   const bday = birthdays(people);
 
   // a link to this page with some of its asks changed (the rest kept)
