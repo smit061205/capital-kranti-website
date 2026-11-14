@@ -230,13 +230,16 @@ const recent = await recentSets(sql, 40);
 for (const s of recent.filter((s) => s.image && Date.now() - new Date(s.madeAt).getTime() > 4 * 86_400_000)) {
   await del(s.image!.replace(/^\/media\//, "")).catch(() => {});
   s.image = null;
-  await saveSet(sql, s);
+  await sql.query(`update insta_sets set image = null where id = $1`, [s.id]);
 }
+// only a set still waiting goes, never one the editor put up while this run was at work: the run's copy of the sets is
+// from its start, minutes earlier, and saving it whole would write over a set posted since (15 Nov)
+const expire = async (s: InstaSet) => (await sql.query(
+  `update insta_sets set state = 'expired' where id = $1 and state in ('waiting', 'making') returning id`, [s.id])).length > 0;
 // sets left unapproved for 12 hours go
 for (const s of recent.filter((s) => (s.state === "waiting" || s.state === "making") && Date.now() - new Date(s.madeAt).getTime() > 12 * 3600_000)) {
   s.state = "expired";
-  await saveSet(sql, s);
-  log(`${sectionName(s.tier, "gu")}નો ${editionName(s.edition)}નો સેટ ૧૨ કલાક મંજૂર ન થયો: હટાવ્યો`);
+  if (await expire(s)) log(`${sectionName(s.tier, "gu")}નો ${editionName(s.edition)}નો સેટ ૧૨ કલાક મંજૂર ન થયો: હટાવ્યો`);
 }
 
 /** an edition's sets for these sections; a newer set takes the place of its section's older one not yet up */
@@ -258,8 +261,7 @@ async function edition(edition: string, tiers: typeof TIERS): Promise<{ made: In
     await render(sql!, [set], false).catch((e) => log(`${name}: ચિત્રો હજી ન બન્યાં (${e instanceof Error ? e.message : e}); ફરી પ્રયાસ થશે`));
     for (const old of recent.filter((o) => o.tier === tier && (o.state === "waiting" || o.state === "making"))) {
       old.state = "expired";
-      await saveSet(sql!, old);
-      log(`${name}નો જૂનો સેટ (${editionName(old.edition)}) હટાવ્યો: નવો આવ્યો`);
+      if (await expire(old)) log(`${name}નો જૂનો સેટ (${editionName(old.edition)}) હટાવ્યો: નવો આવ્યો`);
     }
     recent.unshift(set);
   }

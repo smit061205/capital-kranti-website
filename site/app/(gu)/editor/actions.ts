@@ -15,6 +15,7 @@ import { addBanner, dropBanner } from "@/lib/banners.ts";
 import { askInsta, captionFor, instaLog, cleanTiers, cleanTimes, getSet, instaSettings, MIN_KEPT, saveInstaSettings, saveSet } from "@/lib/insta.ts";
 import { instagramOn, postSet } from "@/lib/instagram.ts";
 import { facebookOn, postSetFacebook } from "@/lib/facebook.ts";
+import { POSTING_MS } from "@/lib/instamend.ts";
 
 async function signedIn() {
   const who = editorOf((await cookies()).get(COOKIE)?.value);
@@ -222,7 +223,7 @@ export async function approveInsta(id: string) {
   const ig = instagramOn() && !set.postUrl, fb = facebookOn() && !set.fbUrl;
   if (!["waiting", "approved", "failed"].includes(set.state) && !(set.state === "posted" && fb)) return refresh();
   // pressed again while it's going up: not put up twice (postedAt, while approved, is when it started going up)
-  if (set.state === "approved" && set.postedAt && Date.now() - new Date(set.postedAt).getTime() < 90_000) {
+  if (set.state === "approved" && set.postedAt && Date.now() - new Date(set.postedAt).getTime() < POSTING_MS) {
     await say("ફરી દબાવ્યું, પણ સેટ મુકાઈ જ રહ્યો છે: બે વાર નહીં મુકાય");
     return refresh();
   }

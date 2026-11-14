@@ -8,6 +8,7 @@ import { editionName, MAX_TIMES, MIN_KEPT, timeName, type InstaAsk, type InstaLo
 import Renew from "./Renew.tsx";
 import Press from "./Press.tsx";
 import InstaLog from "./InstaLog.tsx";
+import { POSTING_MS } from "@/lib/instamend.ts";
 import { TIERS } from "@/lib/sections.ts";
 import { num } from "@/lib/format.ts";
 import { sectionName } from "@/lib/sections.ts";
@@ -24,7 +25,7 @@ const WORDS = {
     queued: "રાહમાં: અડધી મિનિટમાં શરૂ થશે, પછી ૫ થી ૧૦ મિનિટ લાગે છે.",
     since: (m: string) => `શરૂ થયાને ${m} મિનિટ`, ago: (m: string) => `${m} મિનિટ પહેલાં માગ્યો`, live: "આ પાનું જાતે તાજું થતું રહે છે.", lastAsk: (t: string) => `${t} વાગ્યે માગેલો સેટ:`,
     none: "આ વખતનો કોઈ સેટ નથી.", making: "ચિત્રો બની રહ્યાં છે: થોડી મિનિટમાં અહીં દેખાશે.", waiting: "મંજૂરીની રાહ", approved: "મંજૂર: મુકાવાનું બાકી", going: "ઇન્સ્ટાગ્રામ પર મુકાઈ રહ્યો છે…",
-    posted: "મુકાયો", failed: "મુકાયો નહીં", expired: "સમય ગયો",
+    posted: "મુકાયો", failed: "મુકાયો નહીં", expired: "સમય ગયો", igOnly: "ઇન્સ્ટાગ્રામ પર મુકાયો, ફેસબુક પર નહીં", fbOnly: "ફેસબુક પર મુકાયો, ઇન્સ્ટાગ્રામ પર નહીં",
     drop: "આ કાર્ડ હટાવો", next: "બીજો ફોટો", earlier: "← આગળ", later: "પાછળ →", caption: "ઇન્સ્ટાગ્રામ પરના શબ્દો", saveCaption: "શબ્દો સાચવો",
     approve: "મંજૂર કરો અને મૂકો", again: "હવે મૂકો", skip: "આ સેટ ન મૂકો", sure: "હા, ન મૂકો", see: "ઇન્સ્ટાગ્રામ પર જુઓ", last: "છેલ્લે મુકાયેલા",
     fbOn: (n: string) => `ફેસબુક પેજ જોડાયેલું છે: ${n}`, fbOff: "ફેસબુક પેજ હજી જોડાયેલું નથી: જોડાશે પછી સેટ ત્યાં પણ મુકાશે.",
@@ -47,7 +48,7 @@ const WORDS = {
     queued: "Waiting: it starts within half a minute, then takes 5 to 10 minutes.",
     since: (m: string) => `Started ${m} min ago`, ago: (m: string) => `asked ${m} min ago`, live: "This page renews itself.", lastAsk: (t: string) => `The set asked for at ${t}:`,
     none: "No set this time.", making: "The pictures are being made: they show here in a few minutes.", waiting: "Waiting for you", approved: "Approved: not up yet", going: "Going up on Instagram…",
-    posted: "Posted", failed: "Not posted", expired: "Time passed",
+    posted: "Posted", failed: "Not posted", expired: "Time passed", igOnly: "Up on Instagram, not on Facebook", fbOnly: "Up on Facebook, not on Instagram",
     drop: "Take this card out", next: "Another photo", earlier: "← Earlier", later: "Later →", caption: "The words on Instagram", saveCaption: "Save the words",
     approve: "Approve and post", again: "Post now", skip: "Don't post this set", sure: "Yes, don't post", see: "See it on Instagram", last: "Posted lately",
     fbOn: (n: string) => `The Facebook Page is connected: ${n}`, fbOff: "The Facebook Page isn't connected yet: once it is, sets go up there too.",
@@ -76,8 +77,11 @@ export default function Insta({ lang, sets, settings, ask, news, progress, who, 
   // the engine's progress, if it renewed it in the last five minutes (a run cut short leaves it behind)
   const working = progress && Date.now() - new Date(progress.at).getTime() < 5 * 60_000 ? progress : null;
   const mins = (iso: string) => nn(Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000)));
-  // going up on Instagram now: approved, and started (postedAt) within the button's minute and a half
-  const going = (x: InstaSet) => x.state === "approved" && !!x.postedAt && Date.now() - new Date(x.postedAt).getTime() < 90_000;
+  // going up on Instagram now: approved, and started (postedAt) within the button's five minutes
+  const going = (x: InstaSet) => x.state === "approved" && !!x.postedAt && Date.now() - new Date(x.postedAt).getTime() < POSTING_MS;
+  // a set up in one place but not the other says so, not just "not posted"
+  const stateName = (x: InstaSet) => going(x) ? w.going
+    : x.state === "failed" && x.postUrl ? w.igOnly : x.state === "failed" && x.fbUrl ? w.fbOnly : w[x.state as "waiting"];
   const busy = !!ask || !!working || current.some((x) => x.state === "making" || going(x));
   const bar = working && (
     <div className={s.progress}>
@@ -123,7 +127,9 @@ export default function Insta({ lang, sets, settings, ask, news, progress, who, 
 
       {current.length ? current.map((set) => (
         <article key={set.id} className={s.card}>
-          <p className={s.tag}>{sectionName(set.tier, "gu")} · {editionName(set.edition)} · {going(set) ? w.going : w[set.state as "waiting"]}</p>
+          <p className={s.tag}>{sectionName(set.tier, "gu")} · {editionName(set.edition)} · {stateName(set)}
+            {set.postUrl && <> · <a href={set.postUrl} target="_blank" rel="noopener">{w.see}</a></>}
+            {set.fbUrl && <> · <a href={set.fbUrl} target="_blank" rel="noopener">{w.fbSee}</a></>}</p>
           {set.note && <p className={s.why}>{set.note}</p>}
           {set.state === "making" || !set.image ? (
             <>
