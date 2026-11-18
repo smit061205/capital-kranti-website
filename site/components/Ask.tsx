@@ -43,14 +43,18 @@ function Answer({ m, lang, w, last, busy, failed }: { m: UIMessage; lang: string
   const sources = sourcesOf(m);
   const plain = useCallback(async () => text.replace(/\[\d+(?:,\s*\d+)*\]/g, ""), [text]);
   const listen = useListen({ lang, server: false, audio: "", text: plain });
+  // once the answer is written, only the stories it cites (with their numbers); while it's written, all it may use
+  const cited = new Set([...text.matchAll(/\[(\d+(?:,\s*\d+)*)\]/g)].flatMap((x) => x[1].split(/,\s*/).map(Number)));
+  const numbered = sources.map((s, i) => ({ ...s, n: i + 1 }));
+  const shown = !(last && busy) && cited.size ? numbered.filter((s) => cited.has(s.n)) : numbered;
   return (
     <div className="ans">
       {text ? <p><Cited text={text} sources={sources} /></p> : <p className="wait">{failed || w.thinking}</p>}
       {text && failed && <p className="wait">{failed}</p>}
-      {sources.length > 0 && text && (
+      {shown.length > 0 && text && (
         <div className="srcs">
           <h3>{w.sources}</h3>
-          <ol>{sources.map((s, i) => <li key={s.url}><a href={s.url}><span className="n">{i + 1}</span>{s.title}</a></li>)}</ol>
+          <ol>{shown.map((s) => <li key={s.url}><a href={s.url}><span className="n">{s.n}</span>{s.title}</a></li>)}</ol>
         </div>
       )}
       {text && !(last && busy) && listen.can && (
