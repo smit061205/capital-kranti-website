@@ -13,6 +13,7 @@ import { numbersNotIn } from "./text.ts";
 import { keySet, placeTier, similarity, SAME_EVENT } from "./triage.ts";
 import { coverTier } from "./cover.ts";
 import { commonsAt } from "./wikiphoto.ts";
+import { cutsAt } from "./reel.ts";
 import { authorName, creditText } from "../lib/photo.ts";
 import { frontTop, ranked, sameStory, topScore } from "../lib/rank.ts";
 import type { Story } from "../lib/types.ts";
@@ -219,5 +220,12 @@ test("the front page's top: important and fresh first, one story of an event, no
     { strong: (s) => !!s.photo, decent: (s) => !!s.photo }, now);
   assert.equal(t.lead?.id, "nearly as big with photo");
   assert.equal(t.pair.length, 2);
+});
+test("a Reel's one reading cut at the pauses between lines, not after commas", () => {
+  // four lines, the third twice as long; the reader stops 0.8 s between lines and 0.25 s after commas
+  const pauses: [number, number][] = [[1.9, 2.15], [4.6, 5.4], [7.2, 7.45], [9.6, 10.4], [12.7, 12.95], [15.0, 15.25], [19.6, 20.4], [22.0, 22.25]];
+  assert.deepEqual(cutsAt(25, [10, 10, 20, 10], pauses), [5, 10, 20]);
+  // with no pauses, by the letters
+  assert.deepEqual(cutsAt(20, [10, 10, 20], []), [5, 10]);
 });
 console.log(`\n${n} checks passed (${SOURCES.length} sources listed)`);
