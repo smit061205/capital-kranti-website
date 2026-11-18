@@ -20,7 +20,7 @@ export const ASK = {
 // words that say nothing about the subject, in the three languages
 const STOP = new Set(`શું છે છે? હતું હતી હતા થયું થઈ થયો અને કે તે આ એ જે કોણ કયા કયું કેમ કેવી રીતે ક્યારે ક્યાં કેટલા કેટલું માટે વિશે શા
   મને અમને તમે તમને કહો જણાવો સમજાવો આપો હવે આજે આજના આજનું કાલે સમાચાર ખબર બાબત વાત પર માં ના ની નું નો ને થી પણ જ તો શકે
-  કર્યું કર્યો કરી કર્યા કરે કરશે કરાશે કરાયું કરાયો કરવા કરવું કરવામાં કરાવ્યો થશે થાય આવ્યું આવ્યો આવી આવ્યા આવશે જાહેર સરકાર સરકારે નવું નવી નવો મુખ્ય વિશેના
+  કર્યું કર્યો કરી કર્યા કરે કરશે કરાશે કરાયું કરાયો કરવા કરવું કરવામાં કરાવ્યો થશે થાય આવ્યું આવ્યો આવી આવ્યા આવશે જાહેર સરકાર સરકારે નવું નવી નવો મુખ્ય વિશેના સમસ્યા સમસ્યાઓ
   what which who whom whose when where why how is are was were be been the a an of in on at to for about from with and or do does did
   announced announce said government new main top happened happening
   tell me us please explain news today latest any there this that these those it its can could would should will

@@ -7,7 +7,7 @@ import { facebookOn, findPostedFacebook } from "./facebook.ts";
 import type { db } from "./db.ts";
 
 /** how long the button may be at work putting a set up (the editor page's maxDuration); within it a set is "going up" */
-export const POSTING_MS = 300_000;
+export const POSTING_MS = 600_000;
 
 export async function mendSets(sql: NonNullable<ReturnType<typeof db>>, sets: InstaSet[]): Promise<void> {
   const stuck = sets.filter((x) => x.image && x.caption && (x.state === "failed" ||
