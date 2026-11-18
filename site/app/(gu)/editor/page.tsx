@@ -25,10 +25,10 @@ import { facebookWho } from "@/lib/facebook.ts";
 import { dateText, num, paragraphs, timeText, shortDate, todayIst } from "@/lib/format.ts";
 
 export const dynamic = "force-dynamic";
-// five minutes for the buttons (server actions take the page's limit): approving a set puts it up on Instagram, which waits
+// ten minutes for the buttons (server actions take the page's limit): approving a set puts it up on Instagram, which waits
 // for Instagram to take each card (15 Nov: a minute, the free plan's most, ran out while Instagram was still publishing;
-// lib/instamend.ts POSTING_MS is this)
-export const maxDuration = 300;
+// 18 Nov: Instagram took past the 40 seconds a card was given; lib/instamend.ts POSTING_MS is this)
+export const maxDuration = 600;
 
 /** the page's tabs (3 Nov: everything was on one long page): an overview first, then each thing the editor looks after */
 const TABS = ["today", "news", "aavtikal", "insta", "leaders", "ads", "engine"] as const;
