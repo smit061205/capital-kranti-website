@@ -17,9 +17,10 @@ async function call(method: "GET" | "POST", path: string, params: Record<string,
   return j;
 }
 
-const ready = async (id: string) => {
-  // a container is made from the pictures in a few seconds; up to 40 seconds
-  for (let i = 0; i < 20; i++) {
+const ready = async (id: string, tries = 20) => {
+  // a container is made from the pictures in a few seconds (up to 40 seconds); a Reel's video takes longer (tries = 90:
+  // three minutes)
+  for (let i = 0; i < tries; i++) {
     const s = (await call("GET", id, { fields: "status_code" })).status_code as string;
     if (s === "FINISHED") return;
     if (s === "ERROR" || s === "EXPIRED") throw new Error(`Instagram couldn't use the pictures (${s})`);
@@ -34,13 +35,38 @@ export const firstLine = (words: string) => words.split("\n")[0].trim();
 /** The set's post if it's on the account already, found by its first line among the latest posts since the set was
  *  made: its address, else null. 15 Nov: a set went up on Instagram but the site stopped waiting before Instagram
  *  answered (the button's minute), so the editor page said it wasn't up, and pressed again it would go up twice. */
-export async function findPosted(set: InstaSet): Promise<string | null> {
+export async function findPosted(set: InstaSet, reel = false): Promise<string | null> {
   if (!instagramOn() || !set.caption) return null;
-  const j = await call("GET", `${process.env.INSTAGRAM_USER_ID!}/media`, { fields: "caption,permalink,timestamp", limit: "15" });
+  const j = await call("GET", `${process.env.INSTAGRAM_USER_ID!}/media`, { fields: "caption,permalink,timestamp,media_product_type", limit: "15" });
   const since = new Date(set.madeAt).getTime() - 60_000;
-  const hit = ((j.data ?? []) as { caption?: string; permalink?: string; timestamp?: string }[])
-    .find((m) => m.caption && firstLine(m.caption) === firstLine(set.caption) && new Date(m.timestamp ?? 0).getTime() >= since);
+  // the set's carousel and its Reel carry the same words: told apart by what Instagram calls them
+  const hit = ((j.data ?? []) as { caption?: string; permalink?: string; timestamp?: string; media_product_type?: string }[])
+    .find((m) => m.caption && firstLine(m.caption) === firstLine(set.caption) && new Date(m.timestamp ?? 0).getTime() >= since
+      && (m.media_product_type === "REELS") === reel);
   return hit ? hit.permalink || "https://www.instagram.com/" : null;
+}
+
+/** Puts the set's Reel up (engine/reel.ts), shown in the feed too, with the set's words: its address on Instagram. Not
+ *  twice: a Reel already on the account isn't sent again. Instagram fetches the video from the site (app/media). */
+export async function postReel(set: InstaSet, say: (line: string) => Promise<void> = async () => {}): Promise<string> {
+  if (!instagramOn()) throw new Error("Instagram isn't connected yet");
+  if (!set.reel) throw new Error("the set has no Reel");
+  const user = process.env.INSTAGRAM_USER_ID!;
+  const already = await findPosted(set, true).catch(() => null);
+  if (already) { await say("આ રીલ ઇન્સ્ટાગ્રામ પર મુકાયેલી જ છે: ફરી નહીં મુકાય"); return already; }
+  await say("રીલનો વીડિયો ઇન્સ્ટાગ્રામને આપ્યો: ઇન્સ્ટાગ્રામ તેને તૈયાર કરે છે (એકાદ-બે મિનિટ)");
+  const box = await call("POST", `${user}/media`, { media_type: "REELS", video_url: `${SITE}${set.reel}`, caption: set.caption, share_to_feed: "true" });
+  await ready(box.id as string, 90);
+  await say("રીલ તૈયાર: પ્રકાશિત થાય છે");
+  const posted: Record<string, unknown> = await call("POST", `${user}/media_publish`, { creation_id: box.id as string }, 90_000).catch(async (e) => {
+    await new Promise((r) => setTimeout(r, 5000));
+    const up = await findPosted(set, true).catch(() => null);
+    if (up) return { permalink: up };
+    throw e;
+  });
+  if (posted.permalink) return posted.permalink as string;
+  const link = await call("GET", posted.id as string, { fields: "permalink" }).catch(() => ({ permalink: "" }));
+  return (link.permalink as string) || "https://www.instagram.com/";
 }
 
 /** Puts the set up as one carousel: its address on Instagram. Not twice: a set already on the account isn't sent again. */

@@ -3,7 +3,7 @@
 // photo (the pictures are made again within minutes), the words changed, and the set approved, which puts it up at once.
 // The last few posted, with their links; and the editor's times, sections and whether sets come by themselves.
 import s from "./editor.module.css";
-import { approveInsta, captionInsta, dropInstaCard, makeInstaNow, moveInstaCard, nextInstaPhoto, saveInstaTimes, skipInsta } from "./actions.ts";
+import { approveInsta, captionInsta, dropInstaCard, dropReel, makeInstaNow, moveInstaCard, nextInstaPhoto, saveInstaTimes, skipInsta } from "./actions.ts";
 import { editionName, MAX_TIMES, MIN_KEPT, timeName, type InstaAsk, type InstaLogLine, type InstaNews, type InstaProgress, type InstaSet, type InstaSettings } from "@/lib/insta.ts";
 import Renew from "./Renew.tsx";
 import Press from "./Press.tsx";
@@ -31,6 +31,8 @@ const WORDS = {
     fbOn: (n: string) => `ફેસબુક પેજ જોડાયેલું છે: ${n}`, fbOff: "ફેસબુક પેજ હજી જોડાયેલું નથી: જોડાશે પછી સેટ ત્યાં પણ મુકાશે.",
     fbBroken: "ફેસબુક પેજ સુધી પહોંચાતું નથી. ફેસબુકનું કારણ:", fbSee: "ફેસબુક પર જુઓ", fbToo: "ફેસબુક પર પણ મૂકો",
     lastCard: "છેલ્લું કાર્ડ: વિભાગની લિંક",
+    reel: "રીલ (આ જ કાર્ડનો વીડિયો, મથાળાં અવાજમાં)", reelNote: "મંજૂર કરશો તો કાર્ડની સાથે આ રીલ પણ ઇન્સ્ટાગ્રામ પર મુકાશે.",
+    noReel: "રીલ ન મૂકો", reelSee: "રીલ જુઓ",
     settings: "સમય અને વિભાગ બદલો", how: "સેટ કેવી રીતે બને", auto: "દરરોજ નક્કી સમયે જાતે", byHand: "ફક્ત હું માગું ત્યારે",
     times: "સમય (ભારતનો)", timesHelp: `${num(MAX_TIMES, "gu")} સુધી સમય. દરેક સમયના એક કલાક પહેલાં સેટ તૈયાર થાય છે; ખાલી રાખેલો સમય ગણાશે નહીં.`,
     tiers: "કયા વિભાગના સેટ", save: "સાચવો",
@@ -54,6 +56,8 @@ const WORDS = {
     fbOn: (n: string) => `The Facebook Page is connected: ${n}`, fbOff: "The Facebook Page isn't connected yet: once it is, sets go up there too.",
     fbBroken: "The Facebook Page can't be reached. Facebook's reason:", fbSee: "See it on Facebook", fbToo: "Post on Facebook too",
     lastCard: "Last card: the section's link",
+    reel: "Reel (the same cards as a video, headlines read out)", reelNote: "Approving the set posts this Reel on Instagram with the cards.",
+    noReel: "Don't post the Reel", reelSee: "See the Reel",
     settings: "Change the times and sections", how: "How sets are made", auto: "By themselves, every day at set times", byHand: "Only when I ask",
     times: "Times (India)", timesHelp: `Up to ${MAX_TIMES} times. A set is ready an hour before each; a time left empty doesn't count.`,
     tiers: "Sets for which sections", save: "Save",
@@ -129,6 +133,7 @@ export default function Insta({ lang, sets, settings, ask, news, progress, who, 
         <article key={set.id} className={s.card}>
           <p className={s.tag}>{sectionName(set.tier, "gu")} · {editionName(set.edition)} · {stateName(set)}
             {set.postUrl && <> · <a href={set.postUrl} target="_blank" rel="noopener">{w.see}</a></>}
+            {set.reelUrl && <> · <a href={set.reelUrl} target="_blank" rel="noopener">{w.reelSee}</a></>}
             {set.fbUrl && <> · <a href={set.fbUrl} target="_blank" rel="noopener">{w.fbSee}</a></>}</p>
           {set.note && <p className={s.why}>{set.note}</p>}
           {set.state === "making" || !set.image ? (
@@ -154,6 +159,17 @@ export default function Insta({ lang, sets, settings, ask, news, progress, who, 
               <figure>
                 <img src={`${set.image}?card=${set.cards.length + 1}&w=360`} width={360} height={450} alt={w.lastCard} loading="lazy" />
               </figure>
+            </div>
+          )}
+          {set.reel && set.image && set.state !== "making" && (
+            <div className={s.reel}>
+              <video src={set.reel} controls playsInline preload="metadata" width={180} height={320} />
+              <div>
+                <p className={s.tag}>{w.reel}</p>
+                {!set.reelUrl && <p className={s.help}>{w.reelNote}</p>}
+                {!set.reelUrl && set.state !== "posted" && !going(set) &&
+                  <form action={dropReel.bind(null, set.id)}><Press className={s.small} busy={w.working}>{w.noReel}</Press></form>}
+              </div>
             </div>
           )}
           {set.state !== "making" && (

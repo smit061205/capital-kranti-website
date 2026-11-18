@@ -32,7 +32,7 @@ export interface FrameProps {
 export default async function Frame({ lang, path, section, active, bottomBar = true, children }: FrameProps) {
   const L = (p: string) => href(lang, p);
   const words = Object.fromEntries((["menu", "sections", "search", "close", "home", "latest", "latestTitle", "archive", "searchPlaceholder",
-    "settings", "size", "language", "services", "about", "savedTitle", "fHow", "fPolicy", "fFix", "fContact", "editorPage", "classifieds", "advertise"] as const)
+    "settings", "size", "language", "services", "about", "savedTitle", "fHow", "fPolicy", "fFix", "fContact", "editorPage", "classifieds", "advertise", "askTitle"] as const)
     .map((k) => [k, t(lang, k)])) as Parameters<typeof Chrome>[0]["words"];
   return (
     <>
@@ -42,7 +42,7 @@ export default async function Frame({ lang, path, section, active, bottomBar = t
         lang={lang} name={PAPER.gu.name} tagline={PAPER[lang].tagline} words={words} bottomBar={bottomBar} active={active} mast={path === "/" ? dateText(new Date().toISOString(), lang, true) : undefined}
         paths={{ gu: href("gu", path), en: href("en", path), hi: href("hi", path) }}
         sections={[...SECTIONS.map((k) => ({ key: k, name: sectionName(k, lang), href: L(`/section/${k}`) })), { key: "aavtikal", name: flw(lang).name, href: L("/aavtikal") }]}
-        links={{ home: L("/"), latest: L("/latest"), archive: L("/archive"), search: L("/search"), saved: L("/saved"), classifieds: L("/classifieds"), advertise: L("/advertise"),
+        links={{ home: L("/"), latest: L("/latest"), archive: L("/archive"), search: L("/search"), saved: L("/saved"), ask: L("/ask"), classifieds: L("/classifieds"), advertise: L("/advertise"),
                  about: L("/about"), how: L("/how-we-check"), policy: L("/editorial-policy"), corrections: L("/corrections"), contact: L("/contact") }}
       />
       {/* asked for by the reader's browser, so a page made again with nothing changed is the same page (7 Nov: the time it

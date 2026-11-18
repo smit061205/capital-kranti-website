@@ -17,7 +17,7 @@ import AdSlot from "../components/AdSlot.tsx";
 import { PAPER, SITE_URL } from "../lib/site.ts";
 import { JsonLd, ORG_ID, organization } from "../lib/jsonld.tsx";
 import { beatName, featureWords, features, flw, type Feature } from "../lib/flagship.ts";
-import { Chev } from "../components/icons.tsx";
+import { AskIcon, Chev } from "../components/icons.tsx";
 import { ListenBrief } from "../components/Listen.tsx";
 
 const inSection = (s: Story, key: string) => s.tier === key || s.genres.includes(key as never);
@@ -145,8 +145,12 @@ export default async function Home({ lang }: { lang: Lang }) {
         <>
           <section className="mhero">
             {/* the day's top stories read aloud (components/Listen.tsx) */}
-            <ListenBrief lang={lang} server={serverVoice()} label={t(lang, "listenBrief")}
-                         words={{ listen: t(lang, "listen"), listenStop: t(lang, "listenStop") }} />
+            <div className="pills">
+              <ListenBrief lang={lang} server={serverVoice()} label={t(lang, "listenBrief")}
+                           words={{ listen: t(lang, "listen"), listenStop: t(lang, "listenStop") }} />
+              {/* questions answered from the paper's own stories (lib/ask.ts) */}
+              <Link prefetch={false} className="brief" href={href(lang, "/ask")}><AskIcon /><span>{t(lang, "askTitle")}</span></Link>
+            </div>
             <Link prefetch={false} className="h" href={storyHref(lead, lang)}>
               <span className="kick">{lw.kicker || sectionName(lead.tier, lang)}</span>
               <h2 className="display">{lw.headline}</h2>
