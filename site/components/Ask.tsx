@@ -10,7 +10,7 @@ import { Speaker, StopIcon } from "./icons.tsx";
 
 export interface AskWords {
   placeholder: string; send: string; mic: string; listening: string; thinking: string; sources: string; note: string;
-  tries: string[]; again: string; stop: string; listen: string; listenStop: string; failed: string;
+  tries: string[]; again: string; stop: string; listen: string; listenStop: string; failed: string; lost: string; retry: string;
 }
 
 type Recognition = { lang: string; interimResults: boolean; maxAlternatives: number; start(): void; stop(): void;
@@ -68,7 +68,10 @@ function Answer({ m, lang, w, last, busy, failed }: { m: UIMessage; lang: string
 
 export default function Ask({ lang, words: w }: { lang: string; words: AskWords }) {
   const transport = useMemo(() => new DefaultChatTransport({ api: "/api/ask", body: { lang } }), [lang]);
-  const { messages, sendMessage, status, stop, setMessages, error } = useChat({ transport });
+  const { messages, sendMessage, status, stop, setMessages, error, regenerate } = useChat({ transport });
+  // the browser's own words for a lost connection ("Failed to fetch", "Load failed") become the paper's, with "ask again"
+  const lost = !!error && /fetch|load failed|network/i.test(error.message);
+  const why = error ? (lost ? w.lost : error.message || w.failed) : "";
   const [input, setInput] = useState("");
   const [hearing, setHearing] = useState(false);
   const [canHear, setCanHear] = useState(false);
@@ -109,9 +112,10 @@ export default function Ask({ lang, words: w }: { lang: string; words: AskWords 
         {messages.map((m, i) => m.role === "user"
           ? <p key={m.id} className="q">{textOf(m)}</p>
           : <Answer key={m.id} m={m} lang={lang} w={w} last={i === messages.length - 1} busy={busy}
-                    failed={status === "error" && i === messages.length - 1 ? error?.message || w.failed : undefined} />)}
+                    failed={status === "error" && i === messages.length - 1 ? why : undefined} />)}
         {(status === "submitted" || status === "error") && messages.at(-1)?.role === "user" &&
-          <div className="ans"><p className="wait">{status === "error" ? error?.message || w.failed : w.thinking}</p></div>}
+          <div className="ans"><p className="wait">{status === "error" ? why : w.thinking}</p>
+            {status === "error" && <button type="button" className="again" onClick={() => regenerate()}>{w.retry}</button>}</div>}
         <div ref={end} />
       </div>
       <form className="askbar" onSubmit={(e) => { e.preventDefault(); ask(input); }}>

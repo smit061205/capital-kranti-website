@@ -8,7 +8,7 @@ export function AskPage({ lang }: { lang: Lang }) {
   const words = {
     placeholder: t(lang, "askPlaceholder"), send: t(lang, "askSend"), mic: t(lang, "askMic"), listening: t(lang, "askListening"),
     thinking: t(lang, "askThinking"), sources: t(lang, "askSources"), note: t(lang, "askNote"), tries: t(lang, "askTry").split("|"),
-    again: t(lang, "askNew"), stop: t(lang, "askStop"), listen: t(lang, "listen"), listenStop: t(lang, "listenStop"), failed: t(lang, "askFailed"),
+    again: t(lang, "askNew"), stop: t(lang, "askStop"), listen: t(lang, "listen"), listenStop: t(lang, "listenStop"), failed: t(lang, "askFailed"), lost: t(lang, "askLost"), retry: t(lang, "askRetry"),
   };
   return (
     <Frame lang={lang} path="/ask" bottomBar={false}>

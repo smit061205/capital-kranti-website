@@ -653,4 +653,5 @@ time.fresh{display:inline-flex}.livedot{display:none}
 .askbar .go{flex:none;min-height:48px;padding:0 20px;border-radius:999px;background:var(--strong);color:var(--bg);font-weight:700;font-size:var(--t2)}
 .askbar .go:disabled{opacity:.4}
 .asknote{font-size:var(--t1);color:var(--muted);margin:0}
-.asknote .again{color:var(--brand);font-weight:600;text-decoration:underline}
+.asknote .again,.ask .ans .again{color:var(--brand);font-weight:600;text-decoration:underline}
+.ask .ans .again{min-height:40px;font-size:var(--t2)}
