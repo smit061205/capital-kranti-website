@@ -6,6 +6,23 @@ The paper's website and its Aavtikal section, with their own news engine. Split 
 
 ## Where it stands
 
+### What changed on 19 Nov (the Buildathon; read with the 11 Nov block below)
+
+- **Shortlisted:** Capital Kranti is on the Ahmedabad list of the Buildathon 2026; the City Buildathon is 20–21 Nov.
+  The deck's notes are in `docs/buildathon/` (not committed: `DECK.md` carries the user's phone and email).
+- **Vercel Pro since 14 Nov** (the free plan paused the site). Deploys and bots drive the cost: merge website changes
+  together; robots.txt turns away AI training crawlers and SEO tools, keeping search and AI-answer bots (`app/robots.ts`).
+- **The editor approves sensitive and important website stories** (the user, 19 Nov, replacing 30 Oct's "no approvals"):
+  a sensitive story or one of importance `approveFrom` (9) or more is saved `held` with a `hold_reason`, gets its English,
+  Hindi and photo while it waits, and goes up when the editor presses Publish on his page's news tab (or Publish all) or
+  ✅ in Telegram (`lib/editor.ts decideStory`, `lib/telegram.ts askApproval`); then it is dated that moment and sends its
+  breaking alert. ❌ / "Don't" withdraws it. The rest go up after their checks, as before. Watch how many wait each day;
+  `approveFrom` is the knob.
+- **Listen** (the deck's "Gemini speech models"): every story and the day's brief read aloud by Gemini 3.8 Flash-Lite
+  TTS with `GOOGLE_AI_KEY`, the phone's own voice when that fails (README, "Listen"). The request shape (Interactions
+  API) was checked only against Google's docs and a refused dummy key: if `/api/listen?…&part=0` answers 502, the
+  function log says why.
+
 ### Where it stands now (11 Nov; read this first)
 
 *For whoever takes over next (two Claude Code accounts take turns). Where this block and the older ones below disagree,

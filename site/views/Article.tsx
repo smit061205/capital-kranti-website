@@ -1,4 +1,5 @@
 // A story (DESIGN.md §3.5), with its trust pieces (§3.4) and NewsArticle markup for Google.
+import { serverVoice } from "../lib/listen.ts";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Lang, Story } from "../lib/types.ts";
@@ -69,7 +70,7 @@ export default async function Article({ id, lang }: { id: string; lang: Lang }) 
   // "Updated" only when the editor changed the story's words (10 Nov: its translation, photo or one more source coming
   // in minutes later moved the story's own clock, and nearly every story said "Updated")
   const changed = !!s.editedAt && Date.parse(s.editedAt) - Date.parse(s.publishedAt) > 5 * 60_000;
-  const toolWords = Object.fromEntries((["share", "shareShort", "copy", "copied", "save", "saved", "savedToast", "unsavedToast", "size", "seeSaved", "savedOffline"] as const)
+  const toolWords = Object.fromEntries((["share", "shareShort", "copy", "copied", "save", "saved", "savedToast", "unsavedToast", "size", "seeSaved", "savedOffline", "listen", "listenStop"] as const)
     .map((k) => [k, t(lang, k)])) as Parameters<typeof ArticleTools>[0]["words"];
   const others = related.filter((x) => x.id !== s.id && !more.some((m) => m.id === x.id));
   const paras = paragraphs(w.body);
@@ -103,7 +104,9 @@ export default async function Article({ id, lang }: { id: string; lang: Lang }) 
             {" · "}{num(minutes(w.body), lang)} {t(lang, "min")}</p>
           {/* the engine's stories say how they were made (Google's guidance on AI content, and Google News's transparency rules) */}
           {!s.byEditor && <p className="ainote">{t(lang, "aiNote")} <Link prefetch={false} href={href(lang, "/how-we-check")}>{t(lang, "aiHow")}</Link></p>}
-          <ArticleTools id={s.id} url={url} headline={w.headline} savedHref={href(lang, "/saved")} letter={SIZE_LETTER[lang]} words={toolWords} />
+          <ArticleTools id={s.id} url={url} headline={w.headline} savedHref={href(lang, "/saved")} letter={SIZE_LETTER[lang]} words={toolWords}
+                        lang={w.translated || lang === "gu" ? lang : "gu"} voice={serverVoice()}
+                        version={String(Date.parse(s.editedAt ?? s.publishedAt) / 1000)} />
           {s.photo && (
             <figure className={strong(s) ? "wide-ph" : "in-ph"}>
               <PhotoZoom src={largest(s.photo)} width={s.photo.width} height={s.photo.height} alt={w.caption || w.headline}

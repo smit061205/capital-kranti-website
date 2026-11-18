@@ -127,6 +127,11 @@ main{padding-block:8px 48px}
 /* the front page as a magazine (2 Nov): centred titles, a big headline, pairs and rows of three, a lot of air */
 .mhero{text-align:center;padding-top:44px}
 .mhero .kick{margin-bottom:12px}
+/* the day's brief, read aloud: a quiet pill over the lead story */
+.brief{display:inline-flex;align-items:center;gap:8px;min-height:40px;padding:0 16px 0 12px;margin:0 0 22px;border:1px solid var(--rule-strong);border-radius:999px;
+  font-size:var(--t1);font-weight:600;color:var(--strong);transition:background-color var(--quick) ease}
+.brief:hover{background:var(--surface)}.brief svg.i{width:18px;height:18px}.brief.on{color:var(--brand);border-color:var(--brand)}
+.tool.listen.on{color:var(--brand)}
 .mhero .display{max-width:980px;margin:0 auto;font-size:40px;line-height:1.16}
 .mhero .dek{max-width:640px;margin:16px auto 0;font-size:var(--t3)}
 .mhero .meta{justify-content:center;margin-top:12px}

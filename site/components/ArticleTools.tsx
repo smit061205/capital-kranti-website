@@ -4,7 +4,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { applySize } from "./Chrome.tsx";
-import { LinkIcon, SaveIcon, TextSize, WhatsApp } from "./icons.tsx";
+import { LinkIcon, SaveIcon, Speaker, StopIcon, TextSize, WhatsApp } from "./icons.tsx";
+import { pageText, useListen } from "./Listen.tsx";
 
 interface Props {
   id: string;
@@ -14,7 +15,11 @@ interface Props {
   savedHref: string;
   /** the letter on the text-size buttons, in the page's script */
   letter: string;
-  words: Record<"share" | "shareShort" | "copy" | "copied" | "save" | "saved" | "savedToast" | "unsavedToast" | "size" | "seeSaved" | "savedOffline", string>;
+  /** the language the story is shown in, Google's voice being on the server, and the story's version (for its MP3's address) */
+  lang: string;
+  voice: boolean;
+  version: string;
+  words: Record<"share" | "shareShort" | "copy" | "copied" | "save" | "saved" | "savedToast" | "unsavedToast" | "size" | "seeSaved" | "savedOffline" | "listen" | "listenStop", string>;
 }
 
 const read = (k: string, d: string) => { try { return localStorage.getItem(k) ?? d; } catch { return d; } };
@@ -30,7 +35,10 @@ function mark(id: string, on: boolean) {
 }
 export const forget = (id: string) => mark(id, false);
 
-export default function ArticleTools({ id, url, headline, savedHref, letter, words: w }: Props) {
+const textOfPage = async () => pageText();
+
+export default function ArticleTools({ id, url, headline, savedHref, letter, lang, voice, version, words: w }: Props) {
+  const listen = useListen({ lang, server: voice, audio: `/api/listen?id=${id}&lang=${lang}&v=${version}`, text: textOfPage });
   const [size, setSize] = useState("1");
   const [saved, setSaved] = useState(false);
   // a saved story's note says it reads offline too (only where the offline helper runs) and leads to the saved stories
@@ -59,10 +67,14 @@ export default function ArticleTools({ id, url, headline, savedHref, letter, wor
         <span className="sizes" role="group" aria-label={w.size}>
           {["1", "2", "3"].map((n) => <button key={n} type="button" aria-pressed={size === n} onClick={() => setTo(n)}>{letter}</button>)}
         </span>
+        {listen.can && <button type="button" className={`tool listen${listen.on ? " on" : ""}`} onClick={listen.toggle} aria-pressed={listen.on}>
+          {listen.on ? <StopIcon /> : <Speaker />}{listen.on ? w.listenStop : w.listen}</button>}
         <button type="button" className={`tool save${saved ? " on" : ""}`} onClick={save} aria-pressed={saved}><SaveIcon on={saved} />{saved ? w.saved : w.save}</button>
       </div>
       <div className="readbar">
         <a className="wa" href={wa} target="_blank" rel="noopener"><WhatsApp />{w.shareShort}</a>
+        {listen.can && <button type="button" className={`ib${listen.on ? " on" : ""}`} aria-label={listen.on ? w.listenStop : w.listen} aria-pressed={listen.on} onClick={listen.toggle}>
+          {listen.on ? <StopIcon /> : <Speaker />}</button>}
         <button type="button" className="ib" aria-label={w.size} onClick={() => setTo(String((Number(size) % 3) + 1))}><TextSize /></button>
         <button type="button" className={`ib${saved ? " on" : ""}`} aria-label={saved ? w.saved : w.save} aria-pressed={saved} onClick={save}><SaveIcon on={saved} /></button>
       </div>
