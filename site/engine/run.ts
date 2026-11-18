@@ -16,7 +16,7 @@
 import { neon } from "@neondatabase/serverless";
 import { WEBSITE } from "../lib/config.ts";
 import { ensureSchema } from "../lib/schema.ts";
-import { pollUpdates, tell } from "../lib/telegram.ts";
+import { askApproval, HELD, pollUpdates, tell } from "../lib/telegram.ts";
 import { touched } from "../lib/write.ts";
 import { aiLeft, aiNotes, aiUsed, freeModels, groqModels, nvidiaTimes, stopAiAt } from "./ai.ts";
 import { collect } from "./collect.ts";
@@ -223,11 +223,20 @@ async function writeOne(c: Record<string, any>): Promise<"stop" | "busy" | void>
   const photo = await photoOf(sql, src, id);
   // why it has none, for the status page (4 Nov: four stories in five went up without a photo, and no one knew why)
   const photoWhy = photo ? null : c.sensitive ? "sensitive news: no file or symbolic photo" : src.some((s) => s.official && s.image) ? "the official photo couldn't be kept" : null;
-  await saveLive(sql, { id, tier: c.tier, genres: c.genres, written: w, checked, src, importance: imp, status: "published",
-                        holdReason: null, en: null, hi: null, translated: false, photo });
+  // waits for the editor (19 Nov): sensitive, or important (lib/config.ts approveFrom); the rest go up now
+  const holdReason = c.sensitive ? HELD.sensitive : imp >= WEBSITE.approveFrom ? HELD.important : null;
+  await saveLive(sql, { id, tier: c.tier, genres: c.genres, written: w, checked, src, importance: imp, status: holdReason ? "held" : "published",
+                        holdReason, en: null, hi: null, translated: false, photo });
   // no photo: photos() looks for one (not for sensitive news)
   await sql.query(`update stories set photo_tried = $3, photo_why = $2 where id = $1`, [id, photoWhy, !!photo || !!c.sensitive]);
-  await sql.query(`update clusters set state = $2, story_id = $3, reason = $4 where id = $1`, [c.id, "published", id, null]);
+  await sql.query(`update clusters set state = $2, story_id = $3, reason = $4 where id = $1`, [c.id, holdReason ? "held" : "published", id, holdReason]);
+  if (holdReason) {
+    // on his page (/editor) and on his phone; its English, Hindi and photo are made while it waits
+    await askApproval(sql, { id, headline: w.headline, deck: w.deck, body: w.body, reason: holdReason, sources: src.map((x) => ({ name: x.source.name, url: x.url })) })
+      .catch((e) => log(`    no Telegram note: ${e instanceof Error ? e.message : e}`));
+    log(`    waiting for the editor (${holdReason}): ${w.headline}`);
+    return;
+  }
   await touched(sql);
   log(`    published${checked.cut ? ` (${checked.cut} unsupported line(s) cut)` : ""}: ${w.headline}`);
   // breaking news: an alert to the phones that asked (lib/push.ts)
@@ -296,7 +305,7 @@ async function photos(until = finish, most = 4) {
   }
   const rows = await sql.query(
     `select s.id, s.kicker, s.headline, s.deck, s.body from stories s left join clusters c on c.story_id = s.id
-      where s.origin = 'live' and s.status = 'published' and s.photo is null and not s.photo_tried and not coalesce(c.sensitive, false)
+      where s.origin = 'live' and s.status in ('published', 'held') and s.photo is null and not s.photo_tried and not coalesce(c.sensitive, false)
        and s.published_at > now() - interval '36 hours' order by s.importance desc nulls last, s.published_at desc limit $1`, [most]);
   let added = 0;
   for (const r of rows) {
@@ -334,7 +343,7 @@ async function photos(until = finish, most = 4) {
 async function photoFit(until: number) {
   const rows = await sql.query(
     `select id, headline, deck, en->>'headline' as en_head, en->>'deck' as en_deck, en->>'caption' as en_cap from stories
-      where origin = 'live' and status = 'published' and photo->>'credit' like '%Wikimedia Commons%' and checks->>'photo_fit' is null
+      where origin = 'live' and status in ('published', 'held') and photo->>'credit' like '%Wikimedia Commons%' and checks->>'photo_fit' is null
         and published_at > now() - interval '3 days' order by published_at desc limit 8`);
   let off = 0;
   for (const r of rows) {
@@ -483,7 +492,7 @@ async function translations(until = deadline, early = false) {
   const rows = await sql.query(
     `select * from (select id, origin, kicker, headline, deck, body, caption, published_at, updated_at, translate_fails,
                            en_status = 'done' and not ${gu("en")} as en_ok, hi_status = 'done' and not ${gu("hi")} as hi_ok from stories
-                     where status = 'published' and published_at > now() - interval '30 days') s
+                     where status in ('published', 'held') and published_at > now() - interval '30 days') s
       where (origin = 'live' and published_at > now() - interval '3 days' and not (en_ok and hi_ok)
          or origin <> 'live' and not hi_ok) and translate_fails < $2
       order by origin = 'live' desc, updated_at > now() - interval '1 hour', published_at desc limit $1`, [can, early ? 1 : 4]);
@@ -552,7 +561,7 @@ async function watch() {
     const have = new Set((c.sources as { url: string }[]).map((s) => s.url));
     const add = fresh.filter((f) => !have.has(f.url));
     const corrected = fresh.find((f) => CORRECTION.test(`${f.title} ${f.summary}`));
-    if (corrected && c.status === "published") {
+    if (corrected && (c.status === "published" || c.status === "held")) {
       await sql.query(`update stories set status = 'withdrawn', hold_reason = $2, updated_at = now() where id = $1`,
         [c.story_id, `a source corrected or withdrew it: ${corrected.title}`]);
       await touched(sql);

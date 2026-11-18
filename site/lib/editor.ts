@@ -10,6 +10,7 @@ import type { NeonQueryFunction } from "@neondatabase/serverless";
 import { WEBSITE } from "./config.ts";
 import { sample, sampleOn } from "./sample.ts";
 import { touched } from "./write.ts";
+import { alertBreaking } from "./push.ts";
 
 type Sql = NeonQueryFunction<false, false>;
 
@@ -72,7 +73,13 @@ export async function emailFrom(origin: string, code: string): Promise<string | 
 export interface DeskRun { at: string; ok: boolean; running: boolean; stories: number; ai: number | null; seconds: number | null }
 /** Aavtikal's desk today: new articles published (of the day's target), older ones written again (of all), what it last did. */
 export interface AvDesk { published: number; target: number; rewritten: number; toRewrite: number; at: string; running: boolean; lines: string[] }
+/** A story waiting for the editor's approval (19 Nov: sensitive or important, lib/config.ts approveFrom) */
+export interface DeskStory {
+  id: string; headline: string; deck: string; body: string; reason: string; at: string; tier: string; importance: number | null;
+  translated: boolean; photo: string | null; sources: { name: string; url: string }[];
+}
 export interface Desk {
+  held: DeskStory[];
   av: AvDesk | null;
   runs: DeskRun[]; paused: boolean; today: { stories: number; ai: number; aiLimit: number;
     /** the free requests by route (5 Nov: NVIDIA's and Groq's weren't counted, and NVIDIA had become the main writer) */
@@ -83,6 +90,10 @@ export interface Desk {
 
 type Row = Record<string, unknown>;
 const iso = (v: unknown) => (v ? new Date(v as string).toISOString() : "");
+const deskStory = (r: Row): DeskStory => ({ id: r.id as string, headline: r.headline as string, deck: (r.deck as string) ?? "", body: (r.body as string) ?? "",
+  reason: (r.hold_reason as string) ?? "", at: iso(r.published_at), tier: (r.tier as string) ?? "", importance: r.importance == null ? null : Number(r.importance),
+  translated: r.en_status === "done" || r.hi_status === "done", photo: ((r.photo as { url?: string } | null)?.url) ?? null,
+  sources: ((r.sources as DeskStory["sources"]) ?? []).map((x) => ({ name: x.name, url: x.url })) });
 
 /** The engine's last rounds, each with the stories it put up: "OK" alone only says a round didn't crash (31 Oct: every row
  *  read OK while almost no news went up). A round unfinished past its 12-minute limit died without saying so. */
@@ -104,10 +115,16 @@ export async function desk(sql: Sql | null): Promise<Desk> {
     aiRoutes: [] as { name: string; n: number }[], aiAavtikal: 0, uploads: 0, uploadLimit: 2000,
     paid: 0, paidMonth: 0, paidAsks: 0, paidLimit: WEBSITE.paidDailyRupees };
   if (!sql) {
-    return { av: null, runs: [], paused: false, today };
+    // local checking: two sample stories stand in for the waiting ones
+    const held = sampleOn() ? sample().stories.slice(0, 2).map((x, i): DeskStory => ({ id: x.id, headline: x.headline, deck: x.deck, body: x.body,
+      reason: i ? "મહત્ત્વના સમાચાર" : "સંવેદનશીલ સમાચાર", at: x.publishedAt, tier: x.tier, importance: 9, translated: true, photo: x.photo?.url ?? null,
+      sources: x.source ? [{ name: x.source.name, url: x.source.url }] : [] })) : [];
+    return { held, av: null, runs: [], paused: false, today };
   }
   const date = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
-  const [runs, paused, counts, av, avRun] = await Promise.all([
+  const [held, runs, paused, counts, av, avRun] = await Promise.all([
+    sql.query(`select id, headline, deck, body, hold_reason, published_at, tier, importance, en_status, hi_status, photo, sources
+                 from stories where status = 'held' order by importance desc nulls last, published_at desc limit 60`),
     engineRounds(sql),
     sql.query(`select value from state where key = 'engine_paused'`),
     sql.query(`select
@@ -135,6 +152,7 @@ export async function desk(sql: Sql | null): Promise<Desk> {
   const aiRoutes = [["NVIDIA", c.ai_nvidia], ["Google", c.ai_google], ["OpenRouter", c.ai_free], ["Groq", c.ai_groq]]
     .map(([name, n]) => ({ name: String(name), n: Number(n ?? 0) }));
   return {
+    held: held.map(deskStory),
     av: { published: Number(a.published ?? 0), target: WEBSITE.deskDays[date] ?? WEBSITE.deskDaily, rewritten: Number(a.rewritten ?? 0),
           toRewrite: Number(a.left ?? 0), at: iso(ar?.started_at), running: !!ar && !ar.finished_at && Date.now() - Date.parse(String(ar.started_at)) < 40 * 60_000,
           lines: ((ar?.details as { log?: string[] } | null)?.log ?? []).slice(-12) },
@@ -276,6 +294,33 @@ export async function restoreStory(sql: Sql, id: string): Promise<boolean> {
 }
 
 // ---- what the editor changes ----
+
+/** A waiting story decided (his page, or the Telegram buttons: lib/telegram.ts): published now, at the top of the news, with
+ *  its alert to readers' phones if it's breaking; or not published (it stays in the removed list, where it can be put back).
+ *  false when it was already decided. */
+export async function decideStory(sql: Sql, id: string, approve: boolean, by: string): Promise<boolean> {
+  const done = approve
+    ? await sql.query(`update stories set status = 'published', published_at = now(), updated_at = now(), hold_reason = null where id = $1 and status = 'held' returning id`, [id])
+    : await sql.query(`update stories set status = 'withdrawn', hold_reason = $2, updated_at = now() where id = $1 and status = 'held' returning id`, [id, `not approved by the editor (${by})`]);
+  if (!done.length) return false;
+  await sql.query(`update clusters set state = $2, reason = $3 where story_id = $1`, [id, approve ? "published" : "dropped", approve ? null : "not approved by the editor"]);
+  await sql.query(`insert into approvals (story_id, decided_at, decision, decided_by) values ($1, now(), $2, $3)
+                   on conflict (story_id) do update set decided_at = now(), decision = $2, decided_by = $3`, [id, approve ? "approve" : "reject", by]);
+  if (approve) {
+    await touched(sql);
+    const [r] = await sql.query(`select headline, en, en_status, hi, hi_status, importance, published_at from stories where id = $1`, [id]);
+    if (r) await alertBreaking(sql, { id, importance: r.importance, publishedAt: new Date(r.published_at).toISOString(),
+      headline: { gu: r.headline, en: r.en_status === "done" ? r.en?.headline ?? null : null, hi: r.hi_status === "done" ? r.hi?.headline ?? null : null } }).catch(() => 0);
+  }
+  return true;
+}
+
+/** Every waiting story published at once (the "publish all" button), oldest first so the newest stays on top. */
+export async function approveAll(sql: Sql, ids: string[], by: string): Promise<number> {
+  let n = 0;
+  for (const id of ids) if (await decideStory(sql, id, true, by)) n++;
+  return n;
+}
 
 export async function withdrawStory(sql: Sql, id: string, by: string): Promise<boolean> {
   const done = await sql.query(`update stories set status = 'withdrawn', hold_reason = $2, updated_at = now() where id = $1 and status = 'published' returning id`,

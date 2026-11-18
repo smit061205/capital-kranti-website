@@ -8,7 +8,7 @@ you know: read `site/node_modules/next/dist/docs` before changing Next code (`si
 - The editor is the developer's father: not technical, plain words, Gujarati first.
 
 ## Rules
-- **No approvals (30 Oct):** news and Aavtikal publish by themselves; what fails the fact check isn't published.
+- **Editor approval (19 Nov, replacing 30 Oct's "no approvals"):** sensitive website stories and important ones (importance ≥ `approveFrom` in `site/lib/config.ts`) wait for the editor's Publish on his page or in Telegram; the rest, and Aavtikal, publish by themselves after the fact check. What fails the fact check isn't published.
 - **Aavtikal covers are real photos**, accurate and good quality; never drawn or AI-looking.
 - **Show every cost in rupees (₹)**, converted from USD at display time (₹88 per US$ by default).
 - **No Anthropic models for the site's AI** (cost). Free models first; paid Gemma 4 26B on OpenRouter only as a backup when they all fail, at most ₹30 a day (₹1,000 a month, 4 Nov).

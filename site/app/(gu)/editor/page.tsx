@@ -10,9 +10,9 @@ import { W } from "./words.ts";
 import Birthday from "./Birthday.tsx";
 import LeaderForm from "./LeaderForm.tsx";
 import Insta from "./Insta.tsx";
-import { addAdAction, dropAdAction, dropBannerAction, dropLeaderAction, pauseEngine, publishFeature, putBackStory, removeFeature, removeStory } from "./actions.ts";
+import { addAdAction, approveAllStories, approveStory, dropAdAction, dropBannerAction, dropLeaderAction, pauseEngine, publishFeature, putBackStory, rejectStory, removeFeature, removeStory } from "./actions.ts";
 import { db } from "@/lib/db.ts";
-import { COOKIE, desk, editorOf, findFeatures, findStories, PAGE, signInReady, type Found, type Show } from "@/lib/editor.ts";
+import { COOKIE, desk, editorOf, findFeatures, findStories, PAGE, signInReady, type DeskStory, type Found, type Show } from "@/lib/editor.ts";
 import { beatName, isBeat } from "@/lib/flagship.ts";
 import { birthdays, draftEmail, leaders } from "@/lib/leaders.ts";
 import { ads, DAYS, KINDS, KIND_NAMES } from "@/lib/classifieds.ts";
@@ -22,7 +22,7 @@ import { mendSets } from "@/lib/instamend.ts";
 import { DEFAULT_SETTINGS, instaAsk, instaLogs, instaNews, instaProgress, instaSettings, recentSets } from "@/lib/insta.ts";
 import { instagramWho } from "@/lib/instagram.ts";
 import { facebookWho } from "@/lib/facebook.ts";
-import { dateText, num, timeText, shortDate, todayIst } from "@/lib/format.ts";
+import { dateText, num, paragraphs, timeText, shortDate, todayIst } from "@/lib/format.ts";
 
 export const dynamic = "force-dynamic";
 // five minutes for the buttons (server actions take the page's limit): approving a set puts it up on Instagram, which waits
@@ -146,10 +146,29 @@ export default async function Editor({ searchParams }: { searchParams: Promise<Q
   };
 
   const waiting = instaSets.filter((x) => x.state === "waiting" && x.cards.length).length;
+  // stories waiting for his approval (19 Nov): each with Publish / Change / Don't, and one button for all of them
+  const Held = ({ x }: { x: DeskStory }) => (
+    <article className={s.card}>
+      <p className={s.why}><b>{w.why}:</b> {x.reason}{!x.translated && <> · {w.translatedNot}</>}</p>
+      <h3>{x.headline}</h3>
+      {x.deck && <p className={s.deck}>{x.deck}</p>}
+      <p className={s.when}>{time(x.at)}</p>
+      <details className={s.more}>
+        <summary>{w.read}</summary>
+        {paragraphs(x.body).map((p, i) => <p key={i}>{p}</p>)}
+        {x.sources.length > 0 && <p><b>{w.sources}:</b> {x.sources.map((src, i) => <span key={src.url}>{i > 0 && ", "}<a href={src.url} target="_blank" rel="noopener">{src.name}</a></span>)}</p>}
+      </details>
+      <div className={s.buttons}>
+        <form action={approveStory.bind(null, x.id)}><button className={s.yes}>{w.publish}</button></form>
+        <Link className={s.ghost} href={`/editor/story/${x.id}${back ? `?${back}` : ""}`}>{w.edit}</Link>
+        <form action={rejectStory.bind(null, x.id)}><button className={s.no}>{w.reject}</button></form>
+      </div>
+    </article>
+  );
   const tabHref = (t: Tab) => `/editor${[t === "today" ? "" : `tab=${t}`, back].filter(Boolean).length ? `?${[t === "today" ? "" : `tab=${t}`, back].filter(Boolean).join("&")}` : ""}`;
   const badge = (x: number) => (x > 0 ? <span className={s.count}>{nn(x)}</span> : null);
   const TAB_NAMES: Record<Tab, React.ReactNode> = {
-    today: w.tabToday, news: w.ck, aavtikal: w.av, insta: <>{w.tabInsta} {badge(waiting)}</>,
+    today: w.tabToday, news: <>{w.ck} {badge(d.held.length)}</>, aavtikal: w.av, insta: <>{w.tabInsta} {badge(waiting)}</>,
     leaders: <>{w.leadersShort} {badge(bday.today.length)}</>, ads: w.adsShort, engine: w.engine,
   };
 
@@ -174,9 +193,10 @@ export default async function Editor({ searchParams }: { searchParams: Promise<Q
         <section className={s.block} aria-labelledby="today">
           <h2 id="today">{w.tabToday}</h2>
           <h3 className={s.sub}>{w.needYou}</h3>
-          {waiting || bday.today.length || d.paused ? (
+          {d.held.length || waiting || bday.today.length || d.paused ? (
             <ul className={s.tasks}>
               {d.paused && <li><Link href={tabHref("engine")} className={s.taskBad}><b>{w.engineOff}</b><span>{w.open} →</span></Link></li>}
+              {d.held.length > 0 && <li><Link href={`${tabHref("news")}#waiting`}><b>{nn(d.held.length)} {w.storiesWaiting}</b><span>{w.open} →</span></Link></li>}
               {waiting > 0 && <li><Link href={tabHref("insta")}><b>{nn(waiting)} {w.instaWaiting}</b><span>{w.open} →</span></Link></li>}
               {bday.today.length > 0 && <li><Link href={tabHref("leaders")}><b>{w.bdayToday}: {bday.today.map((l) => `${l.title} ${l.nameGu}`).join(", ")}</b><span>{w.open} →</span></Link></li>}
             </ul>
@@ -202,6 +222,10 @@ export default async function Editor({ searchParams }: { searchParams: Promise<Q
           <div className={s.brandHead}><h2 id="news">{w.ck}</h2><p>{w.ckNote}</p></div>
           {q.written && <p className={s.done} role="status">{w.written} <a href={`/news/${encodeURIComponent(q.written)}`} target="_blank" rel="noopener">{w.seeIt}</a></p>}
           {q.saved && <p className={q.saved === "1" ? s.done : s.stopped} role="status">{q.saved === "1" ? w.saved : w.notSaved}</p>}
+          <h3 className={s.sub} id="waiting">{w.waiting} {badge(d.held.length)}</h3>
+          <p className={s.help}>{w.waitingNote}</p>
+          {d.held.length > 1 && <form className={s.buttons} action={approveAllStories.bind(null, d.held.map((x) => x.id))}><button className={s.yes}>{w.publishAll} ({nn(d.held.length)})</button></form>}
+          {d.held.length ? d.held.map((x) => <Held key={x.id} x={x} />) : <p className={s.empty}>{w.waitingNone}</p>}
           <Link className={s.writeBtn} href={`/editor/write${back ? `?${back}` : ""}`}>{w.writeNew}</Link>
           <h3 className={s.sub}>{w.onSiteNews}</h3>
           <Finder at="news" kind="story" found={news} value={words} which={show} more={link({ n: String(n + PAGE) }, "news")} />

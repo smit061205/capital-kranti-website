@@ -3,6 +3,15 @@
 // with (tried in order), and the free plans' daily ceilings it keeps under.
 export const WEBSITE = {
   url: "https://www.capitalkranti.co.in",
+  // the editor approves before it goes up (the user, 19 Nov, for the Buildathon: "important + sensitive wait"): a sensitive
+  // story (deaths, accidents, crime, allegations, communal matters: engine/triage.ts) and any story this important or more
+  // (9.5 is breaking news with an alert to phones; 7.5 a top story); the rest go up after their fact check, as since 30 Oct
+  approveFrom: 9,
+  // "Listen" (19 Nov, the Buildathon deck): stories and the day's brief read aloud by Gemini's speech model with the paper's
+  // AI Studio key (GOOGLE_AI_KEY; free of charge on the free tier, and it reads Gujarati), a part at a time, each kept by
+  // the CDN. At most dayLetters a day (should the key ever be billed, Flash-Lite at $6 per 1M audio tokens keeps that
+  // under ₹30); past it, or when Gemini fails, the reader's phone reads it with its own voice. on: false turns it off.
+  listen: { on: true, model: "gemini-3.8-flash-lite-tts", voice: "Charon", dayLetters: 30_000 },
   freeModels: ["google/gemma-4-31b-it:free", "google/gemma-4-26b-a4b-it:free"],
   // Gemma through Google's own API with the paper's free key (GOOGLE_AI_KEY), tried first;
   // the daily ceiling stays under the free tier's (14,400 a day for each Gemma, AI Studio 29 Oct; it was 1,400 from an

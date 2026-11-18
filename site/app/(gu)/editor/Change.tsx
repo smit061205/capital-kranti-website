@@ -43,7 +43,7 @@ export default async function Change({ kind, id, q }: { kind: "story" | "feature
           </div>
         </form>
       )}
-      {x && x.status !== "withdrawn" && (
+      {x && (kind === "story" ? x.status === "published" : x.status !== "withdrawn") && (
         <details className={`${s.confirm} ${s.danger}`}><summary>{w.remove}</summary>
           <form action={(kind === "story" ? removeStory : removeFeature).bind(null, id)}><button className={s.no}>{w.sure}</button></form></details>
       )}

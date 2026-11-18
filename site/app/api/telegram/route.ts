@@ -1,10 +1,11 @@
-// Messages to the bot, as they come (lib/telegram.ts). Telegram
+// Messages to the bot and the editor's Publish / Don't presses, as they come (lib/telegram.ts). Telegram
 // signs each delivery with the secret given when the webhook was set
 // (TELEGRAM_WEBHOOK_SECRET); anything else is turned away.
 import { createHash, timingSafeEqual } from "node:crypto";
 import { db } from "@/lib/db.ts";
 import { handleUpdate } from "@/lib/telegram.ts";
 import { prepared } from "@/lib/write.ts";
+import { listPaths, renew, storyPaths } from "@/lib/renew.ts";
 
 export const dynamic = "force-dynamic";
 
@@ -21,5 +22,7 @@ export async function POST(req: Request) {
   if (!sql) return Response.json({ error: "no database" }, { status: 500 });
   await prepared(sql);
   const result = await handleUpdate(sql, await req.json());
+  // a story he approved: on the site's lists and its own page at once
+  if (result.startsWith("approved:")) renew([...listPaths(), ...storyPaths(result.slice(9))]);
   return Response.json({ ok: true, result });
 }

@@ -8,6 +8,7 @@ import { sectionName } from "../lib/sections.ts";
 import { Credit, decent, ElsewhereRow, inLang, Join, Meta, MoreOn, strong, words } from "../components/cards.tsx";
 import { frontTop, topScore } from "../lib/rank.ts";
 import Link from "next/link";
+import { serverVoice } from "../lib/listen.ts";
 import { pic, SIZES } from "../lib/photo.ts";
 import { num, timeText } from "../lib/format.ts";
 import TimeAgo from "../components/TimeAgo.tsx";
@@ -17,6 +18,7 @@ import { PAPER, SITE_URL } from "../lib/site.ts";
 import { JsonLd, ORG_ID, organization } from "../lib/jsonld.tsx";
 import { beatName, featureWords, features, flw, type Feature } from "../lib/flagship.ts";
 import { Chev } from "../components/icons.tsx";
+import { ListenBrief } from "../components/Listen.tsx";
 
 const inSection = (s: Story, key: string) => s.tier === key || s.genres.includes(key as never);
 const BELOW = ["gujarat", "india", "world", "economy", "farm", "tech", "health", "sport", "education", "entertainment"];
@@ -142,6 +144,9 @@ export default async function Home({ lang }: { lang: Lang }) {
       {!lead || !lw ? <p className="empty">{t(lang, "empty")}</p> : (
         <>
           <section className="mhero">
+            {/* the day's top stories read aloud (components/Listen.tsx) */}
+            <ListenBrief lang={lang} server={serverVoice()} label={t(lang, "listenBrief")}
+                         words={{ listen: t(lang, "listen"), listenStop: t(lang, "listenStop") }} />
             <Link prefetch={false} className="h" href={storyHref(lead, lang)}>
               <span className="kick">{lw.kicker || sectionName(lead.tier, lang)}</span>
               <h2 className="display">{lw.headline}</h2>

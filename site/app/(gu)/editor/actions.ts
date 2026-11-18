@@ -6,7 +6,7 @@ import { refresh, revalidatePath } from "next/cache";
 import { classifiedPaths, listPaths, renew as renewPages, storyPaths } from "@/lib/renew.ts";
 import { db } from "@/lib/db.ts";
 import { redirect } from "next/navigation";
-import { addFeature, addStory, COOKIE, decideFeature, editorOf, restoreStory, saveFeature, saveStory, setPaused, withdrawStory, type NewFeature, type NewStory, type Words } from "@/lib/editor.ts";
+import { addFeature, addStory, approveAll, COOKIE, decideFeature, decideStory, editorOf, restoreStory, saveFeature, saveStory, setPaused, withdrawStory, type NewFeature, type NewStory, type Words } from "@/lib/editor.ts";
 import { help, type Draft, type Help } from "@/lib/aihelp.ts";
 import { GENRES, sectionName, TIERS } from "@/lib/sections.ts";
 import { dropLeader, findLeader, saveLeader, type FoundLeader, type Leader } from "@/lib/leaders.ts";
@@ -30,6 +30,17 @@ function renew(aavtikal = false, story?: string) {
   refresh();
 }
 
+/** A waiting story published, or not (19 Nov: sensitive and important stories wait for the editor) */
+export async function approveStory(id: string) { const { who, sql } = await signedIn(); if (sql) await decideStory(sql, id, true, who); renew(false, id); }
+export async function rejectStory(id: string) { const { who, sql } = await signedIn(); if (sql) await decideStory(sql, id, false, who); refresh(); }
+/** Every story he was shown waiting published at once (only those: one that came in since waits for its own press) */
+export async function approveAllStories(ids: string[]) {
+  const { who, sql } = await signedIn();
+  if (!sql) return;
+  await approveAll(sql, ids.filter((x) => /^[a-z0-9-]{1,60}$/.test(x)).slice(0, 60).reverse(), who);
+  renewPages([...listPaths(), ...ids.flatMap((x) => storyPaths(x))]);
+  refresh();
+}
 export async function removeStory(id: string) { const { who, sql } = await signedIn(); if (sql) await withdrawStory(sql, id, who); renew(false, id); }
 export async function publishFeature(id: string) { const { sql } = await signedIn(); if (sql) await decideFeature(sql, id, "published"); renew(true); }
 export async function removeFeature(id: string) { const { sql } = await signedIn(); if (sql) await decideFeature(sql, id, "withdrawn"); renew(true); }
