@@ -8,9 +8,9 @@ import Frame from "../components/Frame.tsx";
 
 type Page = { title: string; paras: string[] };
 const contact = (lang: Lang) => ({
-  gu: `ઈમેલ: ${PAPER.email} · મોબાઇલ: ${num(PAPER.phone, "gu")} · ફોન અને ફેક્સ: ${num(PAPER.landline, "gu")}`,
-  en: `Email: ${PAPER.email} · Mobile: ${PAPER.phone} · Phone and fax: ${PAPER.landline}`,
-  hi: `ईमेल: ${PAPER.email} · मोबाइल: ${PAPER.phone} · फ़ोन और फ़ैक्स: ${PAPER.landline}`,
+  gu: `ઈમેલ: ${PAPER.email} · મોબાઇલ: ${num(PAPER.phone, "gu")}`,
+  en: `Email: ${PAPER.email} · Mobile: ${PAPER.phone}`,
+  hi: `ईमेल: ${PAPER.email} · मोबाइल: ${PAPER.phone}`,
 })[lang];
 // from the paper's own old website (capitalkranti.co.in, 2 Nov)
 const offices = {
@@ -238,7 +238,7 @@ export const POLICY: Record<string, Record<Lang, Page>> = {
 
 /** A paragraph with its email addresses, web addresses and the paper's phone numbers as links (10 Nov: they were plain
  *  words, so a reader on a phone couldn't tap to write, call or copy a feed's address). */
-const TEL: Record<string, string> = { [PAPER.phone]: "+919825608744", [PAPER.landline]: "+917923210071" };
+const TEL: Record<string, string> = { [PAPER.phone]: "+919825608744" };
 function linked(text: string, lang: Lang) {
   const phones = Object.keys(TEL).flatMap((n) => [n, num(n, lang)]);
   const esc = (x: string) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
