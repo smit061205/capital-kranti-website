@@ -22,6 +22,11 @@ The paper's website and its Aavtikal section, with their own news engine. Split 
   TTS with `GOOGLE_AI_KEY`, the phone's own voice when that fails (README, "Listen"). The request shape (Interactions
   API) was checked only against Google's docs and a refused dummy key: if `/api/listen?…&part=0` answers 502, the
   function log says why.
+- **Reels** (19 Nov): each Instagram set is also made into a Reel with the headlines read out (`engine/reel.ts`, on the
+  Instagram runner, which installs ffmpeg the first time); the editor sees it on his Instagram tab, and his approval
+  posts it with the carousel (`lib/instagram.ts postReel`). Not yet seen going up on Instagram: check the first set's log.
+- **Ask the newsroom** (19 Nov, `/ask`): questions answered from the paper's own stories with links, through the Vercel
+  AI SDK and Gemma 4 26B on `GOOGLE_AI_KEY` (README). The AI SDK packages are pinned to versions two weeks old.
 
 ### Where it stands now (11 Nov; read this first)
 

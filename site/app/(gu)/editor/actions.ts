@@ -13,7 +13,8 @@ import { dropLeader, findLeader, saveLeader, type FoundLeader, type Leader } fro
 import { addAd, dropAd } from "@/lib/classifieds.ts";
 import { addBanner, dropBanner } from "@/lib/banners.ts";
 import { askInsta, captionFor, instaLog, cleanTiers, cleanTimes, getSet, instaSettings, MIN_KEPT, saveInstaSettings, saveSet } from "@/lib/insta.ts";
-import { instagramOn, postSet } from "@/lib/instagram.ts";
+import { del } from "@vercel/blob";
+import { instagramOn, postReel, postSet } from "@/lib/instagram.ts";
 import { facebookOn, postSetFacebook } from "@/lib/facebook.ts";
 import { POSTING_MS } from "@/lib/instamend.ts";
 
@@ -231,8 +232,8 @@ export async function captionInsta(id: string, f: FormData) {
 export async function approveInsta(id: string) {
   const { sql, set, say } = await instaSet(id);
   if (!set || !set.image) return refresh();
-  const ig = instagramOn() && !set.postUrl, fb = facebookOn() && !set.fbUrl;
-  if (!["waiting", "approved", "failed"].includes(set.state) && !(set.state === "posted" && fb)) return refresh();
+  const ig = instagramOn() && !set.postUrl, fb = facebookOn() && !set.fbUrl, reel = instagramOn() && !!set.reel && !set.reelUrl;
+  if (!["waiting", "approved", "failed"].includes(set.state) && !(set.state === "posted" && (fb || reel))) return refresh();
   // pressed again while it's going up: not put up twice (postedAt, while approved, is when it started going up)
   if (set.state === "approved" && set.postedAt && Date.now() - new Date(set.postedAt).getTime() < POSTING_MS) {
     await say("ફરી દબાવ્યું, પણ સેટ મુકાઈ જ રહ્યો છે: બે વાર નહીં મુકાય");
@@ -240,11 +241,11 @@ export async function approveInsta(id: string) {
   }
   set.state = "approved";
   set.note = "";
-  set.postedAt = ig || fb ? new Date().toISOString() : null;
+  set.postedAt = ig || fb || reel ? new Date().toISOString() : null;
   await saveSet(sql, set);
-  const where = [ig && "ઇન્સ્ટાગ્રામ", fb && "ફેસબુક"].filter(Boolean).join(" અને ");
+  const where = [ig && "ઇન્સ્ટાગ્રામ", reel && "ઇન્સ્ટાગ્રામ રીલ", fb && "ફેસબુક"].filter(Boolean).join(", ");
   await say(where ? `મંજૂર કર્યો: ${where} પર મુકાય છે` : "મંજૂર કર્યો; ઇન્સ્ટાગ્રામ કે ફેસબુક જોડાયેલું નથી, તેથી હજી નહીં મુકાય");
-  if (!ig && !fb) return refresh();
+  if (!ig && !fb && !reel) return refresh();
   const notes: string[] = [];
   await Promise.all([
     ig && postSet(set, (line) => say(line, "instagram")).then(async (url) => {
@@ -253,6 +254,13 @@ export async function approveInsta(id: string) {
     }, async (e) => {
       notes.push(`ઇન્સ્ટાગ્રામે ના પાડી: ${e instanceof Error ? e.message : e}`);
       await say(`ન મુકાયો. ${notes.at(-1)}`, "instagram");
+    }),
+    reel && postReel(set, (line) => say(line, "instagram")).then(async (url) => {
+      set.reelUrl = url;
+      await say(`રીલ મુકાઈ ગઈ: ${url}`, "instagram");
+    }, async (e) => {
+      notes.push(`ઇન્સ્ટાગ્રામે રીલની ના પાડી: ${e instanceof Error ? e.message : e}`);
+      await say(`રીલ ન મુકાઈ. ${notes.at(-1)}`, "instagram");
     }),
     fb && postSetFacebook(set, (line) => say(line, "facebook")).then(async (url) => {
       set.fbUrl = url;
@@ -268,6 +276,18 @@ export async function approveInsta(id: string) {
   set.note = notes.join(" · ").slice(0, 300);
   await saveSet(sql, set);
   if (set.postUrl) revalidatePath("/insta");
+  refresh();
+}
+/** "don't post the Reel": the set goes up as a carousel only */
+export async function dropReel(id: string) {
+  const { sql, set, say } = await instaSet(id);
+  if (set?.reel && !set.reelUrl && set.state !== "posted") {
+    const file = set.reel.replace(/^\/media\//, "");
+    set.reel = null;
+    await saveSet(sql, set);
+    await del(file).catch(() => {});
+    await say("“રીલ ન મૂકો”: ફક્ત કાર્ડ મુકાશે");
+  }
   refresh();
 }
 export async function skipInsta(id: string) {

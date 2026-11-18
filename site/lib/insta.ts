@@ -36,6 +36,11 @@ export interface InstaSet {
   madeAt: string; postedAt: string | null; postUrl: string | null; note: string;
   /** its post on the paper's Facebook Page (lib/facebook.ts), when it went up there */
   fbUrl: string | null;
+  /** the cards as a Reel with the headlines read out (engine/reel.ts), in the photo store; null: none, or the editor
+   *  chose not to post it */
+  reel?: string | null;
+  /** the Reel's post on Instagram, when it went up */
+  reelUrl?: string | null;
 }
 
 /** the last card's photo, one for each section: free photos from Wikimedia Commons, credited (the user picks them by eye) */
@@ -169,6 +174,7 @@ const setOf = (r: Record<string, unknown>): InstaSet => ({
   cards: r.cards as Card[], caption: r.caption as string, image: (r.image as string) ?? null,
   madeAt: new Date(r.made_at as string).toISOString(), postedAt: r.posted_at ? new Date(r.posted_at as string).toISOString() : null,
   postUrl: (r.post_url as string) ?? null, note: (r.note as string) ?? "", fbUrl: (r.fb_url as string) ?? null,
+  reel: (r.reel as string) ?? null, reelUrl: (r.reel_url as string) ?? null,
 });
 
 /** the latest sets, newest first (the editor page shows the current edition's and the last few posted) */
@@ -188,11 +194,13 @@ export async function getSet(sql: Sql, id: string): Promise<InstaSet | null> {
 export async function saveSet(sql: Sql, s: InstaSet) {
   await prepared(sql);
   await sql.query(
-    `insert into insta_sets (id, edition, tier, state, cards, caption, image, made_at, posted_at, post_url, note, fb_url)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+    `insert into insta_sets (id, edition, tier, state, cards, caption, image, made_at, posted_at, post_url, note, fb_url, reel, reel_url)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
      on conflict (id) do update set state = excluded.state, cards = excluded.cards, caption = excluded.caption, image = excluded.image,
-       posted_at = excluded.posted_at, post_url = excluded.post_url, note = excluded.note, fb_url = excluded.fb_url`,
-    [s.id, s.edition, s.tier, s.state, JSON.stringify(s.cards), s.caption, s.image, s.madeAt, s.postedAt, s.postUrl, s.note, s.fbUrl ?? null]);
+       posted_at = excluded.posted_at, post_url = excluded.post_url, note = excluded.note, fb_url = excluded.fb_url,
+       reel = excluded.reel, reel_url = excluded.reel_url`,
+    [s.id, s.edition, s.tier, s.state, JSON.stringify(s.cards), s.caption, s.image, s.madeAt, s.postedAt, s.postUrl, s.note, s.fbUrl ?? null,
+     s.reel ?? null, s.reelUrl ?? null]);
 }
 
 // ---- what goes up

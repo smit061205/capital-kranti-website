@@ -22,6 +22,7 @@ import { tell } from "../lib/telegram.ts";
 import { count } from "../lib/write.ts";
 import type { Story, Tier } from "../lib/types.ts";
 import { askGemini, type GeminiImage } from "./ai.ts";
+import { makeReel } from "./reel.ts";
 import { UA as WIKI_UA, commonsAt, commonsPictures, subjectOf } from "./wikiphoto.ts";
 
 type Sql = NeonQueryFunction<false, false>;
@@ -184,6 +185,23 @@ async function render(sql: Sql, sets: InstaSet[], report = true) {
       const name = `instagram/${set.edition.slice(0, 10)}/${set.id}-${createHash("sha256").update(tall).digest("hex").slice(0, 10)}.jpg`;
       await put(name, tall, { access: "private", contentType: "image/jpeg", addRandomSuffix: false, allowOverwrite: true });
       await count(sql, "insta_upload");
+      // the same cards as a Reel, with the headlines read out (engine/reel.ts); a set without one still goes as a carousel
+      const oldReel = set.reel ?? null;
+      set.reel = null;
+      if (progress && report) await step(`રીલ બની રહી છે: ${sectionName(set.tier, "gu")}`, progress.total - (sets.length - i));
+      try {
+        const reel = await makeReel(sql, set, shots, (line) => log(line));
+        if (reel) {
+          const rname = `instagram/${set.edition.slice(0, 10)}/${set.id}-${createHash("sha256").update(reel.mp4).digest("hex").slice(0, 10)}.mp4`;
+          await put(rname, reel.mp4, { access: "private", contentType: "video/mp4", addRandomSuffix: false, allowOverwrite: true });
+          await count(sql, "insta_upload");
+          set.reel = `/media/${rname}`;
+          log(`${sectionName(set.tier, "gu")}: રીલ તૈયાર (${num(Math.round(reel.seconds), "gu")} સેકન્ડ, ${Math.round(reel.mp4.length / 1024)} KB${reel.voiced ? ", અવાજ સાથે" : ", અવાજ વિના"})`);
+        }
+      } catch (e) {
+        log(`${sectionName(set.tier, "gu")}: રીલ ન બની (${(e as Error).message.slice(0, 160)}); કેરોસેલ તો મુકાશે`);
+      }
+      if (oldReel && oldReel !== set.reel) await del(oldReel.replace(/^\/media\//, "")).catch(() => {});
       const old = set.image;
       set.image = `/media/${name}`;
       set.state = "waiting";
@@ -227,10 +245,11 @@ if (ask) log(`${ask.by || "સંપાદક"}એ માગેલો સેટ 
 const recent = await recentSets(sql, 40);
 
 // the pictures of sets more than four days old leave the store (Instagram keeps its own copies)
-for (const s of recent.filter((s) => s.image && Date.now() - new Date(s.madeAt).getTime() > 4 * 86_400_000)) {
-  await del(s.image!.replace(/^\/media\//, "")).catch(() => {});
+for (const s of recent.filter((s) => (s.image || s.reel) && Date.now() - new Date(s.madeAt).getTime() > 4 * 86_400_000)) {
+  for (const f of [s.image, s.reel]) if (f) await del(f.replace(/^\/media\//, "")).catch(() => {});
   s.image = null;
-  await sql.query(`update insta_sets set image = null where id = $1`, [s.id]);
+  s.reel = null;
+  await sql.query(`update insta_sets set image = null, reel = null where id = $1`, [s.id]);
 }
 // only a set still waiting goes, never one the editor put up while this run was at work: the run's copy of the sets is
 // from its start, minutes earlier, and saving it whole would write over a set posted since (15 Nov)

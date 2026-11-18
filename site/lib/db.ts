@@ -195,6 +195,23 @@ export async function search(q: string, limit = 30): Promise<Story[]> {
   return rows.map(storyOf);
 }
 
+/** "Ask the newsroom" (lib/ask.ts): the published stories of the last 45 days that best match a question's words, a
+ *  word in the headline counting three times one in the rest (any language of the story) */
+export async function storiesForQuestion(words: string[], limit = 6): Promise<Story[]> {
+  if (sampleOn()) return sample().stories.map((s) => ({ s, n: words.filter((w) => (s.headline + s.deck + s.body).includes(w)).length }))
+    .filter((x) => x.n).sort((a, b) => b.n - a.n).slice(0, limit).map((x) => x.s);
+  const sql = db();
+  if (!sql || !words.length) return [];
+  const score = words.map((_, i) => `(case when headline ilike $${i + 1} then 3 else 0 end + case when (deck || ' ' || body || ' ' || coalesce(en::text, '') || ' ' || coalesce(hi::text, '')) ilike $${i + 1} then 1 else 0 end)`).join(" + ");
+  const rows = await sql.query(
+    `select * from (select ${COLUMNS}, ${score} as score from stories where status = 'published' and published_at > now() - interval '45 days') x
+     where score > 0 order by score desc, published_at desc limit ${Math.min(limit, 10)}`,
+    words.map((w) => `%${w.replace(/[%_\\]/g, (c) => "\\" + c)}%`));
+  // only those that match about as well as the best (a story sharing one common word with the question isn't one)
+  const best = Number(rows[0]?.score ?? 0);
+  return rows.filter((r) => Number(r.score) >= Math.max(2, best / 3)).map(storyOf);
+}
+
 export async function issueOn(date: string): Promise<Issue | null> {
   if (sampleOn()) return sample().issues.find((i) => i.date === date) ?? null;
   const sql = db();

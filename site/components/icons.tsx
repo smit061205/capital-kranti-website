@@ -18,4 +18,5 @@ export const Clock = () => <svg {...P}><circle cx="12" cy="12" r="8.5" /><path d
 export const Archive = () => <svg {...P}><rect x="3" y="4" width="18" height="4" rx="1" /><path d="M5 8v12h14V8M10 12h4" /></svg>;
 export const Speaker = () => <svg {...P}><path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z" /><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a7.5 7.5 0 0 1 0 11" /></svg>;
 export const StopIcon = () => <svg {...P}><rect x="7" y="7" width="10" height="10" rx="1.5" /></svg>;
+export const AskIcon = () => <svg {...P}><path d="M4 5h16v11H9l-5 4z" /><path d="M9.5 9.2a2.5 2.5 0 1 1 3.4 2.3c-.6.3-.9.7-.9 1.3M12 14.6v.1" /></svg>;
 export const LockIcon = () => <svg {...P}><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>;
