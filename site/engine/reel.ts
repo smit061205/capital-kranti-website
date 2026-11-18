@@ -25,10 +25,11 @@ export function ffmpegHere(): boolean {
   return has();
 }
 
-/** what is said over each card: the headlines, the section's name before the first, the site after the last */
+/** what is said over each card: the headlines, the section's name before the first (with commas, so the reader doesn't
+ *  stop there as long as between cards, where the reading is cut), the site after the last */
 export function reelWords(set: Pick<InstaSet, "tier" | "cards">): string[] {
   const section = sectionName(set.tier, "gu");
-  const lines = set.cards.map((c, i) => `${i ? "" : `કેપિટલ ક્રાંતિ. ${section}ના મુખ્ય સમાચાર. `}${c.headline.replace(/[.।]\s*$/, "")}.`);
+  const lines = set.cards.map((c, i) => `${i ? "" : `કેપિટલ ક્રાંતિ, ${section}ના મુખ્ય સમાચાર, `}${c.headline.replace(/[.।]\s*$/, "")}.`);
   lines.push(`${LANDMARKS[set.tier].title}, કેપિટલ ક્રાંતિની વેબસાઇટ પર. લિંક પ્રોફાઇલમાં.`);
   return lines;
 }
@@ -123,14 +124,17 @@ export async function makeReel(sql: NeonQueryFunction<false, false> | null, set:
       writeFileSync(fg, shot);
       writeFileSync(bg, await sharp(shot).resize(W, H, { fit: "cover" }).blur(48).modulate({ brightness: 0.55 }).png().toBuffer());
       // a card stays while its words are read, and a breath after; 3.5 seconds without a voice
-      const d = parts ? Math.min(10, Math.max(3, +(parts[i][1] - parts[i][0] + 0.5).toFixed(2))) : 3.5;
+      // (no upper limit: the first card's words, with the paper's and section's names before the headline, went past
+      // the 10 seconds it had and were cut, 19 Nov)
+      const d = parts ? Math.max(3, +(parts[i][1] - parts[i][0] + 0.5).toFixed(2)) : 3.5;
       lengths.push(d);
       args.push("-loop", "1", "-framerate", "30", "-t", String(d), "-i", bg, "-loop", "1", "-framerate", "30", "-t", String(d), "-i", fg);
       const b = input++, f = input++;
-      // the card grows by 3.5% over its time (scaled each frame and cut back to its size: smoother than zoompan)
+      // the first card starts without fading in: Instagram makes the Reel's cover from its first picture, which was
+      // black (19 Nov). The card grows by 3.5% over its time (scaled each frame and cut back to its size: smoother than zoompan)
       graph.push(`[${f}:v]scale=w='trunc(${W}*(1+0.035*t/${d})/2)*2':h=-2:eval=frame,crop=${W}:${CARD_H},setsar=1[f${i}]`,
                  `[${b}:v]setsar=1[b${i}]`,
-                 `[b${i}][f${i}]overlay=0:${(H - CARD_H) / 2}:shortest=1,fps=30,format=yuv420p,fade=t=in:st=0:d=0.2,fade=t=out:st=${(d - 0.2).toFixed(2)}:d=0.2[v${i}]`);
+                 `[b${i}][f${i}]overlay=0:${(H - CARD_H) / 2}:shortest=1,fps=30,format=yuv420p,${i ? "fade=t=in:st=0:d=0.2," : ""}fade=t=out:st=${(d - 0.2).toFixed(2)}:d=0.2[v${i}]`);
       if (parts) {
         args.push("-ss", parts[i][0].toFixed(3), "-t", (parts[i][1] - parts[i][0]).toFixed(3), "-i", wav);
         graph.push(`[${input++}:a]aresample=48000,aformat=sample_fmts=fltp:channel_layouts=mono,adelay=250:all=1,apad,atrim=0:${d},asetpts=PTS-STARTPTS[a${i}]`);
