@@ -66,8 +66,12 @@ sets a busy one aside for 10 minutes rather than retrying it):
    sources' facts only. Checked: numbers by code (`numbersNotIn`), no sentence twice, no
    copied wording, then every claim by a **different** free model. One rewrite naming
    the problems; national and world stories get English and Hindi (numbers checked).
-5. **Publish** (`publish.ts`): live at once, with no approval (the user, 30 Oct), sensitive
-   stories too (they get no file photo). A story still failing its checks after its one
+5. **Publish** (`publish.ts`): live at once after its checks, except a **sensitive** story or
+   one of importance `approveFrom` (9) or more (`lib/config.ts`; the user, 19 Nov): it waits
+   (`status = 'held'`) for the editor's Publish / Don't, on his page's news tab and in Telegram
+   (`lib/telegram.ts askApproval`), while its English, Hindi and photo are made; approved, it
+   goes up dated then, with its breaking alert (`lib/editor.ts decideStory`). Sensitive stories
+   get no file photo. A story still failing its checks after its one
    rewrite doesn't go up; it's tried up to three times, then dropped. Photos from official
    sources; when there's none, a file photo of the story's subject (a public figure, place
    or thing) from Wikimedia Commons, free licence only, credited (`engine/wikiphoto.ts`);

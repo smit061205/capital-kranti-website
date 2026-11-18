@@ -3,6 +3,10 @@
 // with (tried in order), and the free plans' daily ceilings it keeps under.
 export const WEBSITE = {
   url: "https://www.capitalkranti.co.in",
+  // the editor approves before it goes up (the user, 19 Nov, for the Buildathon: "important + sensitive wait"): a sensitive
+  // story (deaths, accidents, crime, allegations, communal matters: engine/triage.ts) and any story this important or more
+  // (9.5 is breaking news with an alert to phones; 7.5 a top story); the rest go up after their fact check, as since 30 Oct
+  approveFrom: 9,
   freeModels: ["google/gemma-4-31b-it:free", "google/gemma-4-26b-a4b-it:free"],
   // Gemma through Google's own API with the paper's free key (GOOGLE_AI_KEY), tried first;
   // the daily ceiling stays under the free tier's (14,400 a day for each Gemma, AI Studio 29 Oct; it was 1,400 from an
