@@ -4,7 +4,7 @@
 import { cookies } from "next/headers";
 import { refresh, revalidatePath } from "next/cache";
 import { classifiedPaths, listPaths, renew as renewPages, storyPaths } from "@/lib/renew.ts";
-import { db } from "@/lib/db.ts";
+import { db, storyById } from "@/lib/db.ts";
 import { redirect } from "next/navigation";
 import { addFeature, addStory, approveAll, COOKIE, decideFeature, decideStory, editorOf, restoreStory, saveFeature, saveStory, setPaused, withdrawStory, type NewFeature, type NewStory, type Words } from "@/lib/editor.ts";
 import { help, type Draft, type Help } from "@/lib/aihelp.ts";
@@ -13,7 +13,10 @@ import { dropLeader, findLeader, saveLeader, type FoundLeader, type Leader } fro
 import { addAd, dropAd } from "@/lib/classifieds.ts";
 import { addBanner, dropBanner } from "@/lib/banners.ts";
 import { askInsta, captionFor, instaLog, cleanTiers, cleanTimes, getSet, instaSettings, MIN_KEPT, saveInstaSettings, saveSet } from "@/lib/insta.ts";
-import { del } from "@vercel/blob";
+import { del, head } from "@vercel/blob";
+import { generateClientTokenFromReadWriteToken } from "@vercel/blob/client";
+import { CLIP, CLIP_EXT, clipCaption, getClip, saveClip } from "@/lib/clips.ts";
+import { count } from "@/lib/write.ts";
 import { instagramOn, postReel, postSet } from "@/lib/instagram.ts";
 import { facebookOn, postSetFacebook } from "@/lib/facebook.ts";
 import { POSTING_MS } from "@/lib/instamend.ts";
@@ -293,5 +296,95 @@ export async function dropReel(id: string) {
 export async function skipInsta(id: string) {
   const { sql, set, say } = await instaSet(id);
   if (set && set.state !== "posted") { set.state = "expired"; await saveSet(sql, set); await say("“આ સેટ ન મૂકો”: હટાવ્યો"); }
+  refresh();
+}
+
+// Reels from the paper's own videos (lib/clips.ts, ClipForm.tsx, engine/clips.ts)
+
+/** a one-time pass to upload a video straight from the phone to the photo store (a video is far more than the 4.5 MB a
+ *  request to the site may carry), good for an hour; null past the day's CLIP.perDay */
+export async function clipPass(ext: string): Promise<{ id: string; path: string; token: string } | { error: "day" | "type" }> {
+  const { sql } = await signedIn();
+  const e = ext.toLowerCase();
+  if (!CLIP_EXT.test(e)) return { error: "type" };
+  if (sql && (await count(sql, "clip_upload", 0)) >= CLIP.perDay) return { error: "day" };
+  const id = `clip-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const day = new Date(Date.now() + 5.5 * 3600_000).toISOString().slice(0, 10);
+  const path = `clips/${day}/${id}.${e}`;
+  const token = await generateClientTokenFromReadWriteToken({
+    pathname: path, allowedContentTypes: ["video/*"], maximumSizeInBytes: CLIP.maxMB * 1024 * 1024, validUntil: Date.now() + 60 * 60_000, addRandomSuffix: false,
+  });
+  return { id, path, token };
+}
+
+/** the uploaded video recorded, with its story's headline and who filmed it: the runner makes the Reel within minutes */
+export async function addClip(x: { id: string; path: string; storyId: string; headline: string; credit: string; own: boolean }): Promise<{ ok: true } | { error: string }> {
+  const { sql, who } = await signedIn();
+  if (!sql) return { error: "no database" };
+  const id = String(x.id), path = String(x.path);
+  if (!/^clip-[a-z0-9]+$/.test(id) || !new RegExp(`^clips/\\d{4}-\\d{2}-\\d{2}/${id}\\.(mp4|mov|webm|3gp|m4v|mkv)$`).test(path)) return { error: "path" };
+  if (!x.own) return { error: "own" };
+  const headline = String(x.headline ?? "").replace(/\s+/g, " ").trim().slice(0, 160);
+  const credit = String(x.credit ?? "").replace(/\s+/g, " ").trim().slice(0, 60) || "કેપિટલ ક્રાંતિ";
+  if (!headline) return { error: "headline" };
+  if (!(await head(path).catch(() => null))) return { error: "upload" };
+  const story = x.storyId ? await storyById(String(x.storyId)).catch(() => null) : null;
+  await saveClip(sql, { id, storyId: story?.id ?? null, headline, credit, caption: clipCaption(headline, credit, story?.deck ?? undefined), state: "making",
+                        note: "", raw: path, reel: null, by: who, madeAt: new Date().toISOString(), postedAt: null, reelUrl: null });
+  await Promise.all([count(sql, "clip_upload"), instaLog(sql, who, `વીડિયો અપલોડ કર્યો (“${headline.slice(0, 50)}”, વીડિયો: ${credit}): રીલ બનશે`)]);
+  refresh();
+  return { ok: true };
+}
+
+async function clipOf(id: string) {
+  const { sql, who } = await signedIn();
+  const clip = sql ? await getClip(sql, id) : null;
+  const say = (line: string, by = who) => (sql && clip ? instaLog(sql, by, `વીડિયોની રીલ “${clip.headline.slice(0, 40)}”: ${line}`) : Promise.resolve());
+  return { sql: sql!, clip, say };
+}
+/** posted on Instagram as a Reel, shown in the feed too; pressed again while it goes up, not twice */
+export async function approveClip(id: string) {
+  const { sql, clip, say } = await clipOf(id);
+  if (!clip?.reel || !["waiting", "failed", "approved"].includes(clip.state) || clip.reelUrl) return refresh();
+  if (clip.state === "approved" && clip.postedAt && Date.now() - new Date(clip.postedAt).getTime() < POSTING_MS) {
+    await say("ફરી દબાવ્યું, પણ મુકાઈ જ રહી છે: બે વાર નહીં મુકાય");
+    return refresh();
+  }
+  if (!instagramOn()) { await say("ઇન્સ્ટાગ્રામ જોડાયેલું નથી"); return refresh(); }
+  clip.state = "approved";
+  clip.note = "";
+  clip.postedAt = new Date().toISOString();
+  await saveClip(sql, clip);
+  await say("મંજૂર કરી: ઇન્સ્ટાગ્રામ પર મુકાય છે");
+  try {
+    clip.reelUrl = await postReel({ reel: clip.reel, caption: clip.caption, madeAt: clip.madeAt }, (line) => say(line, "instagram"));
+    clip.state = "posted";
+    await say(`મુકાઈ ગઈ: ${clip.reelUrl}`, "instagram");
+  } catch (e) {
+    clip.state = "failed";
+    clip.postedAt = null;
+    clip.note = `ઇન્સ્ટાગ્રામે ના પાડી: ${e instanceof Error ? e.message : e}`.slice(0, 300);
+    await say(`ન મુકાઈ. ${clip.note}`, "instagram");
+  }
+  await saveClip(sql, clip);
+  refresh();
+}
+export async function captionClip(id: string, f: FormData) {
+  const { sql, clip, say } = await clipOf(id);
+  const caption = String(f.get("caption") ?? "").replace(/\r\n/g, "\n").trim().slice(0, 2200);
+  if (clip && caption && clip.state !== "posted") { clip.caption = caption; await saveClip(sql, clip); await say("શબ્દો બદલ્યા"); }
+  refresh();
+}
+/** not posted: the video and the Reel leave the store */
+export async function skipClip(id: string) {
+  const { sql, clip, say } = await clipOf(id);
+  if (clip && clip.state !== "posted" && clip.state !== "approved") {
+    for (const f of [clip.raw, clip.reel]) if (f) await del(f.replace(/^\/media\//, "")).catch(() => {});
+    clip.state = "expired";
+    clip.raw = null;
+    clip.reel = null;
+    await saveClip(sql, clip);
+    await say("“ન મૂકો”: હટાવી");
+  }
   refresh();
 }

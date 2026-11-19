@@ -1,6 +1,6 @@
 // Instagram's own watcher (.github/workflows/site-insta.yml), apart from the news engine (the user, 4 Nov: "why is insta
 // tied to 15 minute runs"): every 20 seconds it looks whether there's work, a set the editor asked for, a set the editor
-// changed, or an edition due at the editor's times, and runs engine/insta.ts for it at once (and, with nothing to do, the
+// changed, a video of his to make into a Reel (engine/clips.ts), or an edition due at the editor's times, and runs engine/insta.ts for it at once (and, with nothing to do, the
 // shared pictures of stories without a photo: engine/share.ts), a fresh process each time
 // so it runs main's latest code. Ends by itself after the seconds it's given.
 // Run: node --experimental-strip-types --no-warnings site/engine/instawatch.ts 600
@@ -21,8 +21,12 @@ const SHARE = fileURLToPath(new URL("./share.ts", import.meta.url));
  *  minutes of a run, so a set whose pictures keep failing isn't tried every 20 seconds) */
 async function work(): Promise<"ask" | "more" | null> {
   const [r] = await sql!.query(`select exists (select 1 from state where key = 'insta_ask') as ask,
-    exists (select 1 from insta_sets where state = 'making') as making`);
-  if (r?.ask) return "ask";
+    exists (select 1 from insta_sets where state = 'making') as making,
+    exists (select 1 from insta_clips where state = 'making') as clip`).catch(() =>
+    // before the clips' table is made (lib/schema.ts, by the first page or run that needs it)
+    sql!.query(`select exists (select 1 from state where key = 'insta_ask') as ask, exists (select 1 from insta_sets where state = 'making') as making, false as clip`));
+  // an uploaded video is made into a Reel at once, like a set the editor asked for (lib/clips.ts)
+  if (r?.ask || r?.clip) return "ask";
   if (r?.making) return "more";
   const s = await instaSettings(sql!);
   const due = s.auto && s.times.length ? editionNow(s.times) : null;

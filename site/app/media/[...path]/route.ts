@@ -17,6 +17,28 @@ async function original(name: string, req: Request): Promise<ArrayBuffer | null>
   return got ? new Response(got.stream).arrayBuffer() : null;
 }
 
+/** bytes start to end (both counted) of a stream, passed on as they come */
+function bytes(stream: ReadableStream<Uint8Array>, start: number, end: number): ReadableStream<Uint8Array> {
+  const reader = stream.getReader();
+  let at = 0;
+  return new ReadableStream<Uint8Array>({
+    async pull(out) {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) { out.close(); return; }
+        const from = at;
+        at += value.length;
+        if (at <= start) continue;
+        const a = Math.max(0, start - from), b = Math.min(value.length, end + 1 - from);
+        if (b > a) out.enqueue(value.subarray(a, b));
+        if (at > end) { out.close(); reader.cancel().catch(() => {}); }
+        return;
+      }
+    },
+    cancel() { reader.cancel().catch(() => {}); },
+  });
+}
+
 const TYPES: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", pdf: "application/pdf", mp4: "video/mp4" };
 
 export async function GET(req: Request, { params }: { params: Promise<{ path: string[] }> }) {
@@ -44,19 +66,19 @@ export async function GET(req: Request, { params }: { params: Promise<{ path: st
     const small = await sharp(file).resize({ width: w, withoutEnlargement: true }).webp({ quality: 76 }).toBuffer();
     return new Response(new Uint8Array(small), { headers: { "content-type": "image/webp", "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable" } });
   }
-  // an Instagram Reel (engine/reel.ts, under 4.3 MB): a phone's player asks for it in byte ranges, and an iPhone plays a
-  // video only when they're answered
+  // a Reel (engine/reel.ts, under 4.3 MB; from the paper's own video, engine/clips.ts, up to about 30 MB): a phone's
+  // player asks for it in byte ranges, and an iPhone plays a video only when they're answered. The range is passed on
+  // as the store sends it, never kept whole (a function's answer may not be over 4.5 MB unless it's passed on like this)
   const range = m[1] === "mp4" ? req.headers.get("range")?.match(/^bytes=(\d*)-(\d*)$/) : null;
   if (range) {
     const got = await get(name, { access: "private" }).catch(() => null);
-    if (!got) return new Response("not found", { status: 404 });
-    const all = new Uint8Array(await new Response(got.stream).arrayBuffer());
-    const size = all.length;
+    if (!got || got.statusCode !== 200) return new Response("not found", { status: 404 });
+    const size = got.blob.size;
     const start = range[1] ? Number(range[1]) : Math.max(0, size - Number(range[2]));
     const end = range[1] && range[2] ? Math.min(Number(range[2]), size - 1) : size - 1;
-    if (start >= size || start > end) return new Response(null, { status: 416, headers: { "content-range": `bytes */${size}` } });
-    return new Response(all.slice(start, end + 1), { status: 206, headers: {
-      "content-type": "video/mp4", "content-range": `bytes ${start}-${end}/${size}`, "accept-ranges": "bytes",
+    if (start >= size || start > end) { got.stream.cancel().catch(() => {}); return new Response(null, { status: 416, headers: { "content-range": `bytes */${size}` } }); }
+    return new Response(bytes(got.stream, start, end), { status: 206, headers: {
+      "content-type": "video/mp4", "content-range": `bytes ${start}-${end}/${size}`, "content-length": String(end - start + 1), "accept-ranges": "bytes",
       "cache-control": "public, max-age=31536000, s-maxage=31536000, immutable" } });
   }
   const got = await get(name, { access: "private" }).catch(() => null);
