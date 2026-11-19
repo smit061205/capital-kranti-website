@@ -196,3 +196,11 @@ button.ghost:disabled, .yes:disabled { opacity: .6; cursor: wait }
 .log b { font-weight: 600; overflow-wrap: anywhere }
 .log span { overflow-wrap: anywhere }
 @media (max-width: 600px) { .log li { grid-template-columns: 4.5em 1fr } .log b { display: none } }
+
+/* a Reel from the editor's own video (ClipForm.tsx) */
+.field input:not([type=file]) { min-height: 48px; padding: 0 12px; font: 400 18px var(--ui); color: var(--ink); background: var(--bg); border: 2px solid var(--rule-strong); border-radius: var(--r) }
+.field input[type=file] { font: 400 16px var(--ui); color: var(--ink); max-width: 100% }
+.field select { max-width: 100%; font-weight: 400 }
+.form label.check { flex-direction: row; align-items: flex-start; gap: 10px; font-weight: 600; font-size: 16px }
+.check input { width: 22px; height: 22px; flex: none; margin: 2px 0 0 }
+.running progress { vertical-align: middle; width: 140px; margin-right: 6px }

@@ -213,6 +213,22 @@ export const SCHEMA = [
   `alter table insta_sets add column if not exists reel text`,
   `alter table insta_sets add column if not exists reel_url text`,
   `create index if not exists insta_sets_edition on insta_sets (edition)`,
+  // Reels from the paper's own videos (lib/clips.ts, engine/clips.ts; the user, 19 Nov)
+  `create table if not exists insta_clips (
+     id text primary key,
+     story_id text,
+     headline text not null,
+     credit text not null,
+     caption text not null,
+     state text not null,                           -- making | waiting | approved | posted | failed | expired
+     note text not null default '',
+     raw text,                                      -- the video as uploaded, until the Reel is made
+     reel text,                                     -- the Reel, /media/instagram/<date>/clip-….mp4
+     by_name text not null default '',
+     made_at timestamptz not null default now(),
+     posted_at timestamptz,
+     reel_url text
+   )`,
   // how many times a story's English or Hindi failed (engine/run.ts translations(): 4 Nov, two that kept failing took
   // five minutes of every round and no news was written)
   `alter table stories add column if not exists translate_fails int not null default 0`,

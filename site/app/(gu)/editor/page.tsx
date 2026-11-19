@@ -11,7 +11,7 @@ import Birthday from "./Birthday.tsx";
 import LeaderForm from "./LeaderForm.tsx";
 import Insta from "./Insta.tsx";
 import { addAdAction, approveAllStories, approveStory, dropAdAction, dropBannerAction, dropLeaderAction, pauseEngine, publishFeature, putBackStory, rejectStory, removeFeature, removeStory } from "./actions.ts";
-import { db } from "@/lib/db.ts";
+import { db, latestStories } from "@/lib/db.ts";
 import { COOKIE, desk, editorOf, findFeatures, findStories, PAGE, signInReady, type DeskStory, type Found, type Show } from "@/lib/editor.ts";
 import { beatName, isBeat } from "@/lib/flagship.ts";
 import { birthdays, draftEmail, leaders } from "@/lib/leaders.ts";
@@ -19,6 +19,7 @@ import { ads, DAYS, KINDS, KIND_NAMES } from "@/lib/classifieds.ts";
 import { banners, SLOT_NAMES } from "@/lib/banners.ts";
 import BannerForm from "./BannerForm.tsx";
 import { mendSets } from "@/lib/instamend.ts";
+import { recentClips } from "@/lib/clips.ts";
 import { DEFAULT_SETTINGS, instaAsk, instaLogs, instaNews, instaProgress, instaSettings, recentSets } from "@/lib/insta.ts";
 import { instagramWho } from "@/lib/instagram.ts";
 import { facebookWho } from "@/lib/facebook.ts";
@@ -43,7 +44,10 @@ type Q = { lang?: string; signin?: string; q?: string; show?: string; n?: string
 async function instaExtra(sql: ReturnType<typeof db>) {
   const [settings, ask, news, progress, who, page, logs] = await Promise.all([sql ? instaSettings(sql) : DEFAULT_SETTINGS, sql ? instaAsk(sql) : null,
     sql ? instaNews(sql) : null, sql ? instaProgress(sql) : null, instagramWho(), facebookWho(), sql ? instaLogs(sql).catch(() => []) : []]);
-  return { settings, ask, news, progress, who, page, logs };
+  // the Reels from his own videos, and the latest stories to put one with (lib/clips.ts)
+  const [clips, stories] = await Promise.all([sql ? recentClips(sql, 8).catch(() => []) : [],
+    latestStories(40).then((xs) => xs.map((x) => ({ id: x.id, headline: x.headline }))).catch(() => [])]);
+  return { settings, ask, news, progress, who, page, logs, clips, stories };
 }
 
 export default async function Editor({ searchParams }: { searchParams: Promise<Q> }) {

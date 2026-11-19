@@ -24,7 +24,14 @@ The paper's website and its Aavtikal section, with their own news engine. Split 
   function log says why.
 - **Reels** (19 Nov): each Instagram set is also made into a Reel with the headlines read out (`engine/reel.ts`, on the
   Instagram runner, which installs ffmpeg the first time); the editor sees it on his Instagram tab, and his approval
-  posts it with the carousel (`lib/instagram.ts postReel`). Not yet seen going up on Instagram: check the first set's log.
+  posts it with the carousel (`lib/instagram.ts postReel`). The first went up on 19 Nov.
+  The whole Reel is read in one request and cut at the pauses between lines (the cards' separate requests hit Gemini's
+  free rate limit); the first card is the cover (no fade from black).
+- **Reels from the paper's own videos** (19 Nov): on the Instagram tab the editor picks a story, says who filmed it and
+  ticks that the paper filmed it or has written permission (other outlets' clips aren't used: credit isn't permission),
+  and chooses a video; it goes straight from the phone to the photo store (`clipPass`, a one-time pass), the runner makes
+  a 9:16 Reel with the headline and "વીડિયો: …" over it and its own sound (`engine/clips.ts`, at most 90 s), and he posts
+  it from the tab (`approveClip`). `lib/clips.ts`, table `insta_clips`; at most 10 videos a day, 300 MB each.
 - **Ask the newsroom** (19 Nov, `/ask`): questions answered from the paper's own stories with links, through the Vercel
   AI SDK and Gemma 4 26B on `GOOGLE_AI_KEY` (README). The AI SDK packages are pinned to versions two weeks old.
 

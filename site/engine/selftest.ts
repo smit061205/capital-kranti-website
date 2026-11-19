@@ -14,6 +14,7 @@ import { keySet, placeTier, similarity, SAME_EVENT } from "./triage.ts";
 import { coverTier } from "./cover.ts";
 import { commonsAt } from "./wikiphoto.ts";
 import { cutsAt } from "./reel.ts";
+import { clipArgs } from "./clips.ts";
 import { authorName, creditText } from "../lib/photo.ts";
 import { frontTop, ranked, sameStory, topScore } from "../lib/rank.ts";
 import type { Story } from "../lib/types.ts";
@@ -227,5 +228,14 @@ test("a Reel's one reading cut at the pauses between lines, not after commas", (
   assert.deepEqual(cutsAt(25, [10, 10, 20, 10], pauses), [5, 10, 20]);
   // with no pauses, by the letters
   assert.deepEqual(cutsAt(20, [10, 10, 20], []), [5, 10]);
+});
+test("a video Reel: a sideways phone video turned here with its mark taken off, a wide one high up", () => {
+  const side = clipArgs("in.mov", "w.png", "o.mp4", { seconds: 200, width: 1080, height: 1920, sound: true, turn: 90 }).join(" ");
+  assert.match(side, /-display_rotation 0 .*transpose=cclock/);
+  assert.match(side, /-t 90\.00/);
+  const wide = clipArgs("in.mp4", "w.png", "o.mp4", { seconds: 10, width: 1920, height: 1080, sound: false, turn: 0 }).join(" ");
+  assert.match(wide, /overlay=\(W-w\)\/2:330/);
+  assert.match(wide, /anullsrc/);
+  assert.doesNotMatch(clipArgs("in.mov", "w.png", "o.mp4", { seconds: 5, width: 1080, height: 1920, sound: true, turn: 90 }, 3500, true).join(" "), /display_rotation|transpose/);
 });
 console.log(`\n${n} checks passed (${SOURCES.length} sources listed)`);

@@ -23,6 +23,7 @@ import { count } from "../lib/write.ts";
 import type { Story, Tier } from "../lib/types.ts";
 import { askGemini, type GeminiImage } from "./ai.ts";
 import { makeReel } from "./reel.ts";
+import { makeClips } from "./clips.ts";
 import { UA as WIKI_UA, commonsAt, commonsPictures, subjectOf } from "./wikiphoto.ts";
 
 type Sql = NeonQueryFunction<false, false>;
@@ -324,6 +325,9 @@ if (toMake.length) {
     for (const s of toMake) { s.note = `ચિત્રો બન્યાં નહીં; આગલા ચક્રમાં ફરી પ્રયાસ થશે.`; await saveSet(sql, s); }
   }
 }
+
+// Reels from the editor's own videos (engine/clips.ts)
+await makeClips(sql, log).catch((e) => log(`વીડિયોની રીલ: ${e instanceof Error ? e.message : e}`));
 
 for (const { made, left } of told.filter((r) => r.made.length)) {
   await tell(`<b>ઇન્સ્ટાગ્રામ: ${editionName(made[0].edition)}</b>\n${made.map((s) => `${sectionName(s.tier, "gu")}: ${s.cards.length} સમાચાર`).join("\n")}` +

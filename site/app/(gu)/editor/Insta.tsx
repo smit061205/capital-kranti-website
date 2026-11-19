@@ -3,7 +3,9 @@
 // photo (the pictures are made again within minutes), the words changed, and the set approved, which puts it up at once.
 // The last few posted, with their links; and the editor's times, sections and whether sets come by themselves.
 import s from "./editor.module.css";
-import { approveInsta, captionInsta, dropInstaCard, dropReel, makeInstaNow, moveInstaCard, nextInstaPhoto, saveInstaTimes, skipInsta } from "./actions.ts";
+import { approveClip, approveInsta, captionClip, captionInsta, dropInstaCard, dropReel, makeInstaNow, moveInstaCard, nextInstaPhoto, saveInstaTimes, skipClip, skipInsta } from "./actions.ts";
+import ClipForm, { type ClipWords } from "./ClipForm.tsx";
+import type { Clip } from "@/lib/clips.ts";
 import { editionName, MAX_TIMES, MIN_KEPT, timeName, type InstaAsk, type InstaLogLine, type InstaNews, type InstaProgress, type InstaSet, type InstaSettings } from "@/lib/insta.ts";
 import Renew from "./Renew.tsx";
 import Press from "./Press.tsx";
@@ -38,6 +40,15 @@ const WORDS = {
     tiers: "કયા વિભાગના સેટ", save: "સાચવો",
     log: "શું થયું: દરેક પગલું (લોગ)",
     working: "થઈ રહ્યું છે…", posting: "મુકાય છે…", asking: "માગી રહ્યા છીએ…", saving: "સચવાય છે…",
+    clip: {
+      title: "તમારા વીડિયોની રીલ", help: "તમે કે અમારા પ્રતિનિધિએ લીધેલો વીડિયો પસંદ કરો: તેના પર સમાચારનું મથાળું, “કેપિટલ ક્રાંતિ” અને “વીડિયો: …” મુકાઈને રીલ બનશે (૨ થી ૫ મિનિટ, પહેલી ૯૦ સેકન્ડ), તેના પોતાના અવાજ સાથે. બીજાં છાપાં કે ચેનલના વીડિયો ન વાપરો: તેમનું નામ લખવાથી પણ વાપરવાની છૂટ મળતી નથી.",
+      story: "કયા સમાચારનો વીડિયો", own: "— મથાળું જાતે લખો —", headline: "વીડિયો પરનું મથાળું", credit: "વીડિયો કોણે લીધો", creditDefault: "કેપિટલ ક્રાંતિ",
+      video: "વીડિયો (ફોનમાંથી)", permission: "આ વીડિયો અમે જાતે લીધો છે, અથવા તેને વાપરવાની અમને લેખિત છૂટ છે.", send: "વીડિયો મોકલો",
+      uploading: "અપલોડ થાય છે… {pc}%", done: "વીડિયો મળ્યો: રીલ બને છે, થોડી મિનિટમાં અહીં દેખાશે.", failed: "વીડિયો ન મોકલાયો; ફરી પ્રયાસ કરો",
+      day: "આજના વીડિયો (૧૦) પૂરા થયા; કાલે મોકલો.", type: "આ ફાઇલ વીડિયો નથી (MP4 કે MOV મોકલો).", big: "વીડિયો ૩૦૦ MBથી મોટો છે; ટૂંકો કરીને મોકલો.",
+      needVideo: "વીડિયો પસંદ કરો.", needHeadline: "મથાળું લખો કે સમાચાર પસંદ કરો.", needOwn: "વીડિયો તમારો છે કે વાપરવાની છૂટ છે તે ખાતરી કરો (ખાનું ટિક કરો).",
+    } satisfies ClipWords,
+    clipMaking: "રીલ બની રહી છે: થોડી મિનિટમાં અહીં દેખાશે.", clipPost: "ઇન્સ્ટાગ્રામ પર મૂકો", clipSkip: "આ રીલ ન મૂકો", clipBy: (n: string) => `${n}એ મોકલ્યો`,
   },
   en: {
     title: "Instagram",
@@ -63,6 +74,15 @@ const WORDS = {
     tiers: "Sets for which sections", save: "Save",
     log: "What happened: every step (log)",
     working: "Working…", posting: "Posting…", asking: "Asking…", saving: "Saving…",
+    clip: {
+      title: "A Reel from your video", help: "Choose a video you or our reporter filmed: the story's headline, “Capital Kranti” and “Video: …” go over it and it becomes a Reel (2 to 5 minutes, the first 90 seconds), with its own sound. Don't use other papers' or channels' videos: naming them doesn't give permission to use them.",
+      story: "Which story is it for", own: "— write the headline yourself —", headline: "The headline on the video", credit: "Who filmed it", creditDefault: "કેપિટલ ક્રાંતિ",
+      video: "The video (from the phone)", permission: "We filmed this video ourselves, or have written permission to use it.", send: "Send the video",
+      uploading: "Uploading… {pc}%", done: "Video received: the Reel is being made and shows here in a few minutes.", failed: "The video wasn't sent; try again",
+      day: "Today's videos (10) are used; send it tomorrow.", type: "This file isn't a video (send an MP4 or MOV).", big: "The video is over 300 MB; send a shorter one.",
+      needVideo: "Choose a video.", needHeadline: "Write a headline or pick a story.", needOwn: "Confirm the video is yours or you may use it (tick the box).",
+    } satisfies ClipWords,
+    clipMaking: "The Reel is being made: it shows here in a few minutes.", clipPost: "Post on Instagram", clipSkip: "Don't post this Reel", clipBy: (n: string) => `sent by ${n}`,
   },
 };
 
@@ -70,9 +90,10 @@ const WORDS = {
 const clock = (iso: string, lang: "gu" | "en") => timeName(new Date(new Date(iso).getTime() + 5.5 * 3600_000).toISOString().slice(11, 16), lang);
 const list = (xs: string[], and: string) => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")}${and}${xs.at(-1)}` : xs[0] ?? "");
 
-export default function Insta({ lang, sets, settings, ask, news, progress, who, page, logs }: {
+export default function Insta({ lang, sets, settings, ask, news, progress, who, page, logs, clips = [], stories = [] }: {
   lang: "gu" | "en"; sets: InstaSet[]; settings: InstaSettings; ask: InstaAsk | null; news: InstaNews | null; progress: InstaProgress | null;
   who: { name: string } | { why: string } | null; page: { name: string } | { why: string } | null; logs: InstaLogLine[];
+  clips?: Clip[]; stories?: { id: string; headline: string }[];
 }) {
   const w = WORDS[lang];
   const nn = (x: number) => (lang === "gu" ? num(x, "gu") : String(x));
@@ -86,7 +107,10 @@ export default function Insta({ lang, sets, settings, ask, news, progress, who, 
   // a set up in one place but not the other says so, not just "not posted"
   const stateName = (x: InstaSet) => going(x) ? w.going
     : x.state === "failed" && x.postUrl ? w.igOnly : x.state === "failed" && x.fbUrl ? w.fbOnly : w[x.state as "waiting"];
-  const busy = !!ask || !!working || current.some((x) => x.state === "making" || going(x));
+  const clipGoing = (c: Clip) => c.state === "approved" && !!c.postedAt && Date.now() - new Date(c.postedAt).getTime() < POSTING_MS;
+  const clipsNow = clips.filter((c) => ["making", "waiting", "approved", "failed"].includes(c.state) && (c.reel || c.state === "making"));
+  const clipsUp = clips.filter((c) => c.state === "posted" && c.reelUrl).slice(0, 3);
+  const busy = !!ask || !!working || current.some((x) => x.state === "making" || going(x)) || clipsNow.some((c) => c.state === "making" || clipGoing(c));
   const bar = working && (
     <div className={s.progress}>
       <progress max={working.total} value={working.done} />
@@ -127,6 +151,36 @@ export default function Insta({ lang, sets, settings, ask, news, progress, who, 
           </form>
         )}
         {news && !ask && Date.now() - new Date(news.at).getTime() < 6 * 3600_000 && <p className={s.when}>{w.lastAsk(clock(news.at, lang))} {news.text}</p>}
+      </div>
+
+      <div className={s.card}>
+        <h3>{w.clip.title}</h3>
+        <ClipForm w={w.clip} stories={stories} lang={lang} />
+        {clipsNow.map((c) => (
+          <article key={c.id} className={s.reel}>
+            {c.reel ? <video src={c.reel} controls playsInline preload="metadata" width={180} height={320} /> : null}
+            <div>
+              <p className={s.tag}>{c.headline} · {clipGoing(c) ? w.going : c.state === "making" ? w.clipMaking : w[c.state as "waiting"]} · {w.clipBy(c.by)}</p>
+              {c.note && <p className={c.state === "failed" ? s.why : s.help}>{c.note}</p>}
+              {c.reel && c.state !== "making" && !clipGoing(c) && <>
+                <details className={s.more}><summary>{w.caption}</summary>
+                  <form className={s.form} action={captionClip.bind(null, c.id)}>
+                    <textarea name="caption" rows={8} maxLength={2200} defaultValue={c.caption} aria-label={w.caption} />
+                    <Press className={s.small} busy={w.saving}>{w.saveCaption}</Press>
+                  </form>
+                </details>
+                <div className={s.buttons}>
+                  <form action={approveClip.bind(null, c.id)}><Press className={s.yes} busy={w.posting}>{w.clipPost}</Press></form>
+                  <details className={s.confirm}><summary>{w.clipSkip}</summary>
+                    <form action={skipClip.bind(null, c.id)}><Press className={s.no} busy={w.working}>{w.sure}</Press></form></details>
+                </div>
+              </>}
+            </div>
+          </article>
+        ))}
+        {clipsUp.length > 0 && <ul className={s.runs}>{clipsUp.map((c) => (
+          <li key={c.id}><span>{c.headline}</span><a href={c.reelUrl!} target="_blank" rel="noopener">{w.reelSee}</a></li>
+        ))}</ul>}
       </div>
 
       {current.length ? current.map((set) => (

@@ -38,7 +38,7 @@ export const firstLine = (words: string) => words.split("\n")[0].trim();
 /** The set's post if it's on the account already, found by its first line among the latest posts since the set was
  *  made: its address, else null. 15 Nov: a set went up on Instagram but the site stopped waiting before Instagram
  *  answered (the button's minute), so the editor page said it wasn't up, and pressed again it would go up twice. */
-export async function findPosted(set: InstaSet, reel = false): Promise<string | null> {
+export async function findPosted(set: Pick<InstaSet, "caption" | "madeAt">, reel = false): Promise<string | null> {
   if (!instagramOn() || !set.caption) return null;
   const j = await call("GET", `${process.env.INSTAGRAM_USER_ID!}/media`, { fields: "caption,permalink,timestamp,media_product_type", limit: "15" });
   const since = new Date(set.madeAt).getTime() - 60_000;
@@ -49,9 +49,9 @@ export async function findPosted(set: InstaSet, reel = false): Promise<string | 
   return hit ? hit.permalink || "https://www.instagram.com/" : null;
 }
 
-/** Puts the set's Reel up (engine/reel.ts), shown in the feed too, with the set's words: its address on Instagram. Not
+/** Puts the set's Reel up (engine/reel.ts), or a Reel from the paper's own video (lib/clips.ts), shown in the feed too, with its words: its address on Instagram. Not
  *  twice: a Reel already on the account isn't sent again. Instagram fetches the video from the site (app/media). */
-export async function postReel(set: InstaSet, say: (line: string) => Promise<void> = async () => {}): Promise<string> {
+export async function postReel(set: Pick<InstaSet, "reel" | "caption" | "madeAt">, say: (line: string) => Promise<void> = async () => {}): Promise<string> {
   if (!instagramOn()) throw new Error("Instagram isn't connected yet");
   if (!set.reel) throw new Error("the set has no Reel");
   const user = process.env.INSTAGRAM_USER_ID!;
